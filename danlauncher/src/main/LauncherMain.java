@@ -761,7 +761,7 @@ public final class LauncherMain {
         dbtable.setTabSelection(currentTab);
 
         // special actions
-        if (currentTab.equals("CALLGRAPH")) {
+        if (currentTab.equals(PanelTabs.CALLGRAPH.toString())) {
           callGraph.updateCallGraph(graphMode, false);
         } else if (currentTab.equals(PanelTabs.COMPGRAPH.toString())) {
           importGraph.updateCallGraph();
@@ -2322,9 +2322,7 @@ public final class LauncherMain {
       return -1;
     }
     
-    // remove any loaded janalyzer graph, since the old one may not match the new jar.
-    // also, disable the janalyzer graph Save button, since there is no graph now.
-    importGraph.clearGraph();
+    // disable the janalyzer graph Save button, since there is no graph now.
     getMenuItem("MENU_SAVE_JGRAPH").setEnabled(false);
 
     // clear out the symbolic parameter list and the history list for bytecode viewer

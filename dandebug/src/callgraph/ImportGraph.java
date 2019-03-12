@@ -74,6 +74,9 @@ public class ImportGraph {
   }
 
   public void addMethodEntry(String fullname, ArrayList<String> parents) {
+      if (fullname.startsWith("L")) {
+        fullname = fullname.substring(1);
+      }
       ImportMethod entry = new ImportMethod(fullname);
       entry.parent.addAll(parents);
       graphMethList.add(entry);
@@ -100,6 +103,7 @@ public class ImportGraph {
   }
   
   public void clearGraph() {
+    printCommandMessage("ImportGraph: clearGraph");
     callGraph = null;
     graphComponent = null;
 
@@ -133,7 +137,7 @@ public class ImportGraph {
     // add color to specified method block
     if (callGraph != null && !graphMethList.isEmpty()) {
       // Janalyzer keeps the "L" entry in the method name, but the received method name does not
-      ImportMethod node = findMethodEntry("L" + methcall);
+      ImportMethod node = findMethodEntry(methcall);
       if (node != null) {
         callGraph.colorVertex(node, "6666FF"); // set color to blue
         return true;
@@ -142,7 +146,7 @@ public class ImportGraph {
       // ignore the <clinit>methods - they are not included in the methods provided by Janalyzer.
       // Also some <init> methods are excluded if they are only initializing parameters.
       if (!methcall.contains("<clinit>") && !methcall.contains("<init>")) {
-        System.err.println("Method not found: " + methcall);
+        System.err.println("ImportGraph: Method not found: " + methcall);
       }
     }
     return false;
@@ -164,9 +168,8 @@ public class ImportGraph {
       return;
     }
 
-    printStatus("saving: " + graphMethList.size() + " methods");
-
     // convert to json and save to file
+    printStatus("ImportGraph.saveAsJSONFile: " + graphMethList.size() + " methods");
     GsonBuilder builder = new GsonBuilder();
     builder.setPrettyPrinting().serializeNulls();
     //builder.excludeFieldsWithoutExposeAnnotation().create();
@@ -201,7 +204,7 @@ public class ImportGraph {
 		Gson gson = builder.create();
     Type methodListType = new TypeToken<List<ImportMethod>>() {}.getType();
     graphMethList = gson.fromJson(br, methodListType);
-    printCommandMessage("loaded: " + graphMethList.size() + " methods");
+    printCommandMessage("ImportGraph.loadFromJSONFile: " + graphMethList.size() + " methods");
 
     // draw the new graph on seperate pane
     clearGraph();
@@ -217,6 +220,7 @@ public class ImportGraph {
   }
   
   public void saveAsImageFile(File file) {
+    printStatus("ImportGraph.saveAsImageFile: " + graphMethList.size() + " methods");
     BufferedImage bi = new BufferedImage(graphPanel.getSize().width,
         graphPanel.getSize().height, BufferedImage.TYPE_INT_ARGB); 
     Graphics graphics = bi.createGraphics();
@@ -322,7 +326,7 @@ public class ImportGraph {
   private void drawCallGraph(List<ImportMethod> methList) {
     callGraph = new BaseGraph<>();
 
-    printCommandMessage("drawCallGraph: Methods = " + methList.size());
+    printCommandMessage("ImportGraph.drawCallGraph: Methods = " + methList.size());
 
     // add vertexes to graph
     for(ImportMethod mthNode : methList) {
