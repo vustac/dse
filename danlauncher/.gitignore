@@ -1,0 +1,7 @@
+bin/**
+build/**
+dist/**
+nbproject/private/**
+.danlauncher/**
+*.log
+
