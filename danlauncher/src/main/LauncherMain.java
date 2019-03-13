@@ -2320,7 +2320,8 @@ public final class LauncherMain {
     if (!fileCheck(projectPathName + projectName) ||
         !fileCheck(dsePath + "/danalyzer/dist/danalyzer.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/commons-io-2.5.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/asm-all-5.2.jar")) {
+        !fileCheck(dsePath + "/danalyzer/lib/asm-7.2.jar") ||
+        !fileCheck(dsePath + "/danalyzer/lib/asm-tree-7.2.jar")) {
       return -1;
     }
     
