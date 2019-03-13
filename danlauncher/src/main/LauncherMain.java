@@ -713,6 +713,8 @@ public final class LauncherMain {
   private class Window_MainListener extends java.awt.event.WindowAdapter {
     @Override
     public void windowClosing(java.awt.event.WindowEvent evt) {
+      printCommandMessage("Closing danlauncher...");
+      
       // close up services
       enableUpdateTimers(false);
       if (networkListener != null) {
@@ -2333,7 +2335,7 @@ public final class LauncherMain {
     bytecodeViewer.clear();
     bytecodeGraph.clear();
     clearDebugLogger();
-    if (clearSolutionsOnStartup) {
+    if (clearSolutionsOnStartup && solverConnection.isValid()) {
       solverConnection.sendClearAll();
     }
 
@@ -2462,7 +2464,7 @@ public final class LauncherMain {
     
     // clear out the debugger so we don't add onto existing call graph
     clearDebugLogger();
-    if (clearSolutionsOnRun) {
+    if (clearSolutionsOnRun && solverConnection.isValid()) {
       solverConnection.sendClearAll();
     }
 
