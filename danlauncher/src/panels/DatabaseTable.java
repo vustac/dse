@@ -82,6 +82,7 @@ public class DatabaseTable {
   private static MongoClient                 mongoClient;
   private static MongoDatabase               database;
   private static MongoCollection<Document>   collection;
+  private static boolean  mongoFailure;
 
   
   private static class DatabaseInfo {
@@ -194,6 +195,7 @@ public class DatabaseTable {
     mongoClient = MongoClients.create();
     database = mongoClient.getDatabase("mydb");
     collection = database.getCollection("dsedata");
+    mongoFailure = false;
     
     // init the params
     bSortOrder = false;
@@ -293,6 +295,10 @@ public class DatabaseTable {
   }
   
   public static void readDatabase() {
+    if (mongoFailure) {
+      return;
+    }
+    
     try {
       // read data base for solutions to specified parameter that are solvable
       FindIterable<Document> iterdocs = collection.find() //(Bson) new BasicDBObject("solvable", true))
@@ -305,6 +311,7 @@ public class DatabaseTable {
       }
     } catch (MongoTimeoutException ex) {
       LauncherMain.printStatusError("Mongo Timeout - make sure mongodb is running.");
+      mongoFailure = true;
     }
   }
   
