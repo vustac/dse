@@ -10,6 +10,7 @@ import gui.GuiControls;
 import util.Utils;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.MongoTimeoutException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -292,14 +293,18 @@ public class DatabaseTable {
   }
   
   public static void readDatabase() {
-    // read data base for solutions to specified parameter that are solvable
-    FindIterable<Document> iterdocs = collection.find() //(Bson) new BasicDBObject("solvable", true))
-        .sort((Bson) new BasicDBObject("_id", -1)); // sort in descending order (oldest first)
+    try {
+      // read data base for solutions to specified parameter that are solvable
+      FindIterable<Document> iterdocs = collection.find() //(Bson) new BasicDBObject("solvable", true))
+          .sort((Bson) new BasicDBObject("_id", -1)); // sort in descending order (oldest first)
 
-    dbList.clear();
-    for (Document doc : iterdocs) {
-      DatabaseInfo entry = new DatabaseInfo(doc);
-      dbList.add(entry);
+      dbList.clear();
+      for (Document doc : iterdocs) {
+        DatabaseInfo entry = new DatabaseInfo(doc);
+        dbList.add(entry);
+      }
+    } catch (MongoTimeoutException ex) {
+      LauncherMain.printStatusError("Mongo Timeout - make sure mongodb is running.");
     }
   }
   
