@@ -1884,10 +1884,9 @@ public class Executor {
     Value value = currentStackFrame.popValue();
     assertValueNonNull(value, opcode, "value");
 
-    currentStackFrame.storeLocalVariable(index, value);
-
     // if the ref type is really an array, don't replace with symbolic
     if (value.isType(Value.MARY | Value.ARY)) {
+      currentStackFrame.storeLocalVariable(index, value);
       return;
     }
       
@@ -1919,6 +1918,9 @@ public class Executor {
         }
       }
     }
+
+    // update the local param
+    currentStackFrame.storeLocalVariable(index, value);
 
     // if reference type, add entry to concrete list
     if (value.isType(Value.REF) && value.getValue() != null) {
