@@ -22,16 +22,25 @@ public class SimpleServer extends NanoHTTPD {
 
   @Override
   public Response serve(IHTTPSession session) {
+    String res = "<html><body>";
     Map<String, String> parms = session.getParms();
-    String res;
-    String a = parms.get("a");
-    String b = parms.get("b");
-    if (a != null && b != null) {
-      int i_a = Integer.parseInt(a);
-      int i_b = Integer.parseInt(b);
-      res = getResponse(i_a, i_b);
-    } else {
-      res = "<html><body><h1>Missing arguments!</h1>\n";
+    try {
+      session.parseBody(parms);
+      //Method method = session.getMethod();
+      //String postBody = session.getQueryParameterString();
+      //System.out.println("type: " + method.toString() + ", body: " + postBody);
+      
+      String a = parms.get("a");
+      String b = parms.get("b");
+      if (a != null && b != null) {
+        int i_a = Integer.parseInt(a);
+        int i_b = Integer.parseInt(b);
+        res = getResponse(i_a, i_b);
+      } else {
+        res += "<h1>Missing arguments!</h1>\n";
+      }
+    } catch (IOException | ResponseException ex) {
+      res += "<h1>IOException</h1>\n";
     }
 
     return newFixedLengthResponse(res + "</body></html>\n");
@@ -42,7 +51,7 @@ public class SimpleServer extends NanoHTTPD {
      if (a != 0) {
        y = 3 + x;
        if (b == 0)
-	 x = 2 * (a + b);
+       x = 2 * (a + b);
      }
      if (x - y == 0)
        return "Error!";
