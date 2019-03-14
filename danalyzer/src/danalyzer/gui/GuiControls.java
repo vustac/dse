@@ -954,7 +954,7 @@ public class GuiControls {
 
   /**
    * This creates a JScrollPane containing a JList of Strings (does not place it in container).
-   * A List of String entries is passed to it that can be manipulated (adding & removing entries
+   * A List of String entries is passed to it that can be manipulated (adding and removing entries
    * that will be automatically reflected in the scroll pane.
    * 
    * @param name    - the name id of the component

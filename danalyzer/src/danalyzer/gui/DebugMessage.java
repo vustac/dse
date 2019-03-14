@@ -305,8 +305,8 @@ public class DebugMessage {
    * and will preceed the message with a timestamp value and terminate with a newline.
    * 
    * @param type    - the destination to verify
-   * @param address
-   * @param port
+   * @param address - address of host to send message to
+   * @param port    - port to send to
    * @return 0 if successful, 1 if not
    */
   public static final int outputCheck(String type, String address, int port) {

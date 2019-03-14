@@ -28,6 +28,8 @@ public class StackFrame {
    *
    * @param fullName - full name of the method in which the stack is used
    * @param maxLocals - the max number of locals for the method
+   * @param tid - thread id
+   * @param executionStackSize - size (in bytes) to make stack
    */
   public StackFrame(String fullName, int maxLocals, int tid, int executionStackSize) {
     /* ----------debug head--------- *@*/
