@@ -961,7 +961,11 @@ DanHelper::LeaveMethod(jvmtiEnv *jvmti, JNIEnv *jni, jthread thread,
   bool caller_instr = false;
   if (!tdata->mInstrStack.empty()) {
     tdata->mInstrStack.pop_back();
+    if (tdata->mInstrStack.empty()) {
+      caller_instr = false;
+    } else {
     caller_instr = tdata->mInstrStack.back();
+    }
   }
 
   // exit if neither method nor its caller is instrumented
