@@ -2358,7 +2358,8 @@ public final class LauncherMain {
     String mainclass = "danalyzer.instrumenter.Instrumenter";
     String classpath = dsePath + "/danalyzer/dist/danalyzer.jar";
     classpath += ":" + dsePath + "/danalyzer/lib/commons-io-2.5.jar";
-    classpath += ":" + dsePath + "/danalyzer/lib/asm-all-5.2.jar";
+    classpath += ":" + dsePath + "/danalyzer/lib/asm-7.2.jar";
+    classpath += ":" + dsePath + "/danalyzer/lib/asm-tree-7.2.jar";
     classpath += ":" + localpath;
 
     // remove any existing class and javap files in the location of the jar file
@@ -2476,7 +2477,8 @@ public final class LauncherMain {
         !fileCheck(dsePath + "/danalyzer/dist/danalyzer.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/com.microsoft.z3.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/commons-io-2.5.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/asm-all-5.2.jar") ||
+        !fileCheck(dsePath + "/danalyzer/lib/asm-7.2.jar") ||
+        !fileCheck(dsePath + "/danalyzer/lib/asm-tree-7.2.jar") ||
         !fileCheck(dsePath + "/danhelper/libdanhelper.so")) {
       return;
     }
@@ -2511,7 +2513,8 @@ public final class LauncherMain {
     String agentpath ="-agentpath:" + dsePath + "/danhelper/libdanhelper.so";
     String classpath = instrJarFile
               + ":" + dsePath + "/danalyzer/lib/commons-io-2.5.jar"
-              + ":" + dsePath + "/danalyzer/lib/asm-all-5.2.jar"
+              + ":" + dsePath + "/danalyzer/lib/asm-7.2.jar"
+              + ":" + dsePath + "/danalyzer/lib/asm-tree-7.2.jar"
               + ":" + localpath;
 
     printStatusMessage("Run command started...");
