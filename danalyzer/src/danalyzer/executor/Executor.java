@@ -464,20 +464,21 @@ public class Executor {
       }
       
       /* ----------debug head--------- *@*/
-      debugPrintWarning(threadId, "Symbolic array being loaded!");
+      DebugUtil.debugPrintWarning(threadId, "Symbolic array being loaded!");
       // ----------debug tail---------- */
         
       Value[] combo = getArrayCombo(val, type);
       Value[] array = (Value[]) combo[0].getValue();
+      int eltype = array[0].getType();
       int size = (Integer) combo[1].getValue();
       for (int ix = 0; ix < size; ix++) {
-        Value element = array[ix];
-        expr = Util.getExpression(element, z3Context);
-        array[ix] = new Value(expr, Value.SYM | element.getType());
+        // this will name each entry in the array by the name of the array folowed by "_N", where
+        // N is the array index value.
+        array[ix] = makeSymbolicPrimitive(entry.id + "_" + ix, eltype, z3Context);
       }
 
       /* ----------debug head--------- *@*/
-      debugPrintWarning(threadId, "Array replaced with symbolic entries, size = " + size);
+      DebugUtil.debugPrintWarning(threadId, "Array replaced with symbolic entries, size = " + size);
       // ----------debug tail---------- */
           
       // TODO: this will not return a SYM type to the caller because it is the elements
@@ -494,30 +495,7 @@ public class Executor {
     }
 
     // else, determine type of symbolic value
-    switch(type) {
-      case Value.DBL:
-      case Value.FLT:
-        symValue = new Value(makeFloat(entry.id), Value.SYM | type);
-        break;
-      case Value.CHR:
-      case Value.BLN:
-      case Value.INT8:
-      case Value.INT16:
-      case Value.INT32:
-      case Value.INT64:
-        symValue = new Value(makeLong(entry.id, type), Value.SYM | type);
-        break;
-      case Value.STR:
-        expr = z3Context.mkConst(entry.id, z3Context.getStringSort());
-        symValue = new Value(expr, Value.SYM | type);
-        break;
-      case Value.REF:
-        expr = z3Context.mkString(entry.id);
-//        expr = Util.getExpression(val, z3Context);
-        symValue = new Value(expr, Value.SYM | type);
-        break;
-    }
-
+    symValue = makeSymbolicPrimitive(entry.id, type, z3Context);
     if (symValue != null) {
       // apply the fixed constraints for integer types
       applyFixedIntegerConstraints(symValue, type);
@@ -1373,6 +1351,36 @@ public class Executor {
     return z3Context.mkRealConst(name);
   }
 
+  private Value makeSymbolicPrimitive(String paramName, int type, Context z3Context) {
+    Value symValue = null;
+    com.microsoft.z3.Expr expr;
+    switch(type) {
+      case Value.DBL:
+      case Value.FLT:
+        symValue = new Value(makeFloat(paramName), Value.SYM | type);
+        break;
+      case Value.CHR:
+      case Value.BLN:
+      case Value.INT8:
+      case Value.INT16:
+      case Value.INT32:
+      case Value.INT64:
+        symValue = new Value(makeLong(paramName, type), Value.SYM | type);
+        break;
+      case Value.STR:
+        expr = z3Context.mkConst(paramName, z3Context.getStringSort());
+        symValue = new Value(expr, Value.SYM | type);
+        break;
+      case Value.REF:
+        expr = z3Context.mkString(paramName);
+//        expr = Util.getExpression(val, z3Context);
+        symValue = new Value(expr, Value.SYM | type);
+        break;
+    }
+    
+    return symValue;
+  }
+  
   private void addArrayIndexConstraints(BitVecExpr index, int length, int opcodeOffset) {
     BitVecExpr symLen = z3Context.mkBV(length, 32);
     BitVecExpr symZero = z3Context.mkBV(0, 32);
@@ -1739,7 +1747,7 @@ public class Executor {
     if (!symbolicMap.isEmpty() && symbolicMap.containsKey(mtdName)) {
       Value symbolicVal = getInitialSymbolicParam(mtdName, index, val.getType(), opline, val);
       if (symbolicVal != null) {
-        if (val.isType(Value.ARY)) {
+        if (val.isType(Value.ARY | Value.MARY)) {
           // symbolic array
           currentStackFrame.pushValue(val);
         } else {
@@ -1758,6 +1766,7 @@ public class Executor {
       val = new Value(objCnt, Value.REF);
       currentStackFrame.storeLocalVariable(index, val);
     }
+
     currentStackFrame.pushValue(val);
   }
   
@@ -1917,24 +1926,24 @@ public class Executor {
           value = symValue;
         }
       }
+    } else {
+      // not symbolic, if it is reference type, add entry to concrete list
+      if (value.isType(Value.REF) && value.getValue() != null) {
+        // verify the index entry is an Integer type
+        assertUnsignedIntValue(value, opcode, "objectMap index");
+        int objCnt = (Integer)value.getValue();
+        boolean added = ExecWrapper.putConcreteObject(conObject, objCnt);
+
+        /* ----------debug head--------- *@*/
+        if (added) {
+          debugPrintObjects(threadId, "  OBJECT[" + objCnt + "] added to CONCRETE");
+        }
+        // ----------debug tail---------- */
+      }
     }
 
     // update the local param
     currentStackFrame.storeLocalVariable(index, value);
-
-    // if reference type, add entry to concrete list
-    if (value.isType(Value.REF) && value.getValue() != null) {
-      // verify the index entry is an Integer type
-      assertUnsignedIntValue(value, opcode, "objectMap index");
-      int objCnt = (Integer)value.getValue();
-      boolean added = ExecWrapper.putConcreteObject(conObject, objCnt);
-
-      /* ----------debug head--------- *@*/
-      if (added) {
-        debugPrintObjects(threadId, "  OBJECT[" + objCnt + "] added to CONCRETE");
-      }
-      // ----------debug tail---------- */
-    }
   }
   
   public void storeDouble(int index, int opline) {
