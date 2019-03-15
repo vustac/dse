@@ -3,7 +3,7 @@ package edu.vanderbilt.isis.uninstrumented_return.lib;
 public class LibReturnObject {
 
   public static Object getArrayObject() {
-    Integer[] obj = { 10, 20, 30, 40, 50 };
+    String[] obj = { "a", "b", "c", "d", "e" };
     return obj;
   }
 

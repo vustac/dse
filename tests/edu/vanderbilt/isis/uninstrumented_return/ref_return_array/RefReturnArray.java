@@ -5,17 +5,16 @@ import edu.vanderbilt.isis.uninstrumented_return.lib.LibReturnObject;
 public class RefReturnArray {
 
   public static void testReturn() {
-    Integer[] arr = (Integer[]) LibReturnObject.getArrayObject();
+    String[] arr = (String[]) LibReturnObject.getArrayObject();
 
     int index = 0;
-    int value = arr[index];
-    System.out.println("arr[0] = " + value);
+    String value = arr[index];
+    //System.out.println("arr[0] = " + value);
 
-    if (value == 10)
-      System.out.println("Concrete!");
-    else
+    if (value.equals("c"))
       System.out.println("Symbolic!");
-
+    else
+      System.out.println("Concrete!");
   }
  
   public static void main(String[] args) {
