@@ -2479,7 +2479,7 @@ public final class LauncherMain {
         !fileCheck(dsePath + "/danalyzer/lib/commons-io-2.5.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/asm-7.2.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/asm-tree-7.2.jar") ||
-        !fileCheck(dsePath + "/danhelper/libdanhelper.so")) {
+        !fileCheck(dsePath + "/danhelper/" + System.mapLibraryName("danhelper"))) {
       return;
     }
     
@@ -2510,7 +2510,7 @@ public final class LauncherMain {
     String bootcpath ="-Xbootclasspath/a"
               + ":" + dsePath + "/danalyzer/dist/danalyzer.jar"
               + ":" + dsePath + "/danalyzer/lib/com.microsoft.z3.jar";
-    String agentpath ="-agentpath:" + dsePath + "/danhelper/libdanhelper.so";
+    String agentpath ="-agentpath:" + dsePath + "/danhelper/" + System.mapLibraryName("danhelper");
     String classpath = instrJarFile
               + ":" + dsePath + "/danalyzer/lib/commons-io-2.5.jar"
               + ":" + dsePath + "/danalyzer/lib/asm-7.2.jar"
