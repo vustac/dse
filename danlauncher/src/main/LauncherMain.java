@@ -2399,7 +2399,7 @@ public final class LauncherMain {
         
       // instrument the jar file
       printCommandMessage("Instrumenting stripped file: " + outputName);
-      String[] command = { "java", "-cp", classpath, mainclass, outputName };
+      String[] command = { "java", "-cp", classpath, mainclass, outputName, "1" };
       retcode = commandLauncher.start(command, projectPathName);
       if (retcode == 0) {
         printStatusMessage("Instrumentation successful");

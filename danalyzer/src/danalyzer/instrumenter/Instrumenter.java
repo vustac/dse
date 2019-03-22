@@ -44,26 +44,9 @@ public class Instrumenter {
   
   private static final String NEWLINE = System.getProperty("line.separator");
 
-  private static final String STRING_EQUALS_METHOD = "java/lang/String.equals(Ljava/lang/Object;)Z";
-  private static final String STRING_LENGTH_METHOD = "java/lang/String.length()I";    
-  private static final String STRING_SUBSTRING_METHOD = 
-      "java/lang/String.substring(I)Ljava/lang/String;";
-    
-  private static final String[] STRING_METHOD_VALUES = new String[] { STRING_EQUALS_METHOD,
-      STRING_LENGTH_METHOD, STRING_SUBSTRING_METHOD };
-    
-  private static final HashSet<String> STRING_METHODS = 
-      new HashSet<>(Arrays.asList(STRING_METHOD_VALUES));
-
-  // this is a list of the methods that we can define symbolic value for its return value
-  private static final String[] SYMBOLIC_METHOD_VALUES = new String[] {
-    "BufferedImage.getRGB(II)I",
-  };
-
-  // this contains the set of methods in which we are replacing with symbolic values
-  private static final HashSet<String> SYMBOLIC_METHODS = new HashSet<>();
-    
   private static final ArrayList<String> unimplementedCommands = new ArrayList<>();
+  
+  private static boolean maximizeLoopBounds = false;
   
   public static void main(String[] args) {
     if (args.length == 0) {
@@ -73,26 +56,12 @@ public class Instrumenter {
     
     String path = args[0];
     if (!path.endsWith(".jar")) {
-      System.err.println("File to instrument was not jar file: " + path);
-      System.exit(0);
+      System.err.println("File to instrument was not a jar file: " + path);
+      System.exit(1);
     }
 
     if (args.length > 1) {
-      File file = new File(args[1]);
-      try {
-        BufferedReader in = new BufferedReader(new FileReader(file));
-        String line;
-        while ((line = in.readLine()) != null) {
-          String methName = line.trim();
-          addSymbolicMethod(methName);
-        }
-      } catch (FileNotFoundException ex) {
-        System.err.println("Method list file not found: " + file.getAbsolutePath());
-        System.exit(0);
-      } catch (IOException ex) {
-        System.err.println(ex.getMessage());
-        System.exit(0);
-      }
+      maximizeLoopBounds = true;
     }
     
     Map<String, ClassNode> clsNodeMap = Reader.readClasses(path);
@@ -100,19 +69,6 @@ public class Instrumenter {
     Writer.writeClasses(path, clsNodeMap.values());
   }
 
-  public static void addSymbolicMethod(String methName) {
-    for (int ix = 0; ix < SYMBOLIC_METHOD_VALUES.length; ix++) {
-      if (SYMBOLIC_METHOD_VALUES[ix].equals(methName)) {
-        if (!SYMBOLIC_METHODS.contains(methName)) {
-          SYMBOLIC_METHODS.add(methName);
-          System.out.println("Added symbolic method: " + methName);
-        }
-        return;
-      }
-    }
-    System.err.println("Symbolic method not found: " + methName);
-  }
-  
 //  private static boolean isSymbolicMethod(String methName, InsnList instruction) {
 //    Iterator<String> it = SYMBOLIC_METHODS.iterator();
 //    while (it.hasNext()) {
@@ -207,6 +163,21 @@ public class Instrumenter {
     instrument.add(new LdcInsnNode(methName));
     instrument.add(execute("invoke", "(" + strType + "Ljava/lang/String;Ljava/lang/String;)V"));
   }
+  
+  private static boolean headerInstruction(Set<LoopIdentifier.Node> nodes, AbstractInsnNode insn) {
+    if (!maximizeLoopBounds)
+      return false;
+    
+    for (LoopIdentifier.Node headerNode : nodes) {
+      List<AbstractInsnNode> instructions = headerNode.getInstructionList();
+      for (AbstractInsnNode absInsn : instructions) {
+        if (absInsn.equals(insn))
+          return true;
+      }
+    }
+    
+    return false;
+  }
 
   public static void instrumentClasses(Map<String, ClassNode> clsNodeMap) {
     int classCount = 0;
@@ -271,6 +242,9 @@ public class Instrumenter {
         int thisLine = -1;
         int methLine = -1;
         int byteOffset = 0; // byte offset from start of method
+        
+        LoopIdentifier loopIdentifier = new LoopIdentifier(mtdNode);
+        Set<LoopIdentifier.Node> loopHeaders = loopIdentifier.getLoopHeaderSet();
         
         InsnList instList = mtdNode.instructions;
         Iterator<AbstractInsnNode> absInstNodeIter = instList.iterator();
@@ -799,7 +773,12 @@ public class Instrumenter {
               // this adds in the method and byte offset associated with the if statement
               fore.add(new LdcInsnNode(byteOffset));
               fore.add(new LdcInsnNode(fullName));
-              fore.add(execute("compareIntegerICMPGE", "(IIILjava/lang/String;)V"));  
+              if (headerInstruction(loopHeaders, absInstNode)) {
+                fore.add(execute("maxCompareIntegerICMPGE", "(IIILjava/lang/String;)V"));  
+                System.out.println("Found max instruction!");
+              }
+              else 
+                fore.add(execute("compareIntegerICMPGE", "(IIILjava/lang/String;)V"));  
               break;
             case Opcodes.IF_ICMPGT:
               fore.add(new InsnNode(Opcodes.DUP2));

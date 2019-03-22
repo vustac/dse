@@ -841,6 +841,11 @@ public class ExecWrapper {
     if (exec != null) exec.compareIntegerLessThan("IF_ICMPGE", con1, con2, line, method);
   }
   
+  public static void maxCompareIntegerICMPGE(int con1, int con2, int line, String method) {
+    Executor exec = getExecSelect();
+    if (exec != null) exec.maxCompareIntegerLessThan("IF_ICMPGE", con1, con2, line, method);
+  }
+  
   public static void compareFloatGreater() {
     Executor exec = getExecSelect();
     if (exec != null) exec.compareFloatGreater("FCMPG");

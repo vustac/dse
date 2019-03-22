@@ -4043,6 +4043,55 @@ public class Executor {
     solvePC(threadId, line, pathsel);
   }
   
+  public void maxCompareIntegerLessThan(String opcode, int con1, int con2, int line, String method) {
+    /* ----------debug head--------- *@*/
+    debugPrintCommand(threadId, opcode + " - maxCompareIntegerLessThan", con1, con2);
+    // ----------debug tail---------- */
+    
+    Value val2 = currentStackFrame.popValue();
+    Value val1 = currentStackFrame.popValue();
+    
+    boolean sym2 = val2.isType(Value.SYM);
+    boolean sym1 = val1.isType(Value.SYM);
+    
+    // get compare status
+    boolean pathsel = con1 < con2;
+
+    /* ----------debug head--------- *@*/
+    if (sym1 || sym2) {
+      debugPrintBranch(threadId, opcode + " " + pathsel + " " + line + " " + method);
+    } else {
+      debugPrintInfo(threadId, DebugUtil.BRANCH, opcode + " " + pathsel + " " + line + " " + method);
+    }
+    // ----------debug tail---------- */
+
+    if (!sym2 && !sym1) {
+      return; // ignore non-symbolic compares
+    }
+    
+    BitVecExpr expr2 = Util.getBitVector(Value.INT32, val2, z3Context);
+    BitVecExpr expr1 = Util.getBitVector(Value.INT32, val1, z3Context);
+    BoolExpr expr3 = pathsel ? z3Context.mkBVSLT(expr1, expr2) : z3Context.mkBVSGE(expr1, expr2);
+    z3Constraints.add(expr3);
+
+    /* ----------debug head--------- *@*/
+    debugPrintConstraint(threadId, "added " + opcode + " constraint: " + (pathsel ? "BVSLT" : "BVSGE")
+            + " for " + con1 + " ? " + con2);
+    // ----------debug tail---------- */
+
+    // try to maximize the loop bound if it's symbolic
+    if (sym2) {
+      z3Optimize.Push();
+      z3Optimize.MkMaximize(expr2);
+    }
+    
+    solvePC(threadId, line, pathsel);
+    
+    if (sym2) {
+      z3Optimize.Pop();
+    }
+  }
+  
   public void compareFloatGreater(String opcode) {
     /* ----------debug head--------- *@*/
     debugPrintCommand(threadId, opcode + " - compareFloatGreater");
