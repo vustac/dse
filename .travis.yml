@@ -11,7 +11,7 @@ before_install:
   - if [[ "`uname`" == "Linux" ]]; then sudo apt-get install -y git ant cmake openjdk-8-jdk g++ jq wget unzip	; fi
 
   - if [[ "`uname`" == "Darwin" ]]; then brew update						                                    ; fi
-  - if [[ "`uname`" == "Darwin" ]]; then brew install bash git ant cmake gcc jq wget unzip mongodb  ; fi
+  - if [[ "`uname`" == "Darwin" ]]; then brew install bash ant gcc jq unzip mongodb  ; fi
   - if [[ "`uname`" == "Darwin" ]]; then brew cask install java					                            ; fi
 
 script:
