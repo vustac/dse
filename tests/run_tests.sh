@@ -83,6 +83,16 @@ if [[ ${file} == "" ]]; then
   echo "FAILURE: test not found for: ${COMMAND}"
   exit 0
 fi
+
+echo "Clearing the database"
+if [[ ${TESTMODE} -ne 0 ]]; then
+  echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
+  echo
+else
+  # clear the database
+  mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
+fi
+
 extract_test ${file}
 echo "Running test '${test}'"
 
@@ -97,22 +107,23 @@ if [[ -d lib ]]; then
 fi
 
 if [[ ${TESTMODE} -ne 0 ]]; then
-  echo "strip debug info from jar file:"
+  echo "Stripping debug info from jar file:"
   echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
   echo
-  echo "instrument jar file:"
+  echo "Instrumenting jar file:"
   echo "java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
   echo
-  echo "rename instrumented file:"
+  echo "Rename instrumented file:"
   echo "mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar"
   echo
-  echo "run instrumented jar file:"
+  echo "Running instrumented jar file:"
   echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}"
 else
   # strip debug info from jar file
   pack200 -r -G ${test}-strip.jar ${test}.jar
 
   # instrument jar file
+  echo "Instrumenting jar file"
   java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
   if [[ ! -f ${test}-strip-dan-ed.jar ]]; then
     echo "FAILURE: instrumenting file: ${test}-strip.jar"
@@ -121,8 +132,10 @@ else
   mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
 
   # run instrumented jar file
+  echo "Running instrumented jar file"
   java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}
 
   # run the script to check correctness
+  echo "Checking test results"
   ./check_result.sh
 fi
