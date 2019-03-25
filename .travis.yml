@@ -16,7 +16,8 @@ before_install:
 
 script:
   - if [[ "`uname`" == "Linux"  ]]; then export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))	; fi
-  - if [[ "`uname`" == "Darwin" ]]; then echo "Original JAVA_HOME = $JAVA_HOME"; fi
+  - if [[ "`uname`" == "Darwin"  ]]; then export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-10.0.1.jdk/Contents/Home ; fi
+  - if [[ "`uname`" == "Darwin" ]]; then echo "JAVA_HOME = $JAVA_HOME"; fi
 
   - if [[ "`uname`" == "Darwin" ]]; then sudo mkdir -p /data/db;          fi
   - if [[ "`uname`" == "Darwin" ]]; then sudo chown -R `id -un` /data/db; fi
