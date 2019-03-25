@@ -160,22 +160,22 @@ Uninstrumented method returning Object that is not REF type tests:
   Command:      run_double_from_ref
   Source:       uninstrumented_return/ref_return_double/RefReturnDouble.java
   Description:  verifies a boxed Double value returned as an Object from an uninstrumented method gets converted correctly.
-  Symbolic:     edu/vanderbilt/isis/
-  Operation:    run test & 
+  Symbolic:     <none>
+  Operation:    run test & verify the value returned from LibReturnObject.getDoubleObject(index) is converted to Double correctly.
 
   Name:        RefReturnArray
   Command:      run_array_from_ref
   Source:       uninstrumented_return/ref_return_array/RefReturnArray.java
   Description:  verifies a simple array returned as an Object from an uninstrumented method gets converted correctly.
-  Symbolic:     edu/vanderbilt/isis/
-  Operation:    run test & 
+  Symbolic:     <none>
+  Operation:    run test & verify the value returned from LibReturnObject.getArrayObject(index) is converted to a String[] correctly.
 
   Name:        RefReturnMultiArray
   Command:      run_multiarray_from_ref
   Source:       uninstrumented_return/ref_return_multiarray/RefReturnMultiArray.java
   Description:  verifies a multi-dimensional array returned as an Object from an uninstrumented method gets converted correctly.
-  Symbolic:     edu/vanderbilt/isis/
-  Operation:    run test & 
+  Symbolic:     <none>
+  Operation:    run test & verify the value returned from LibReturnObject.getMultiArrayObject(index) is converted to Integer[][] correctly.
 
 -------------------------------------------------------------
 Juliet Test Suite tests:

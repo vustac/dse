@@ -44,8 +44,13 @@ function build
         mkdir -p ${LIBPATH}
       fi
       echo "Building ${LIBFILE} lib file for ${test}..."
-      javac ${path}/lib/${LIBFILE}.java
-      jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java
+      if [[ ${TESTMODE} -ne 0 ]]; then
+        echo "javac ${path}/lib/${LIBFILE}.java"
+        echo "jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java"
+      else
+        javac ${path}/lib/${LIBFILE}.java
+        jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java
+      fi
       libs="-cp .:lib/LibArrayObject.jar"
       ;;
     *)
@@ -184,5 +189,6 @@ else
     if [[ ${FAILURE} -ne 0 ]]; then
       exit 1
     fi
+    echo "------------------------------------------"
   done
 fi

@@ -1,9 +1,8 @@
 #!/bin/bash
 
 DSE_DIR=../
-DANALYZER_DIR=`pwd`/../danalyzer
-DANHELPER_DIR=`pwd`/../danhelper
-MONGO_JARS=$DANALYZER_DIR/lib/mongodb-driver-core-3.8.2.jar:$DANALYZER_DIR/lib/mongodb-driver-sync-3.8.2.jar:$DANALYZER_DIR/lib/bson-3.8.2.jar
+DANALYZER_DIR=`realpath ${DSE_DIR}danalyzer`
+DANHELPER_DIR=`realpath ${DSE_DIR}danhelper`
 
 if [[ ! -f $DANHELPER_DIR/libdanhelper.so ]]; then
   DANHELPER_DIR="${DANHELPER_DIR}/build/src"
@@ -92,20 +91,38 @@ cd results/${COMMAND}
 #echo "class: ${class}"
 #echo "test: ${test}"
 
-# strip debug info from jar file
-pack200 -r -G ${test}-strip.jar ${test}.jar
-
-# instrument jar file
-java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
-if [[ ! -f ${test}-strip-dan-ed.jar ]]; then
-  echo "FAILURE: instrumenting file: ${test}-strip.jar"
-  exit 1
+CLASSPATH=${test}-dan-ed.jar:$DANALYZER_DIR/dist/danalyzer.jar
+if [[ -d lib ]]; then
+  CLASSPATH=${CLASSPATH}:lib/*
 fi
-mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
 
-# run instrumented jar file
-java -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$MONGO_JARS -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -agentpath:$DANHELPER_DIR/libdanhelper.so -Xverify:none -cp $DANALYZER_DIR/dist/danalyzer.jar:./${test}-dan-ed.jar ${class}/${test}
+if [[ ${TESTMODE} -ne 0 ]]; then
+  echo "strip debug info from jar file:"
+  echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
+  echo
+  echo "instrument jar file:"
+  echo "java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
+  echo
+  echo "rename instrumented file:"
+  echo "mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar"
+  echo
+  echo "run instrumented jar file:"
+  echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}"
+else
+  # strip debug info from jar file
+  pack200 -r -G ${test}-strip.jar ${test}.jar
 
-# run the script to check correctness
-./check_result.sh
+  # instrument jar file
+  java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
+  if [[ ! -f ${test}-strip-dan-ed.jar ]]; then
+    echo "FAILURE: instrumenting file: ${test}-strip.jar"
+    exit 1
+  fi
+  mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
 
+  # run instrumented jar file
+  java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}
+
+  # run the script to check correctness
+  ./check_result.sh
+fi
