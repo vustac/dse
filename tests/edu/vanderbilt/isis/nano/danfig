@@ -1,0 +1,37 @@
+#! DANALYZER SYMBOLIC EXPRESSION LIST
+#
+# DEBUG SETUP
+DebugFlags: 
+DebugMode: STDOUT
+DebugPort: 5000
+IPAddress: localhost
+#
+# DEBUG TRIGGER SETUP
+TriggerOnError: 0
+TriggerOnException: 0
+TriggerOnInstr: 0
+TriggerOnCall: 0
+TriggerOnReturn: 0
+TriggerOnRefWrite: 0
+TriggerAuto: 0
+TriggerAnyMeth: 0
+TriggerClass: 
+TriggerMethod: 
+TriggerCount: 1
+TriggerRefCount: 1
+TriggerRange: 0
+TriggerInstruction: 1
+TriggerRefIndex: 0
+#
+# SOLVER INTERFACE
+SolverPort: 4000
+SolverAddress: localhost
+SolverMethod: NONE
+#
+# SYMBOLICS
+# Symbolic: <symbol_id> <method> <slot>   --OR--
+# Symbolic: <symbol_id> <method> <slot> <start range> <end range> <type>
+Symbolic: value edu/vanderbilt/isis/nano/SimpleNano.serve(Lfi/iki/elonen/NanoHTTPD$IHTTPSession;)Lfi/iki/elonen/NanoHTTPD$Response; 5 11 95 I
+#
+# CONSTRAINTS (NOTE: SYMBOLICS section must be defined prior to this section)
+# Constraint: <symbol_id>  <EQ|NE|GT|GE|LT|LE> <value>
