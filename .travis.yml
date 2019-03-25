@@ -48,6 +48,7 @@ script:
 
   - if [[ "`uname`" == "Linux"  ]]; then sudo cp z3 libz3java.so libz3.so com.microsoft.z3.jar /usr/lib;      		fi
   - if [[ "`uname`" == "Darwin" ]]; then sudo cp z3 libz3java.dylib libz3.dylib com.microsoft.z3.jar /usr/local/lib;	fi
+  - if [[ "`uname`" == "Darwin" ]]; then sudo cp z3 libz3java.dylib libz3.dylib com.microsoft.z3.jar /Library/Java/Extensions;	fi
 
   - cd ../../../dansolver
   - ant run &
