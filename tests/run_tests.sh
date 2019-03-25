@@ -15,14 +15,14 @@ function extract_test
 {
   cmd=$1
   if [[ ${cmd} == "" ]]; then
-    echo "File '${cmd}' not found!"
+    echo "FAILURE: File '${cmd}' not found!"
     exit 1
   fi
   # extract the java filename only & get its length
   test=`echo ${cmd} | sed 's#.*/##g'`
   namelen=${#test}
   if [[ ${namelen} -eq 0 ]]; then
-    echo "extraction of filename failed!"
+    echo "FAILURE: extraction of filename failed!"
     exit 1
   fi
   # now remove the filename from the path
@@ -37,6 +37,7 @@ function extract_test
 #test="SymbolicMaximizeTest"
 
 # read options
+FAILURE=0
 TESTMODE=0
 COMMAND=()
 while [[ $# -gt 0 ]]; do
@@ -53,20 +54,34 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ ${COMMAND} == "" ]]; then
-  echo "Specify a test to run"
+# check if a specific test was mentioned
+ALLTESTS=0
+if [ -z ${COMMAND} ]; then
+  ALLTESTS=1
+fi
+
+# these options help catch errors. (NOTE: nounset must be set after testing for ${COMMAND})
+# 'nounset' throws an error if a parameter being used is undefined.
+# 'errexit' causes any error condition to terminate the script, so it doesn't continue running.
+set -o nounset
+set -o errexit
+set -o pipefail
+set -e
+
+if [[ ${ALLTESTS} -ne 0 ]]; then
+  echo "FAILURE: Must specify a test to run"
   exit 0
 fi
 
 # all tests will be kept in a sub-folder of the current location called "results"
 if [[ ! -d "results/${COMMAND}" ]]; then
-  echo "results directory ${COMMAND} not found!"
+  echo "FAILURE: results directory ${COMMAND} not found!"
   exit 0
 fi
 
 file=`find edu -name "${COMMAND}.java"`
 if [[ ${file} == "" ]]; then
-  echo "test not found for: ${COMMAND}"
+  echo "FAILURE: test not found for: ${COMMAND}"
   exit 0
 fi
 extract_test ${file}
@@ -83,7 +98,7 @@ pack200 -r -G ${test}-strip.jar ${test}.jar
 # instrument jar file
 java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
 if [[ ! -f ${test}-strip-dan-ed.jar ]]; then
-  echo "ERROR in instrumenting file: ${test}-strip.jar"
+  echo "FAILURE: instrumenting file: ${test}-strip.jar"
   exit 1
 fi
 mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar

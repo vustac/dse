@@ -31,7 +31,7 @@ SolverMethod: NONE
 # SYMBOLICS
 # Symbolic: <symbol_id> <method> <slot>   --OR--
 # Symbolic: <symbol_id> <method> <slot> <start range> <end range> <type>
-Symbolic: P0 edu/vanderbilt/isis/type_tests/bytes/ByteRangeTest.testRange()V 0
+Symbolic: b edu/vanderbilt/isis/type_tests/bytes/ByteRangeTest.testRange()V 0 0 0 I
 #
 # CONSTRAINTS (NOTE: SYMBOLICS section must be defined prior to this section)
 # Constraint: <symbol_id>  <EQ|NE|GT|GE|LT|LE> <value>
