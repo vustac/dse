@@ -122,7 +122,7 @@ if [[ ${TESTMODE} -ne 0 ]]; then
   echo "mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar"
   echo
   echo "Running instrumented jar file:"
-  echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}"
+  echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}"
 else
   # strip debug info from jar file
   pack200 -r -G ${test}-strip.jar ${test}.jar

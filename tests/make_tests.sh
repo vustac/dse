@@ -12,6 +12,11 @@ if [[ ! -f $DANHELPER_DIR/libdanhelper.so ]]; then
   DANHELPER_DIR="${DANHELPER_DIR}/build/src"
 fi
 
+DANHELPER_FILE=libdanhelper.so
+if [[ "`uname`" == "Darwin" ]]; then
+  DANHELPER_FILE=libdanhelper.dylib
+fi
+
 # build the jar file with debug info enabled (so danlauncher can access local parameters)
 function build_test
 {
@@ -130,10 +135,10 @@ function run_test
   # now run the test
   if [[ ${TESTMODE} -ne 0 ]]; then
     echo "Running instrumented jar file:"
-    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}"
+    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}"
   else
     echo "Running instrumented jar file"
-    java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}
+    java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}
 
     # run the script to check correctness
     echo "Checking test results"
