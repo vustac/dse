@@ -4,7 +4,8 @@ TESTNAME="SymbolicStringEquals"
 echo "Debug info: ${TESTNAME} database entry"
 mongo mydb --quiet --eval 'db.dsedata.find({}, {_id:0})'
 ans=`mongo mydb --quiet --eval 'db.dsedata.find({}, {_id:0})' | jq -r '.solution[0].value'`
-expected="abc123"
+expected="\"abc123\""
+# when a string is returned, the result includes the enclosing quotes
 
 if [ "$ans" == "$expected" ];
 then
