@@ -23,15 +23,15 @@ public class ThreadTestArrays implements Runnable {
     else if (id == 2) {
       System.out.println("In thread 2!");
       try {
-	Thread.sleep(2000); // make sure to wait
+        Thread.sleep(2000); // make sure to wait
       } catch (InterruptedException e) {
-	System.err.println("Interrupted while waiting in thread 2!");
+        System.err.println("Interrupted while waiting in thread 2!");
       }
       int val = this.holder.getValue(0) + 1;
       if (val  == 17) {
-	System.out.println("Symbolic path: all ok!");
+        System.out.println("Symbolic path: all ok!");
       } else {
-	System.out.println("Concrete path: all ok!");
+        System.out.println("Concrete path: all ok!");
       }
     } 
   }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TESTNAME="SymbolicMaximizeTest"
+TESTNAME="BufferedImageTest"
 
 echo "Debug info: ${TESTNAME} database entry"
 mongo mydb --quiet --eval 'db.dsedata.find({}, {_id:0})'
@@ -8,8 +8,8 @@ value=`mongo mydb --quiet --eval 'db.dsedata.find({}, {_id:0})' | jq -r '.soluti
 name=`mongo mydb --quiet --eval 'db.dsedata.find({}, {_id:0})' | jq -r '.solution[0].name'`
 
 # there may be additional answers (out-of-bounds) so just verify one of the answers matches
-expname="index"
-expvalue="2"
+expname="image"
+expvalue="1"
 
 IFS=$'\n'
 for item in ${value}

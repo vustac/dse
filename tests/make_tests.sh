@@ -64,10 +64,10 @@ function build_test
   echo "Building ${test}..."
   if [[ ${TESTMODE} -ne 0 ]]; then
     echo "javac -g ${libs} ${class}/${test}.java"
-    echo "jar cvf results/${test}/${test}.jar ${class}/${test}.class ${class}/${test}.java"
+    echo "jar cvf results/${test}/${test}.jar ${class}/*.class ${class}/${test}.java"
   else
     javac -g ${libs} ${class}/${test}.java
-    jar cvf results/${test}/${test}.jar ${class}/${test}.class ${class}/${test}.java
+    jar cvf results/${test}/${test}.jar ${class}/*.class ${class}/${test}.java
     if [[ ! -f results/${test}/${test}.jar ]]; then
       echo "FAILURE: instrumented file not produced!"
       FAILURE=1
@@ -300,7 +300,7 @@ else
   echo "Building all tests..."
 
   # search dse test folders recursively for source files to build
-  testlist=`find . -name "*.java"`
+  testlist=`find . -name "*.java" | sort`
   for file in ${testlist}; do
     extract_test ${file}
     if [[ ${test} == "LibReturnObject" ]]; then
