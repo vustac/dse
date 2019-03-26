@@ -30,6 +30,5 @@ script:
   - ant run &
   - ps -ef | grep dansolver
   - cd ../tests
-  - ./make_tests.sh ByteRangeTest
-  - ./run_tests.sh ByteRangeTest
+  - ./make_tests.sh --run
 
