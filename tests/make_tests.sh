@@ -5,20 +5,18 @@
 # test object so they can each have independent danfig files for them.
 
 DSE_DIR=../
+DANALYZER_DIR=`realpath ${DSE_DIR}danalyzer`
+DANHELPER_DIR=`realpath ${DSE_DIR}danhelper`
+
+if [[ ! -f $DANHELPER_DIR/libdanhelper.so ]]; then
+  DANHELPER_DIR="${DANHELPER_DIR}/build/src"
+fi
 
 # build the jar file with debug info enabled (so danlauncher can access local parameters)
-function build
+function build_test
 {
   libs=""
 
-  # make the directory for the selected test (if already exists, delete it first)
-  if [[ ${TESTMODE} -eq 0 ]]; then
-    if [[ -d ${test} ]]; then
-      rm -Rf results/${test}
-    fi
-    mkdir -p results/${test}
-  fi
-  
   # handle special cases (such as if a library file or other files are necessary)
   LIBPATH="results/${test}/lib"
   case ${test} in
@@ -72,28 +70,130 @@ function build
   fi
 }
 
-function copy_files
+# create the instrumented jar file
+# NOTE: this is performed from the subdirectory created for the specified test within the "results" dir.
+function instrument_test
 {
-  # skip if we are in test mode
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    exit 0
-  fi
-  
-  # copy the danfig file to the build directory
-  if [[ -f ${class}/danfig ]]; then
-    cp ${class}/danfig results/${test}
-  else
-    echo "FAILURE: MISSING DANFIG FILE!"
-    FAILURE=1
+  if [[ ${FAILURE} -ne 0 ]]; then
+    return
   fi
 
-  # copy the correctness checking script to the build directory
-  if [[ -f ${class}/check_result.sh ]]; then
-    cp ${class}/check_result.sh results/${test}
-    chmod +x results/${test}/check_result.sh
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "Stripping debug info from jar file:"
+    echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
+    echo
+    echo "Instrumenting jar file:"
+    echo "java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
+    echo
+    echo "Rename instrumented file:"
+    echo "mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar"
+    echo
   else
-    echo "FAILURE: MISSING CHECK_RESULT.SH FILE!"
-    FAILURE=1
+    # strip debug info from jar file
+    pack200 -r -G ${test}-strip.jar ${test}.jar
+    if [[ ! -f ${test}-strip.jar ]]; then
+      echo "FAILURE: stripped file not produced!"
+      FAILURE=1
+      return
+    fi
+
+    # instrument jar file
+    echo "Instrumenting jar file"
+    java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
+
+    if [[ -f ${test}-strip-dan-ed.jar ]]; then
+      mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
+    else
+      echo "FAILURE: instrumented file not produced: ${test}-dan-ed.jar"
+      FAILURE=1
+    fi
+  fi
+}
+
+# run the instrumented jar file
+# NOTE: this is performed from the subdirectory created for the specified test within the "results" dir.
+function run_test
+{
+  if [[ ${FAILURE} -ne 0 ]]; then
+    return
+  fi
+  
+  # setup the classpath for the test
+  CLASSPATH=${test}-dan-ed.jar:$DANALYZER_DIR/dist/danalyzer.jar
+  if [[ -d lib ]]; then
+    CLASSPATH=${CLASSPATH}:lib/*
+  fi
+
+  # first clear the database before we run
+  clear_database
+  
+  # now run the test
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "Running instrumented jar file:"
+    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}"
+  else
+    echo "Running instrumented jar file"
+    java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/libdanhelper.so -cp ${CLASSPATH} ${class}/${test}
+
+    # run the script to check correctness
+    echo "Checking test results"
+    ./check_result.sh
+  fi
+}
+
+function clear_database
+{
+  echo "Clearing the database"
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
+    echo
+  else
+    # clear the database
+    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
+  fi
+}
+
+# determine if the test is valid to run.
+# the jar file for the test was found in order to get here. now we make sure that a danfig
+# and check_results.sh file are also found with the source code. If not, we skip the test.
+function check_if_viable
+{
+  VALID=1
+  MISSING=""
+  
+  # check for the danfig file
+  if [[ ! -f ${class}/danfig ]]; then
+    MISSING="${MISSING} DANFIG"
+    VALID=0
+  fi
+
+  # check for the correctness checking script
+  if [[ ! -f ${class}/check_result.sh ]]; then
+    MISSING="${MISSING} CHECK_RESULT.SH"
+    VALID=0
+  fi
+
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    if [[ ${VALID} -eq 0 ]]; then
+      echo "SKIPPING ${test}: MISSING: ${MISSING}"
+    fi
+    return
+  fi
+  
+  # if files present, copy them to build directory
+  if [[ ${VALID} -eq 1 ]]; then
+    # make the directory for the selected test (if already exists, delete it first)
+    builddir="results/${test}"
+    if [[ -d ${builddir} ]]; then
+      rm -Rf ${builddir}
+    fi
+    mkdir -p ${builddir}
+  
+    cp ${class}/danfig ${builddir}
+    cp ${class}/check_result.sh ${builddir}
+    chmod +x ${builddir}/check_result.sh
+  else
+    echo "SKIPPING ${test}: MISSING: ${MISSING}"
   fi
 }
 
@@ -102,6 +202,10 @@ function copy_files
 function extract_test
 {
   cmd=$1
+  # if running in loop, each file entry will begin with './', which we must eliminate
+  if [[ ${cmd} == "./"* ]]; then
+    cmd=${cmd:2}
+  fi
   if [[ ${cmd} == "" ]]; then
     echo "FAILURE: File '${cmd}' not found!"
     exit 1
@@ -124,12 +228,17 @@ function extract_test
 # read options
 FAILURE=0
 TESTMODE=0
+RUNTEST=0
 COMMAND=()
 while [[ $# -gt 0 ]]; do
   key="$1"
   case ${key} in
     -t|--test)
       TESTMODE=1
+      shift
+      ;;
+    -r|--run)
+      RUNTEST=1
       shift
       ;;
     *)
@@ -144,6 +253,8 @@ ALLTESTS=0
 if [ -z ${COMMAND} ]; then
   ALLTESTS=1
 fi
+
+CURDIR=`pwd`
 
 # these options help catch errors. (NOTE: nounset must be set after testing for ${COMMAND})
 # 'nounset' throws an error if a parameter being used is undefined.
@@ -167,8 +278,17 @@ if [ ${ALLTESTS} -eq 0 ]; then
   fi
   extract_test ${file}
   echo "Building single test '${test}' from path '${class}'"
-  build
-  copy_files
+  check_if_viable
+  if [[ ${VALID} -eq 1 ]]; then
+    build_test
+    if [[ ${RUNTEST} -eq 1 ]]; then
+      # create instrumented jar and run jar file from the test build dir
+      cd results/${test}
+      instrument_test
+      run_test
+      cd ${CURDIR}
+    fi
+  fi
 else
   # else, we are going to genberate them all...
   # copy the source and library files from the dse tests project
@@ -182,13 +302,21 @@ else
       # skip this, it is just a lib file used by other tests
       continue
     fi
-    build
-    copy_files
-
-    # exit loop on any failures
-    if [[ ${FAILURE} -ne 0 ]]; then
-      exit 1
+    check_if_viable
+    if [[ ${VALID} -eq 1 ]]; then
+      build_test
+      if [[ ${RUNTEST} -eq 1 ]]; then
+        # create instrumented jar and run jar file from the test build dir
+        cd results/${test}
+        instrument_test
+        run_test
+        cd ${CURDIR}
+      fi
+      # exit loop on any failures
+      if [[ ${FAILURE} -ne 0 ]]; then
+        exit 1
+      fi
+      echo "------------------------------------------"
     fi
-    echo "------------------------------------------"
   done
 fi
