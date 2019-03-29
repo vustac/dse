@@ -51,7 +51,7 @@ function wait_for_server
 
   if [ ${success} -eq 0 ]; then
     echo "FAILURE: Server not found for port ${SERVERPORT} !"
-    exit 1
+    #exit 1
   fi
 }
 
