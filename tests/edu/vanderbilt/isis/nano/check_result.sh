@@ -28,18 +28,23 @@ function wait_for_server
   success=0
   for i in {1..10}
   do
-    serverstat=`netstat -pln 2>/dev/null | cut -c 21- | grep "^:::${SERVERPORT} "`
-    state=${serverstat:48:6}
-    proc=${serverstat:60}
-    #echo "serverstat = '${serverstat:0:8}'  state = '${state}'  proc = '${proc}'"
-    if [[ "${serverstat:0:8}" == ":::${SERVERPORT} " && "${state}" == "LISTEN" ]]; then
-      if [ ${proc} == "${pid}/java" ]; then
+    # this will get all processes that are listening on the specified tcp port
+    # (the cut command extracts only the 'Local Address' and 'PID/Program name' column data so that
+    # the grep will only find the port specification in the Local Address).
+    serverstat=`netstat -pln 2>/dev/null | grep "^tcp" | grep "LISTEN" | cut -c 21-42,78- | grep ":${SERVERPORT} "`
+    #echo "serverstat = '${serverstat}'"
+    if [ "${serverstat}" != "" ]; then
+      proc=${serverstat:25}
+      proc="$(echo -e ${proc} | sed -e 's/[[:space:]]*$//')"
+      #echo "proc = '${proc}'"
+      if [ "${proc}" == "${pid}/java" ]; then
         echo "Server listening ($i secs)"
         success=1
         break;
+      else
+        echo "FAILURE: Another server listening on port ${SERVERPORT}: ${proc}"
+        exit 1
       fi
-      echo "FAILURE: Another server listening on port ${SERVERPORT}: process = ${proc}"
-      exit 1
     fi
     sleep 1
   done
