@@ -122,27 +122,25 @@ function run_test
   if [[ ${FAILURE} -ne 0 ]]; then
     return
   fi
-  
+
   # setup the classpath for the test
   CLASSPATH=${test}-dan-ed.jar:$DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then
     CLASSPATH=${CLASSPATH}:lib/*
   fi
 
-  # first clear the database before we run
-  clear_database
-  
-  # now run the test
+  # now run the test in background mode in case verification process needs to issue message to it
   if [[ ${TESTMODE} -ne 0 ]]; then
     echo "Running instrumented jar file:"
     echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}"
   else
     echo "Running instrumented jar file"
-    java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}
+    nohup java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} &
+    pid=$!
 
     # run the script to check correctness
     echo "Checking test results"
-    ./check_result.sh
+    ./check_result.sh ${pid}
   fi
 }
 
@@ -287,15 +285,18 @@ if [ ${ALLTESTS} -eq 0 ]; then
   if [[ ${VALID} -eq 1 ]]; then
     build_test
     if [[ ${RUNTEST} -eq 1 ]]; then
-      # create instrumented jar and run jar file from the test build dir
       cd results/${test}
+      # create instrumented jar
       instrument_test
+      # clear the database before we run
+      clear_database
+      # run instrumented jar and and verify results
       run_test
       cd ${CURDIR}
     fi
   fi
 else
-  # else, we are going to genberate them all...
+  # else, we are going to generate them all...
   # copy the source and library files from the dse tests project
   echo "Building all tests..."
 
@@ -313,7 +314,11 @@ else
       if [[ ${RUNTEST} -eq 1 ]]; then
         # create instrumented jar and run jar file from the test build dir
         cd results/${test}
+        # create instrumented jar
         instrument_test
+        # clear the database before we run
+        clear_database
+        # run instrumented jar and and verify results
         run_test
         cd ${CURDIR}
       fi

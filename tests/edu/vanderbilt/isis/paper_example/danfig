@@ -31,7 +31,7 @@ SolverMethod: NONE
 # SYMBOLICS
 # Symbolic: <symbol_id> <method> <slot>   --OR--
 # Symbolic: <symbol_id> <method> <slot> <start range> <end range> <type>
-Symbolic: b edu/vanderbilt/isis/paper_example/SimpleServer.serve(Lfi/iki/elonen/NanoHTTPD$IHTTPSession;)Lfi/iki/elonen/NanoHTTPD$Response; 5 13 40 Ljava/lang/String;
+Symbolic: b edu/vanderbilt/isis/paper_example/SimpleServer.getResponse(II)Ljava/lang/String; 2 0 34 I
 #
 # CONSTRAINTS (NOTE: SYMBOLICS section must be defined prior to this section)
 # Constraint: <symbol_id>  <EQ|NE|GT|GE|LT|LE> <value>

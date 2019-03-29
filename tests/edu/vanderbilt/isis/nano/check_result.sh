@@ -1,10 +1,15 @@
 #!/bin/bash
+set -o nounset
 
-TESTNAME="BufferedImageTest"
+TESTNAME="SimpleNano"
 
-# single answer (there may be other solutions, but this is the only one we are interested in)
-expname="x_0_y_1"
-expvalue="1"
+# single anwser
+expname="parsedInt"
+expvalue="4"
+
+# http port and message to send
+SERVERPORT="8080"
+MESSAGE="1"
 
 function wait_for_app_completion
 {
@@ -15,6 +20,34 @@ function wait_for_app_completion
     status=$?
   done
   echo "Application completed!"
+}
+
+function wait_for_server
+{
+  echo "Waiting for server to come up..."
+  success=0
+  for i in {1..10}
+  do
+    serverstat=`netstat -pln 2>/dev/null | cut -c 21- | grep "^:::${SERVERPORT} "`
+    state=${serverstat:48:6}
+    proc=${serverstat:60}
+    #echo "serverstat = '${serverstat:0:8}'  state = '${state}'  proc = '${proc}'"
+    if [[ "${serverstat:0:8}" == ":::${SERVERPORT} " && "${state}" == "LISTEN" ]]; then
+      if [ ${proc} == "${pid}/java" ]; then
+        echo "Server listening ($i secs)"
+        success=1
+        break;
+      fi
+      echo "FAILURE: Another server listening on port ${SERVERPORT}: process = ${proc}"
+      exit 1
+    fi
+    sleep 1
+  done
+
+  if [ ${success} -eq 0 ]; then
+    echo "FAILURE: Server not found for port ${SERVERPORT} !"
+    exit 1
+  fi
 }
 
 function check_single_solution
@@ -59,10 +92,15 @@ function check_single_solution
 }
 
 #--------------------------------------------------------------------------------------------------
-# wait for application to complete
+# wait for server to start then post message to it
 pid=$1
 echo "pid = ${pid}"
-wait_for_app_completion
+wait_for_server
+
+# send the message
+echo "Sending message to application"
+curl -d ${MESSAGE} http://localhost:${SERVERPORT}
+kill -15 ${pid}
 
 # get solver response and check against expected solution
 check_single_solution
