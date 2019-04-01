@@ -136,11 +136,20 @@ else
   fi
   mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
 
+  # use a pipe to handle redirecting stdin to the application, since it runs as background process
+  if [ ! -p inpipe ]; then
+    mkfifo inpipe
+  fi
+
   # run instrumented jar file
   echo "Running instrumented jar file"
-  java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}
+  tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} &
+  pid=$!
 
   # run the script to check correctness
   echo "Checking test results"
-  ./check_result.sh
+  ./check_result.sh ${pid}
+
+  # kill the tail process
+  pkill tail > /dev/null 2>&1
 fi

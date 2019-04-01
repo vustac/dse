@@ -36,9 +36,9 @@ public class SimpleCWE129 {
     try {
       readerInputStream = new InputStreamReader(System.in, "UTF-8");
       readerBuffered = new BufferedReader(readerInputStream);
-
       /* POTENTIAL FLAW: Read data from the console using readLine */
       data = readerBuffered.readLine();
+      System.out.println("read input: '" + data + "'");
     } catch (IOException exceptIO) {
       System.err.println("Error with stream reading");
     } finally {

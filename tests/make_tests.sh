@@ -84,13 +84,13 @@ function instrument_test
   fi
 
   if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "Stripping debug info from jar file:"
+    echo "Stripping debug info from jar file"
     echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
     echo
-    echo "Instrumenting jar file:"
+    echo "Instrumenting jar file"
     echo "java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
     echo
-    echo "Rename instrumented file:"
+    echo "Rename instrumented file"
     echo "mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar"
     echo
   else
@@ -130,17 +130,26 @@ function run_test
   fi
 
   # now run the test in background mode in case verification process needs to issue message to it
+  echo "Running instrumented jar file (in background)"
   if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "Running instrumented jar file:"
     echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}"
   else
-    echo "Running instrumented jar file"
-    nohup java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} &
+    # use a pipe to handle redirecting stdin to the application, since it runs as background process
+    if [ ! -p inpipe ]; then
+      mkfifo inpipe
+    fi
+    tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} &
     pid=$!
+
+    # delay just a bit to make sure app is running before starting checker
+    sleep 2
 
     # run the script to check correctness
     echo "Checking test results"
     ./check_result.sh ${pid}
+
+    # kill the tail process
+    pkill tail > /dev/null 2>&1
   fi
 }
 

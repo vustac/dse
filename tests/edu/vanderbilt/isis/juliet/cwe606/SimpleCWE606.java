@@ -32,28 +32,29 @@ public class SimpleCWE606 {
 
     /* read user input from console with readLine */
     try {
-	readerInputStream = new InputStreamReader(System.in, "UTF-8");
-	readerBuffered = new BufferedReader(readerInputStream);
-	
-	/* POTENTIAL FLAW: Read data from the console using readLine */
-	data = readerBuffered.readLine();
+      readerInputStream = new InputStreamReader(System.in, "UTF-8");
+      readerBuffered = new BufferedReader(readerInputStream);
+
+      /* POTENTIAL FLAW: Read data from the console using readLine */
+      data = readerBuffered.readLine();
+      System.out.println("read input: '" + data + "'");
     } catch (IOException exceptIO) {
       System.err.println("Error with stream reading");
     } finally {
       try {
-	if (readerBuffered != null) {
-	  readerBuffered.close();
-	}
+        if (readerBuffered != null) {
+          readerBuffered.close();
+        }
       } catch (IOException exceptIO) {
-	System.err.println("Error closing BufferedReader");
+        System.err.println("Error closing BufferedReader");
       }
 
       try {
-	if (readerInputStream != null) {
-	  readerInputStream.close();
-	}
+        if (readerInputStream != null) {
+          readerInputStream.close();
+        }
       } catch (IOException exceptIO) {
-	System.err.println("Error closing InputStreamReader");
+        System.err.println("Error closing InputStreamReader");
       }
     }
 
