@@ -1,10 +1,8 @@
 #! DANALYZER SYMBOLIC EXPRESSION LIST
 #
 # DEBUG SETUP
-DebugFlags: ALL
-DebugMode: TCPPORT
-#DebugFlags: 
-#DebugMode: STDOUT
+DebugFlags: 
+DebugMode: STDOUT
 DebugPort: 5000
 IPAddress: localhost
 #

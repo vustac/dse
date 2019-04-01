@@ -150,6 +150,9 @@ function run_test
 
     # kill the tail process
     pkill tail > /dev/null 2>&1
+
+    # kill the application
+    kill -15 ${pid} > /dev/null 2>&1
   fi
 }
 
