@@ -145,18 +145,16 @@ function run_test
     sleep 2
 
     # run the script to check correctness
+    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
     echo "Checking test results"
     ./check_result.sh ${pid}
 
     # kill the tail process
     pkill tail > /dev/null 2>&1
 
-    # kill the application
-    kill -0 ${pid} > /dev/null 2>&1
-    status=$?
-    if [ ${status} -ne 0 ]; then
-      kill -15 ${pid} > /dev/null 2>&1
-    fi
+    # clear the database for next test
+    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
+    echo "Cleared database"
   fi
 }
 
@@ -209,7 +207,7 @@ function check_if_viable
     mkdir -p ${builddir}
   
     cp ${class}/danfig ${builddir}
-    cp ${class}/check_result.sh ${builddir}
+    cat base_check.sh ${class}/check_result.sh > ${builddir}/check_result.sh
     chmod +x ${builddir}/check_result.sh
   else
     echo "SKIPPING ${test}: MISSING: ${MISSING}"
@@ -308,7 +306,6 @@ if [ ${ALLTESTS} -eq 0 ]; then
       clear_database
       # run instrumented jar and and verify results
       run_test
-      cd ${CURDIR}
     fi
   fi
 else
@@ -319,6 +316,8 @@ else
   # search dse test folders recursively for source files to build
   testlist=`find . -name "*.java" | sort`
   for file in ${testlist}; do
+    # these commands must be executed from the directory this script is in
+    cd ${CURDIR}
     extract_test ${file}
     if [[ ${test} == "LibReturnObject" ]]; then
       # skip this, it is just a lib file used by other tests
@@ -328,7 +327,7 @@ else
     if [[ ${VALID} -eq 1 ]]; then
       build_test
       if [[ ${RUNTEST} -eq 1 ]]; then
-        # create instrumented jar and run jar file from the test build dir
+        # these commands must be executed from the build directory of the specified test
         cd results/${test}
         # create instrumented jar
         instrument_test
@@ -336,10 +335,10 @@ else
         clear_database
         # run instrumented jar and and verify results
         run_test
-        cd ${CURDIR}
       fi
       # exit loop on any failures
       if [[ ${FAILURE} -ne 0 ]]; then
+        echo "FAILURE on test: ${COMMAND}"
         exit 1
       fi
       echo "------------------------------------------"
