@@ -123,6 +123,15 @@ function run_test
     return
   fi
 
+  # some tests don't run on macOS yet - just ignore these for now...
+  if [[ "`uname`" == "Darwin" ]]; then
+    # (these are the tests that require sending command to STDIN of application)
+    if [[ "${test}" == "SimpleCWE129" || "${test}" == "SimpleCWE606" ]]; then
+      echo "Skipping test ${test} on macOS..."
+      return
+    fi
+  fi
+  
   # setup the classpath for the test
   CLASSPATH=${test}-dan-ed.jar:$DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then

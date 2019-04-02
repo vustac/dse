@@ -146,10 +146,18 @@ else
   tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} &
   pid=$!
 
+  # delay just a bit to make sure app is running before starting checker
+  sleep 2
+
   # run the script to check correctness
+  # (NOTE: a failure in this call will perform an exit, which will terminate the script)
   echo "Checking test results"
   ./check_result.sh ${pid}
 
   # kill the tail process
   pkill tail > /dev/null 2>&1
+
+  # clear the database for next test
+  mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
+  echo "Cleared database"
 fi
