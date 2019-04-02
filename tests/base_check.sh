@@ -62,7 +62,6 @@ function wait_for_server
         return 0;
       else
         echo "FAILURE: Another server listening on port ${port}: ${proc}"
-        cleanup ${pid}
         exit 1
       fi
     fi

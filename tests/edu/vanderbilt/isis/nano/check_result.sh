@@ -8,11 +8,6 @@ echo "pid = ${PID}"
 
 # wait for server to start then post message to it
 wait_for_server 10 ${PID} ${SERVERPORT}
-retcode=$?
-if [ ${retcode} -ne 0 ]; then
-  cleanup ${PID}
-  exit 1
-fi
 
 # send the message
 echo "Sending message to application"
