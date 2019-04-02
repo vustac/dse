@@ -152,7 +152,11 @@ function run_test
     pkill tail > /dev/null 2>&1
 
     # kill the application
-    kill -15 ${pid} > /dev/null 2>&1
+    kill -0 ${pid} > /dev/null 2>&1
+    status=$?
+    if [ ${status} -ne 0 ]; then
+      kill -15 ${pid} > /dev/null 2>&1
+    fi
   fi
 }
 
