@@ -15,7 +15,7 @@ curl -d "a=1&b=0" http://localhost:${SERVERPORT}
 
 # get solver response and check against expected solution
 echo "Debug info: ${TESTNAME} database entry"
-check_single_solution "b" "1"
+check_single_solution "b" "0"
 retcode=$?
 
 # terminate process (this one doesn't auto-terminate)

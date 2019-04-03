@@ -1,37 +1,32 @@
 #! DANALYZER SYMBOLIC EXPRESSION LIST
-#
-# DEBUG SETUP
-DebugFlags: 
-DebugMode: STDOUT
-DebugPort: 5000
+# DANLAUNCHER_VERSION
 IPAddress: localhost
-#
-# DEBUG TRIGGER SETUP
+DebugPort: 5000
+DebugMode: STDOUT
+DebugFlags: 
+
 TriggerOnError: 0
 TriggerOnException: 0
-TriggerOnInstr: 0
 TriggerOnCall: 0
 TriggerOnReturn: 0
 TriggerOnRefWrite: 0
-TriggerAuto: 0
-TriggerAnyMeth: 0
-TriggerClass: 
-TriggerMethod: 
+
 TriggerCount: 1
 TriggerRefCount: 1
-TriggerRange: 0
-TriggerInstruction: 1
+TriggerClass: 
+TriggerMethod: 
+TriggerAnyMeth: 0
 TriggerRefIndex: 0
-#
-# SOLVER INTERFACE
-SolverPort: 4000
+
+TriggerAuto: 0
+TriggerRange: 0
+
 SolverAddress: localhost
-SolverMethod: NONE
+SolverPort: 4000
+SolverMethod: 
+
 #
 # SYMBOLICS
-# Symbolic: <symbol_id> <method> <slot>   --OR--
 # Symbolic: <symbol_id> <method> <slot> <start range> <end range> <type>
-Symbolic: b edu/vanderbilt/isis/paper_example/SimpleServer.getResponse(II)Ljava/lang/String; 2 0 34 I
-#
-# CONSTRAINTS (NOTE: SYMBOLICS section must be defined prior to this section)
-# Constraint: <symbol_id>  <EQ|NE|GT|GE|LT|LE> <value>
+Symbolic: a edu.vanderbilt.isis.paper_example.SimpleServer.getResponse(II)Ljava/lang/String; 1 0 0 I
+Symbolic: b edu.vanderbilt.isis.paper_example.SimpleServer.getResponse(II)Ljava/lang/String; 2 0 0 I
