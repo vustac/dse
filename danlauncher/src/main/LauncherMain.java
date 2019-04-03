@@ -399,6 +399,7 @@ public final class LauncherMain {
     if (symbolTbl.getSymbolicEntry(0) != null) {
       content += "#" + Utils.NEWLINE;
       content += "# SYMBOLICS" + Utils.NEWLINE;
+      content += "# Symbolic: <symbol_id> <method> <slot>   --OR--" + Utils.NEWLINE;
       content += "# Symbolic: <symbol_id> <method> <slot> <start range> <end range> <type>" + Utils.NEWLINE;
       for (int ix = 0; true; ix++) {
         SymbolTable.TableListInfo entry = symbolTbl.getSymbolicEntry(ix);
@@ -416,7 +417,7 @@ public final class LauncherMain {
     // and now the user-defined constraints
     if (validConstr) {
       content += "#" + Utils.NEWLINE;
-      content += "# CONSTRAINTS" + Utils.NEWLINE;
+      content += "# CONSTRAINTS (NOTE: SYMBOLICS section must be defined prior to this section)" + Utils.NEWLINE;
       content += "# Constraint: <symbol_id>  <EQ|NE|GT|GE|LT|LE> <value>" + Utils.NEWLINE;
       for (int ix = 0; true; ix++) {
         SymbolTable.TableListInfo entry = symbolTbl.getSymbolicEntry(ix);
@@ -2739,34 +2740,34 @@ public final class LauncherMain {
     // initialize replacement config info
     String content = "#! DANALYZER SYMBOLIC EXPRESSION LIST" + Utils.NEWLINE;
     content += "# DANLAUNCHER_VERSION" + Utils.NEWLINE;
-    content += "IPAddress: localhost" + Utils.NEWLINE;
-    content += "DebugPort: " + debugPort + Utils.NEWLINE;
-    content += "DebugMode: TCPPORT" + Utils.NEWLINE;
+    content += "#" + Utils.NEWLINE;
+    content += "# DEBUG SETUP" + Utils.NEWLINE;
     content += "DebugFlags: " + debugParams.getValue("DebugFlags") + Utils.NEWLINE;
-    content += Utils.NEWLINE;
-
+    content += "DebugMode: TCPPORT" + Utils.NEWLINE;
+    content += "DebugPort: " + debugPort + Utils.NEWLINE;
+    content += "IPAddress: localhost" + Utils.NEWLINE;
+    content += "#" + Utils.NEWLINE;
+    content += "# DEBUG TRIGGER SETUP" + Utils.NEWLINE;
     content += "TriggerOnError: "  + debugParams.getValue("TriggerOnError") + Utils.NEWLINE;
     content += "TriggerOnException: " + debugParams.getValue("TriggerOnException") + Utils.NEWLINE;
+    content += "TriggerOnInstr: "  + debugParams.getValue("TriggerOnInstr") + Utils.NEWLINE;
     content += "TriggerOnCall: "   + debugParams.getValue("TriggerOnCall") + Utils.NEWLINE;
     content += "TriggerOnReturn: " + debugParams.getValue("TriggerOnReturn") + Utils.NEWLINE;
     content += "TriggerOnRefWrite: " + debugParams.getValue("TriggerOnRefWrite") + Utils.NEWLINE;
-    content += Utils.NEWLINE;
-    content += "TriggerCount: "    + debugParams.getValue("TriggerCount") + Utils.NEWLINE;
-    content += "TriggerRefCount: " + debugParams.getValue("TriggerRefCount") + Utils.NEWLINE;
+    content += "TriggerAuto: "     + debugParams.getValue("TriggerAuto") + Utils.NEWLINE;
+    content += "TriggerAnyMeth: "  + debugParams.getValue("TriggerAnyMeth") + Utils.NEWLINE;
     content += "TriggerClass: "    + debugParams.getValue("TriggerClass") + Utils.NEWLINE;
     content += "TriggerMethod: "   + debugParams.getValue("TriggerMethod") + Utils.NEWLINE;
-    content += "TriggerAnyMeth: "  + debugParams.getValue("TriggerAnyMeth") + Utils.NEWLINE;
-    content += "TriggerRefIndex: " + debugParams.getValue("TriggerRefIndex") + Utils.NEWLINE;
-    content += Utils.NEWLINE;
-    content += "TriggerAuto: "     + debugParams.getValue("TriggerAuto") + Utils.NEWLINE;
+    content += "TriggerCount: "    + debugParams.getValue("TriggerCount") + Utils.NEWLINE;
+    content += "TriggerRefCount: " + debugParams.getValue("TriggerRefCount") + Utils.NEWLINE;
     content += "TriggerRange: "    + debugParams.getValue("TriggerRange") + Utils.NEWLINE;
-    content += Utils.NEWLINE;
-
-    content += "SolverAddress: localhost" + Utils.NEWLINE;
+    content += "TriggerInstruction: " + debugParams.getValue("TriggerInstruction") + Utils.NEWLINE;
+    content += "TriggerRefIndex: " + debugParams.getValue("TriggerRefIndex") + Utils.NEWLINE;
+    content += "#" + Utils.NEWLINE;
+    content += "# SOLVER INTERFACE" + Utils.NEWLINE;
     content += "SolverPort: " + solverPort + Utils.NEWLINE;
-    content += "SolverMethod: " + debugParams.getValue("SolverMethod") + Utils.NEWLINE;
-    
-    content += Utils.NEWLINE;
+    content += "SolverAddress: localhost" + Utils.NEWLINE;
+    content += "SolverMethod: " + "NONE" + Utils.NEWLINE; // debugParams.getValue("SolverMethod") + Utils.NEWLINE;
     return content;
   }
   

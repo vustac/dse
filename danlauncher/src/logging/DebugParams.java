@@ -24,7 +24,7 @@ public class DebugParams {
   private String   debugFlags;
   
   // Trigger parameters
-//  private boolean  tInstr;    // true if trigger when instruction count reached
+  private boolean  tInstr;    // true if trigger when instruction count reached
   private boolean  tError;    // true if trigger when an ERROR (or WARN) msg is received
   private boolean  tExcept;   // true if trigger when an Exception occurs
   private boolean  tCall;     // true if trigger on call to specified method
@@ -38,7 +38,7 @@ public class DebugParams {
   private int      tRefCount; // number of condition occurrances before reference trigger (e.g. 1 = 1st occurrance)
   private int      tRange;    // number of debug lines to capture before disabling trigger (0 = never)
   private int      tRefIndex; // the index for the reference parameter selection
-//  private int      tInsNum;   // instruction count number to trigger on
+  private int      tInsNum;   // instruction count number to trigger on
 
   // this should be called when creating the control panel after the GuiControls has been setup.
   // this assumes that the panel is created on startup, but hidden and the properties file that
@@ -50,7 +50,7 @@ public class DebugParams {
     debugFlags = "";
     
     // set default values
-//    tInstr   = false;
+    tInstr   = false;
     tError   = false;
     tExcept  = false;
     tCall    = false;
@@ -62,7 +62,7 @@ public class DebugParams {
     tMethod  = "";
     tCount   = 1;
     tRefCount = 1;
-//    tInsNum  = 1;
+    tInsNum  = 1;
     tRange   = 0;
     tRefIndex = 0;
   }
@@ -195,7 +195,7 @@ public class DebugParams {
     }
     
     switch (tag) {
-//      case "TriggerOnInstr":      return tInstr   ? "1" : "0";
+      case "TriggerOnInstr":      return tInstr   ? "1" : "0";
       case "TriggerOnError":      return tError   ? "1" : "0";
       case "TriggerOnException":  return tExcept  ? "1" : "0";
       case "TriggerOnCall":       return tCall    ? "1" : "0";
@@ -208,7 +208,7 @@ public class DebugParams {
       case "TriggerRefCount":     return "" + tRefCount;
       case "TriggerRange":        return "" + tRange;
       case "TriggerRefIndex":     return "" + tRefIndex;
-//      case "TriggerInstruction":  return "" + tInsNum;
+      case "TriggerInstruction":  return "" + tInsNum;
 
       case "TriggerClass":        return tClass;
       case "TriggerMethod":       return tMethod;
@@ -233,7 +233,7 @@ public class DebugParams {
       tRange = 0;
     }
     
-//    props.setPropertiesItem("TriggerOnInstr"    , tInstr   ? "1" : "0");
+    props.setPropertiesItem("TriggerOnInstr"     , tInstr   ? "1" : "0");
     props.setPropertiesItem("TriggerOnError"     , tError   ? "1" : "0");
     props.setPropertiesItem("TriggerOnException" , tExcept  ? "1" : "0");
     props.setPropertiesItem("TriggerOnCall"      , tCall    ? "1" : "0");
@@ -247,7 +247,7 @@ public class DebugParams {
     props.setPropertiesItem("TriggerRefCount"    , ((Integer) tRefCount).toString());
     props.setPropertiesItem("TriggerRange"       , ((Integer) tRange).toString());
     props.setPropertiesItem("TriggerRefIndex"    , ((Integer) tRefIndex).toString());
-//    props.setPropertiesItem("TriggerInstruction" , ((Integer) tInsNum).toString());
+    props.setPropertiesItem("TriggerInstruction" , ((Integer) tInsNum).toString());
 
     props.setPropertiesItem("DebugFlags", debugFlags);
   }
