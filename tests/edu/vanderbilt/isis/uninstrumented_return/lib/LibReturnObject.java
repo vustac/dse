@@ -15,49 +15,4 @@ public class LibReturnObject {
     return obj;
   }
 
-  public static Object getDoubleObject(int input) {
-    Double obj = (double) input;
-    return obj;
-  }
-
-  public static Object getFloatObject(int input) {
-    Float obj = (float) input;
-    return obj;
-  }
-
-  public static Object getLongObject(int input) {
-    Long obj = (long) input;
-    return obj;
-  }
-
-  public static Object getIntegerObject(int input) {
-    Integer obj = input;
-    return obj;
-  }
-
-  public static Object getShortObject(int input) {
-    Short obj = (short) (input & 0xffff);
-    return obj;
-  }
-
-  public static Object getByteObject(int input) {
-    Byte obj = (byte) (input & 0xff);
-    return obj;
-  }
-
-  public static Object getCharObject(int input) {
-    Character obj = (char) (input & 0xffff);
-    return obj;
-  }
-
-  public static Object getBooleanObject(int input) {
-    Boolean obj = input != 0;
-    return obj;
-  }
-
-  public static Object getStringObject(int input) {
-    String obj = "" + input;
-    return obj;
-  }
-
 }

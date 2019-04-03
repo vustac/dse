@@ -291,7 +291,22 @@ function build_chain
     return
   fi
 
-  # verify the source code, danfig, and check_results.sh script files are all present.
+  # if we're not running test, skip the check if the test conditions are defined
+  if [[ ${RUNTEST} -eq 0 ]]; then
+    echo "Building test '${test}' from path '${class}'"
+    # create the jar file from the source code (includes full debug info)
+    build_test
+    # these commands must be executed from the build directory of the specified test
+    cd results/${test}
+    # create instrumented jar (from debug-stripped version of jar)
+    instrument_test
+
+    COUNT_TOTAL=`expr ${COUNT_TOTAL} + 1`
+    return
+  fi
+
+  # else we are running the test as well.
+  # verify the danfig and check_results.sh script files are present or we skip the test.
   check_if_viable
   if [[ ${VALID} -eq 1 ]]; then
     echo "Building test '${test}' from path '${class}'"
