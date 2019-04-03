@@ -122,6 +122,65 @@ function check_single_solution
   exit 1
 }
 
+# extracts the solutions from the database and saves them as 3 arrays:
+# 't_array' will contain the type for each solution,
+# 'n_array' will contain the parameter names,
+# 'v_array' will contain the values
+# 'count' will contain the number of solutions found
+#
+function extract_solutions
+{
+  # get solver response and extract param name, type and value from it
+  solution=`mongo mydb --quiet --eval 'db.dsedata.find({}, {_id:0})'`
+  echo ${solution}
+  type=`echo ${solution} | jq -r '.solution[0].type'`
+  name=`echo ${solution} | jq -r '.solution[0].name'`
+  value=`echo ${solution} | jq -r '.solution[0].value'`
+
+  # if there are multiple solutions, just verify the one we are expecting
+  IFS=$'\n'
+  read -r -d '' -a t_array <<< "${type}"
+  read -r -d '' -a n_array <<< "${name}"
+  read -r -d '' -a v_array <<< "${value}"
+  count=${#v_array[@]}
+}
+
+# verifies that the solution given by the passed parameter name and value are found within the
+# solution results (assumes either extract_solutions or check_single_solution was run prior).
+# This can be used to verify additional solutions for a test that produces multiple tests.
+#
+# $1 = name of parameter expected in solution
+# $2 = value of parameter expected in solution
+#
+# returns 0 on success, 1 on failure
+#
+function check_next_solution
+{
+  local expname=$1
+  local expvalue=$2
+  
+  for ((ix=0; ix<${count}; ix++)); do
+    # when a string is returned, the result includes the enclosing quotes, so include them in the
+    # expected value.
+    if [ "${t_array[ix]}" == "string" ]; then
+      expvalue="\"${expvalue}\""
+    fi
+
+    #echo "${ix}: name: '${n_array[ix]}' value: '${v_array[ix]}'"
+    if [ "${n_array[ix]}" == "${expname}" ] && [ "${v_array[ix]}" == "${expvalue}" ]; then
+      echo "Result was: ${expname} = ${expvalue}"
+      return 0
+    fi
+  done
+
+  echo "Results : ${n_array[0]} = ${v_array[0]}";
+  for ((ix=1; ix<${count}; ix++)); do
+    echo "        : ${n_array[ix]} = ${v_array[ix]}"
+  done
+  echo "Expected: ${expname} = ${expvalue}"
+  exit 1
+}
+
 # this displays the status results for the specified test
 #
 # $1 = name of test
@@ -130,10 +189,10 @@ function check_single_solution
 function show_results
 {
   if [ $2 -ne 0 ]; then
-    echo "$1 failed!"
+    echo "----- $1 FAILED -----"
     exit 1
   else
-    echo "$1 passed!"
+    echo "----- $1 PASSED -----"
   fi
 }
 

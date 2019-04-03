@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# these options help catch errors.
+# 'nounset' throws an error if a parameter being used is undefined.
+# 'errexit' causes any error condition to terminate the script, so it doesn't continue running.
+set -o nounset
+set -o errexit
+set -e
+
 # this allows you to build a single test or build them all. It will create the test build
 # directories wherever this script file is run from. A seperate directory is created for each
 # test object so they can each have independent danfig files for them.
@@ -83,6 +90,13 @@ function instrument_test
     return
   fi
 
+  # exit if uninstrumented file not found
+  if [ ! -f ${test}.jar ]; then
+    echo "Test jar file '${test}.jar' not found!"
+    FAILURE=1
+    return
+  fi
+  
   if [[ ${TESTMODE} -ne 0 ]]; then
     echo "Stripping debug info from jar file"
     echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
@@ -161,9 +175,10 @@ function run_test
     # kill the tail process
     pkill tail > /dev/null 2>&1
 
-    # clear the database for next test
-    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
-    echo "Cleared database"
+    # delete the pipe we created
+    if [ -p inpipe ]; then
+      rm -f inpipe
+    fi
   fi
 }
 
@@ -238,19 +253,68 @@ function extract_test
   fi
   # extract the java filename only & get its length
   test=`echo ${cmd} | sed 's#.*/##g'`
-  namelen=${#test}
+  local namelen=${#test}
   if [[ ${namelen} -eq 0 ]]; then
     echo "FAILURE: extraction of filename failed!"
     exit 1
   fi
   # now remove the filename from the path
-  pathlen=`echo "${#cmd} - ${namelen} -1" | bc`
+  local pathlen=`echo "${#cmd} - ${namelen} -1" | bc`
   class=${cmd:0:${pathlen}}
   # remove ".java" from the filename
   namelen=`echo "${namelen} - 5" | bc`
   test=${test:0:${namelen}}
 }
 
+# NOTE: 'file' is assumed to be defined on entry as the name of the source (java) file in the
+#       edu subdirectory structure. It is also assumed that there is only 1 java file for each
+#       test (excluding libraries) and they are all unique names. This base name (excluding path
+#       and '.java' extension) will be used as the 'test' name.
+#
+# this checks if the required source files are present, and if so:
+# 1. builds the jar file with full debugging info (for extracting info with danlauncher)
+# 2. create a results/<testname> directory to perform all builds in
+# 3. creates a debug-stripped jar from the original and instruments this jar file
+#
+# if the run option specified (ie. 'RUNTEST' is set to 1), then also do:
+#    4. clear the database of solutions
+#    5. run the instrumented jar file as background process
+#    6. verify that expected solution (parameter name and value) are found in the solution set.
+#
+function build_chain
+{
+  # these commands must be executed from the directory this script is in
+  cd ${BASEDIR}
+  extract_test ${file}
+  if [[ ${test} == "LibReturnObject" ]]; then
+    # skip this, it is just a lib file used by other tests
+    return
+  fi
+
+  # verify the source code, danfig, and check_results.sh script files are all present.
+  check_if_viable
+  if [[ ${VALID} -eq 1 ]]; then
+    echo "Building test '${test}' from path '${class}'"
+    # create the jar file from the source code (includes full debug info)
+    build_test
+    # these commands must be executed from the build directory of the specified test
+    cd results/${test}
+    # create instrumented jar (from debug-stripped version of jar)
+    instrument_test
+    if [[ ${RUNTEST} -eq 1 ]]; then
+      # clear the database before we run
+      clear_database
+      # run instrumented jar and and verify results
+      run_test
+      # clear the database for next test
+      #clear_database
+    fi
+
+    COUNT_TOTAL=`expr ${COUNT_TOTAL} + 1`
+  fi
+}
+
+#========================================= START HERE ============================================
 # read options
 FAILURE=0
 TESTMODE=0
@@ -276,23 +340,20 @@ done
 
 # check if a specific test was mentioned
 ALLTESTS=0
+set +o nounset
 if [ -z ${COMMAND} ]; then
   ALLTESTS=1
 fi
-
-CURDIR=`pwd`
-
-# these options help catch errors. (NOTE: nounset must be set after testing for ${COMMAND})
-# 'nounset' throws an error if a parameter being used is undefined.
-# 'errexit' causes any error condition to terminate the script, so it doesn't continue running.
 set -o nounset
-set -o errexit
-set -e
+
+BASEDIR=`pwd`
 
 # all tests will be kept in a sub-folder of the current location called "results"
 if [[ ! -d "results" ]]; then
   mkdir -p results
 fi
+
+COUNT_TOTAL=0
 
 # this is assumed to be running from the tests directory
 if [ ${ALLTESTS} -eq 0 ]; then
@@ -302,21 +363,7 @@ if [ ${ALLTESTS} -eq 0 ]; then
     echo "test not found for: ${COMMAND}"
     exit 0
   fi
-  extract_test ${file}
-  echo "Building single test '${test}' from path '${class}'"
-  check_if_viable
-  if [[ ${VALID} -eq 1 ]]; then
-    build_test
-    if [[ ${RUNTEST} -eq 1 ]]; then
-      cd results/${test}
-      # create instrumented jar
-      instrument_test
-      # clear the database before we run
-      clear_database
-      # run instrumented jar and and verify results
-      run_test
-    fi
-  fi
+  build_chain
 else
   # else, we are going to generate them all...
   # copy the source and library files from the dse tests project
@@ -325,32 +372,14 @@ else
   # search dse test folders recursively for source files to build
   testlist=`find . -name "*.java" | sort`
   for file in ${testlist}; do
-    # these commands must be executed from the directory this script is in
-    cd ${CURDIR}
-    extract_test ${file}
-    if [[ ${test} == "LibReturnObject" ]]; then
-      # skip this, it is just a lib file used by other tests
-      continue
-    fi
-    check_if_viable
-    if [[ ${VALID} -eq 1 ]]; then
-      build_test
-      if [[ ${RUNTEST} -eq 1 ]]; then
-        # these commands must be executed from the build directory of the specified test
-        cd results/${test}
-        # create instrumented jar
-        instrument_test
-        # clear the database before we run
-        clear_database
-        # run instrumented jar and and verify results
-        run_test
-      fi
-      # exit loop on any failures
-      if [[ ${FAILURE} -ne 0 ]]; then
-        echo "FAILURE on test: ${COMMAND}"
-        exit 1
-      fi
-      echo "------------------------------------------"
+    build_chain
+    echo "------------------------------------------"
+
+    # exit on any failures
+    if [[ ${FAILURE} -ne 0 ]]; then
+      echo "${COUNT_TOTAL} tests completed: 1 failure"
+      exit 1
     fi
   done
+  echo "All ${COUNT_TOTAL} tests completed: no failures"
 fi
