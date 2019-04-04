@@ -125,6 +125,21 @@ public final class LauncherMain {
     HTTP_GET,         // using GET to HTTP port
   }
   
+  // Commands that can be saved in record session
+  private enum RecordID {
+    RUN,              // start the application (optional arglist)
+    STOP,             // terminate the application
+    DELAY,            // delay in seconds (arg required)
+    WAIT_FOR_TERM,    // wait until application has terminated
+    WAIT_FOR_SERVER,  // wait until server has come up
+    SET_HTTP,         // set the HTTP port to use (arglist required = port)
+    SEND_HTTP_RAW,    // send message to HTTP port (arglist required)
+    SEND_HTTP_POST,   // send POST-formatted message to HTTP port (arglist required)
+    SEND_HTTP_GET,    // send GET-formatted  message to HTTP port
+    SEND_STDIN,       // send message to standard input (arglist required)
+    CHECK,            // verify solution found (name and value)
+  }
+  
   private enum RunMode { IDLE, RUNNING, TERMINATING, KILLING, EXITING }
 
   // tab panel selections
@@ -176,6 +191,11 @@ public final class LauncherMain {
   private static RunMode         runMode;
   private static String          currentTab;
   
+  // recording info for creating test
+  private static boolean         recordState;
+  private static long            recordStartTime;
+  private static final ArrayList<RecordCommand>   recording = new ArrayList<>();
+  
   // the collection of classes and methods for the selected project
   private static ArrayList<String> fullMethList = new ArrayList<>();
   private static ArrayList<String> classList = new ArrayList<>();
@@ -226,6 +246,16 @@ public final class LauncherMain {
     }
   }
   
+  private static class RecordCommand {
+    public RecordID command;
+    public String   argument;
+    
+    public RecordCommand(RecordID cmd, String arg) {
+      command = cmd;
+      argument = arg;
+    }
+  }
+  
   private static class MethodHistoryInfo {
     public String className;
     public String methodName;
@@ -270,6 +300,7 @@ public final class LauncherMain {
     graphMode = CallGraph.GraphHighlight.NONE;
     runMode = RunMode.IDLE;
     mainClassInitializing = false;
+    recordState = false;
     tabIndex = 0;
     String projectPath;
 
@@ -384,6 +415,11 @@ public final class LauncherMain {
   public static void setSolutionsReceived(int formulas, int solutions) {
     mainFrame.getTextField("TXT_FORMULAS").setText("" + formulas);
     mainFrame.getTextField("TXT_SOLUTIONS").setText("" + solutions);
+  }
+  
+  public static void checkSelectedSolution(String solution) {
+    // if recording enabled, add command to list
+    addRecordCommand(RecordID.CHECK, solution);
   }
   
   public static void updateDanfigFile() {
@@ -818,15 +854,27 @@ public final class LauncherMain {
       switch (inputMode) {
         case STDIN:
           threadLauncher.sendStdin(input);
+          // if recording enabled, add command to list
+          addRecordDelay();
+          addRecordCommand(RecordID.SEND_STDIN, input);
           break;
         case HTTP_RAW:
           sendHttpMessage("HTTP", port, input);
+          // if recording enabled, add command to list
+          addRecordHttpDelay(port);
+          addRecordCommand(RecordID.SEND_HTTP_RAW, input);
           break;
         case HTTP_GET:
           sendHttpMessage("GET", port, input);
+          // if recording enabled, add command to list
+          addRecordHttpDelay(port);
+          addRecordCommand(RecordID.SEND_HTTP_GET, "");
           break;
         case HTTP_POST:
           sendHttpMessage("POST", port, input);
+          // if recording enabled, add command to list
+          addRecordHttpDelay(port);
+          addRecordCommand(RecordID.SEND_HTTP_POST, input);
           break;
       }
     }
@@ -865,6 +913,14 @@ public final class LauncherMain {
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       String arglist = mainFrame.getTextField("TXT_ARGLIST").getText();
       runTest(arglist);
+
+      // if prev recording currently running, terminate it first, so user can start a new one
+      if (recordState && !recording.isEmpty()) {
+        printCommandMessage("--- RECORD session terminated ---");
+        recording.clear();
+      }
+      
+      addRecordCommand(RecordID.RUN, arglist);
     }
   }
 
@@ -882,6 +938,9 @@ public final class LauncherMain {
 
         // check on progress and take further action if necessary
         killTimer.start();
+
+        // if recording enabled, add command to list
+        addRecordCommand(RecordID.STOP, "");
       }
     }
   }
@@ -931,6 +990,7 @@ public final class LauncherMain {
     JMenu menuConfig  = launcherMenuBar.add(new JMenu("Config"));
     JMenu menuClear   = launcherMenuBar.add(new JMenu("Clear"));
     JMenu menuSave    = launcherMenuBar.add(new JMenu("Save"));
+    JMenu menuRecord  = launcherMenuBar.add(new JMenu("Record"));
     JMenu menuHelp    = launcherMenuBar.add(new JMenu("Help"));
 
     JMenu menu = menuProject; // selections for the Project Menu
@@ -961,6 +1021,10 @@ public final class LauncherMain {
     addMenuItem     (menu, "MENU_SAVE_JSON"  , "Save Call Graph as JSON", new Action_SaveCallGraphJSON());
     addMenuItem     (menu, "MENU_SAVE_JGRAPH", "Save Compare Graph", new Action_SaveCompGraphPNG());
 
+    menu = menuRecord; // selections for the Record Menu
+    addMenuItem     (menu, "MENU_RECORD_START", "Start Recording", new Action_RecordStart());
+    addMenuItem     (menu, "MENU_RECORD_STOP" , "Stop Recording", new Action_RecordStop());
+    
 //    menuHelp.addActionListener(new Action_ShowHelp());
     menu = menuHelp; // selections for the Help Menu
     addMenuItem     (menu, "MENU_HELP", "Help", new Action_ShowHelp());
@@ -1144,7 +1208,120 @@ public final class LauncherMain {
       saveDatabaseTable();
     }
   }
+
+  private class Action_RecordStart implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      printCommandMessage("--- RECORD session started ---");
       
+      // clear last recording
+      recording.clear();
+      recordState = true;
+
+      // clear the debug output and solver
+      clearDebugLogger();
+      if (solverConnection.isValid()) {
+        solverConnection.sendClearAll();
+      }
+    
+      // if application already running, auto-insert the RUN command
+      if (runMode != RunMode.IDLE) {
+        String arglist = mainFrame.getTextField("TXT_ARGLIST").getText();
+        addRecordCommand(RecordID.RUN, arglist);
+      }
+    }
+  }
+    
+  private class Action_RecordStop implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      if (recordState) {
+        printCommandMessage("--- RECORD session terminated ---");
+        recordState = false;
+      }
+      
+      if (recording.isEmpty()) {
+        printStatusError("Nothing was recorded");
+        return;
+      }
+      
+      // create a panel containing the script to run for testing
+      String baseName = projectName.substring(0, projectName.indexOf(".jar"));
+      String content = "";
+      String httpport = "";
+      content += "TESTNAME=\"" + baseName + "\"" + Utils.NEWLINE;
+      content += Utils.NEWLINE;
+      content += "PID=$1" + Utils.NEWLINE;
+      content += "echo \"pid = ${PID}\"" + Utils.NEWLINE;
+      content += Utils.NEWLINE;
+      for (RecordCommand entry : recording) {
+        switch(entry.command) {
+          case RUN:
+            // TODO: this is used for passing an arg to the run script. need to figger this out...
+            break;
+          case STOP:
+            content += "# terminate process (this one doesn't auto-terminate)" + Utils.NEWLINE;
+            content += "kill -15 ${PID} > /dev/null 2>&1" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case DELAY:
+            content += "# wait a short period" + Utils.NEWLINE;
+            content += "sleep " + entry.argument + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case WAIT_FOR_TERM:
+            content += "# wait for application to complete" + Utils.NEWLINE;
+            content += "wait_for_app_completion 5 ${PID}" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case WAIT_FOR_SERVER:
+            content += "# wait for server to start then post message to it" + Utils.NEWLINE;
+            content += "wait_for_server 10 ${PID} ${SERVERPORT}" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case SET_HTTP:
+            httpport = entry.argument;
+            content += "# http port and message to send" + Utils.NEWLINE;
+            content += "SERVERPORT=\"" + httpport + "\"" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case SEND_HTTP_RAW:
+          case SEND_HTTP_POST:
+            content += "# send the HTTP POST" + Utils.NEWLINE;
+            content += "echo \"Sending message to application\"" + Utils.NEWLINE;
+            content += "curl -d \"" + entry.argument + "\" http://localhost:${SERVERPORT}" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case SEND_HTTP_GET:
+            content += "# send the HTTP GET" + Utils.NEWLINE;
+            content += "echo \"Sending message to application\"" + Utils.NEWLINE;
+            content += "curl http://localhost:${SERVERPORT}" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case SEND_STDIN:
+            content += "# send the message to STDIN" + Utils.NEWLINE;
+            content += "echo \"Sending message to application\"" + Utils.NEWLINE;
+            content += "echo \"" + entry.argument + "\" > /proc/${PID}/fd/0" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+          case CHECK:
+            String solution = entry.argument;
+            String[] sol = solution.split(" "); // NOTE: this doesn't handle multiple entries yet
+            content += "# get solver response and check against expected solution" + Utils.NEWLINE;
+            content += "echo \"Debug info: ${TESTNAME} database entry\"" + Utils.NEWLINE;
+            content += "check_single_solution \"" + sol[0] + "\" \"" + sol[2] + "\"" + Utils.NEWLINE;
+            content += "retcode=$?" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            content += "show_results ${TESTNAME} ${retcode}" + Utils.NEWLINE;
+            content += Utils.NEWLINE;
+            break;
+        }
+      }
+
+      JFrame testPanel = GuiControls.makeFrameWithText(null, "check_results.sh", content, 400, 300);
+    }
+  }
+    
   private class Action_ShowHelp implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -2258,6 +2435,51 @@ public final class LauncherMain {
     }
     System.err.println("ERROR: User control '" + ctlName + "' not found");
   }
+
+  private static void addRecordDelay() {
+    // determine the delay time (ignore if it was < 1 sec or start wasn't initialized)
+    if (recordStartTime != 0) {
+      long elapsed = 1 + (System.currentTimeMillis() - recordStartTime) / 1000;
+      if (elapsed > 1) {
+        addRecordCommand(RecordID.DELAY, "" + elapsed);
+      }
+    }
+  }
+
+  private static void addRecordHttpDelay(String port) {
+    if (recording.isEmpty()) {
+      return;
+    }
+    
+    // if we have already established the server port and waited for it, just do a delay
+    for (RecordCommand entry : recording) {
+      if (entry.command == RecordID.SET_HTTP) {
+        addRecordDelay();
+        return;
+      }
+    }
+
+    // if 1st time on HTTP, indicate the port selection and wait till server is up
+    addRecordCommand(RecordID.SET_HTTP, port);
+    addRecordCommand(RecordID.WAIT_FOR_SERVER, "");
+  }
+  
+  private static void addRecordCommand(RecordID command, String arg) {
+    if (recordState) {
+      // if command is not RUN command, then only add if RUN was previously saved
+      if (recording.isEmpty() && command != RecordID.RUN) {
+        printCommandMessage("Igoring command " + command.toString() + " until RUN command received");
+        return;
+      }
+      
+      // add command
+      printCommandMessage("--- RECORDED: " + command.toString() + " " + arg);
+      recording.add(new RecordCommand(command, arg));
+
+      // get start of delay to next command
+      recordStartTime = System.currentTimeMillis();
+    }
+  }
   
   private static boolean fileCheck(String fname) {
     if (new File(fname).isFile()) {
@@ -2533,7 +2755,7 @@ public final class LauncherMain {
     
     threadLauncher.init(new ThreadTermination());
     threadLauncher.launch(fullcmd, projectPathName, "run_" + projectName, null);
-
+    
     // disable the Run and Get Bytecode buttons until the code has terminated
     mainFrame.getButton("BTN_RUNTEST").setEnabled(false);
     mainFrame.getButton("BTN_BYTECODE").setEnabled(false);
@@ -2924,6 +3146,18 @@ public final class LauncherMain {
       mainFrame.getButton("BTN_STOPTEST").setEnabled(false);
       mainFrame.getButton("BTN_RUNTEST").setEnabled(true);
       mainFrame.getButton("BTN_BYTECODE").setEnabled(true);
+
+      // if recording enabled, add command to list
+      if (!recording.isEmpty()) {
+        // this records that the application has terminated - skip if user issued STOP
+        // (we use this to wait for the application to terminate on its own)
+        for (RecordCommand entry : recording) {
+          if (entry.command == RecordID.STOP) {
+            return;
+          }
+        }
+        addRecordCommand(RecordID.WAIT_FOR_TERM, "");
+      }
     }
   }
         

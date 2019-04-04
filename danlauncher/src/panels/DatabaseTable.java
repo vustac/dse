@@ -294,27 +294,6 @@ public class DatabaseTable {
     return currRun;
   }
   
-  public static void readDatabase() {
-    if (mongoFailure) {
-      return;
-    }
-    
-    try {
-      // read data base for solutions to specified parameter that are solvable
-      FindIterable<Document> iterdocs = collection.find() //(Bson) new BasicDBObject("solvable", true))
-          .sort((Bson) new BasicDBObject("_id", -1)); // sort in descending order (oldest first)
-
-      dbList.clear();
-      for (Document doc : iterdocs) {
-        DatabaseInfo entry = new DatabaseInfo(doc);
-        dbList.add(entry);
-      }
-    } catch (MongoTimeoutException ex) {
-      LauncherMain.printStatusError("Mongo Timeout - make sure mongodb is running.");
-      mongoFailure = true;
-    }
-  }
-  
   public void saveDatabaseToExcel(String filename) {
     LauncherMain.printStatusMessage("Saving Database to Excel file: " + filename);
     try {
@@ -390,6 +369,27 @@ public class DatabaseTable {
     }
   }
 
+  private static void readDatabase() {
+    if (mongoFailure) {
+      return;
+    }
+    
+    try {
+      // read data base for solutions to specified parameter that are solvable
+      FindIterable<Document> iterdocs = collection.find() //(Bson) new BasicDBObject("solvable", true))
+          .sort((Bson) new BasicDBObject("_id", -1)); // sort in descending order (oldest first)
+
+      dbList.clear();
+      for (Document doc : iterdocs) {
+        DatabaseInfo entry = new DatabaseInfo(doc);
+        dbList.add(entry);
+      }
+    } catch (MongoTimeoutException ex) {
+      LauncherMain.printStatusError("Mongo Timeout - make sure mongodb is running.");
+      mongoFailure = true;
+    }
+  }
+  
   private static String formatSolutionArrayToString(ArrayList<String> list) {
     String entry = "";
     if (!list.isEmpty()) {
@@ -646,6 +646,9 @@ public class DatabaseTable {
           }
           solutionPanel = GuiControls.makeFrameWithText(solutionPanel, "Solution for Run " +
               info.iConnect + ", Count " + info.iCount, contents, 400, 300);
+
+          // inform Launcher recorder of solution selection
+          LauncherMain.checkSelectedSolution(contents);
         }
         break;
       default:
