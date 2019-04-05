@@ -127,17 +127,19 @@ public final class LauncherMain {
   
   // Commands that can be saved in record session
   private enum RecordID {
-    RUN,              // start the application (optional arglist)
-    STOP,             // terminate the application
-    DELAY,            // delay in seconds (arg required)
-    WAIT_FOR_TERM,    // wait until application has terminated
-    WAIT_FOR_SERVER,  // wait until server has come up
-    SET_HTTP,         // set the HTTP port to use (arglist required = port)
-    SEND_HTTP_RAW,    // send message to HTTP port (arglist required)
-    SEND_HTTP_POST,   // send POST-formatted message to HTTP port (arglist required)
-    SEND_HTTP_GET,    // send GET-formatted  message to HTTP port
-    SEND_STDIN,       // send message to standard input (arglist required)
-    CHECK,            // verify solution found (name and value)
+    RUN,                // start the application (optional arglist)
+    STOP,               // terminate the application
+    DELAY,              // delay in seconds (auto-inserted)
+    WAIT_FOR_TERM,      // wait until application has terminated
+    WAIT_FOR_SERVER,    // wait until server has come up
+    SET_HTTP,           // set the HTTP port to use (arglist required = port)
+    SEND_HTTP_RAW,      // send message to HTTP port (arglist required)
+    SEND_HTTP_POST,     // send POST-formatted message to HTTP port (arglist required)
+    SEND_HTTP_GET,      // send GET-formatted  message to HTTP port
+    SEND_STDIN,         // send message to standard input (arglist required)
+    EXTRACT_SOLUTIONS,  // extract the solutions to be chacked (auto-insert on 1st CHECK)
+    CHECK,              // verify solution found (name and value)
+    SHOW_RESULTS,       // show the final pass/fail status (auto-inserted at end of test)
   }
   
   private enum RunMode { IDLE, RUNNING, TERMINATING, KILLING, EXITING }
@@ -418,7 +420,10 @@ public final class LauncherMain {
   }
   
   public static void checkSelectedSolution(String solution) {
-    // if recording enabled, add command to list
+    // if CHECK not in record list (this is the first),  preceed it with EXTRACT command
+    if (!isCommandInRecording(RecordID.CHECK)) {
+      addRecordCommand(RecordID.EXTRACT_SOLUTIONS, solution);
+    }
     addRecordCommand(RecordID.CHECK, solution);
   }
   
@@ -562,6 +567,7 @@ public final class LauncherMain {
     GuiControls gui = mainFrame;
 
     GuiControls.Orient LEFT = GuiControls.Orient.LEFT;
+    GuiControls.Orient RIGHT = GuiControls.Orient.RIGHT;
     GuiControls.Orient NONE = GuiControls.Orient.NONE;
     
     // create the frame
@@ -585,7 +591,8 @@ public final class LauncherMain {
     gui.makeLabel      (panel, "LBL_3"        , LEFT, false, "Formulas");
     gui.makeTextField  (panel, "TXT_FORMULAS" , LEFT, false, "0", 6, false);
     gui.makeLabel      (panel, "LBL_4"        , LEFT, false, "Solutions");
-    gui.makeTextField  (panel, "TXT_SOLUTIONS", LEFT, true , "0", 6, false);
+    gui.makeTextField  (panel, "TXT_SOLUTIONS", LEFT, false, "0", 6, false);
+    gui.makeLabel      (panel, "LBL_RECORDING", RIGHT, true, "-- RECORDING --");
 
     // the split panel is encapsulated in a JPanel to prevent limit the height
     panel = "PNL_CONTAINER";
@@ -637,7 +644,12 @@ public final class LauncherMain {
     // initially disable the bytecode control selections
     boolean bcPanelEnable = false;
     gui.getPanelInfo("PNL_BYTECODE").panel.setVisible(bcPanelEnable);
-        
+    
+    // aldo disable the RECORDING message
+    JLabel recordIndicator = gui.getLabel("LBL_RECORDING");
+    recordIndicator.setVisible(false);
+    recordIndicator.setForeground(Color.red);
+    
     // add a menu to the frame
     createMainMenu(bcPanelEnable);
 
@@ -1217,6 +1229,7 @@ public final class LauncherMain {
       // clear last recording
       recording.clear();
       recordState = true;
+      mainFrame.getLabel("LBL_RECORDING").setVisible(true);
 
       // clear the debug output and solver
       clearDebugLogger();
@@ -1235,9 +1248,15 @@ public final class LauncherMain {
   private class Action_RecordStop implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // if we haven't displayed status results yet, do it now
+      if (!isCommandInRecording(RecordID.SHOW_RESULTS)) {
+        recording.add(new RecordCommand(RecordID.SHOW_RESULTS, ""));
+      }
+        
       if (recordState) {
         printCommandMessage("--- RECORD session terminated ---");
         recordState = false;
+        mainFrame.getLabel("LBL_RECORDING").setVisible(false);
       }
       
       if (recording.isEmpty()) {
@@ -1251,6 +1270,8 @@ public final class LauncherMain {
       String httpport = "";
       content += "TESTNAME=\"" + baseName + "\"" + Utils.NEWLINE;
       content += Utils.NEWLINE;
+      content += "# initialize the pass/fail status to pass and save the pid of the running process" + Utils.NEWLINE;
+      content += "STATUS=0" + Utils.NEWLINE;
       content += "PID=$1" + Utils.NEWLINE;
       content += "echo \"pid = ${PID}\"" + Utils.NEWLINE;
       content += Utils.NEWLINE;
@@ -1304,15 +1325,18 @@ public final class LauncherMain {
             content += "echo \"" + entry.argument + "\" > /proc/${PID}/fd/0" + Utils.NEWLINE;
             content += Utils.NEWLINE;
             break;
-          case CHECK:
-            String solution = entry.argument;
-            String[] sol = solution.split(" "); // NOTE: this doesn't handle multiple entries yet
+          case EXTRACT_SOLUTIONS:
             content += "# get solver response and check against expected solution" + Utils.NEWLINE;
             content += "echo \"Debug info: ${TESTNAME} database entry\"" + Utils.NEWLINE;
-            content += "check_single_solution \"" + sol[0] + "\" \"" + sol[2] + "\"" + Utils.NEWLINE;
-            content += "retcode=$?" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            content += "show_results ${TESTNAME} ${retcode}" + Utils.NEWLINE;
+            content += "extract_solutions" + Utils.NEWLINE;
+            break;
+          case CHECK:
+            String solution = entry.argument;
+            String[] sol = solution.split(" ");
+            content += "check_solution \"" + sol[0] + "\" \"" + sol[2] + "\"" + Utils.NEWLINE;
+            break;
+          case SHOW_RESULTS:
+            content += "show_results ${TESTNAME}" + Utils.NEWLINE;
             content += Utils.NEWLINE;
             break;
         }
@@ -2436,6 +2460,10 @@ public final class LauncherMain {
     System.err.println("ERROR: User control '" + ctlName + "' not found");
   }
 
+  private static boolean isCommandInRecording(RecordID cmd) {
+    return recording.stream().anyMatch((entry) -> (entry.command == cmd));
+  }
+  
   private static void addRecordDelay() {
     // determine the delay time (ignore if it was < 1 sec or start wasn't initialized)
     if (recordStartTime != 0) {
@@ -2452,11 +2480,9 @@ public final class LauncherMain {
     }
     
     // if we have already established the server port and waited for it, just do a delay
-    for (RecordCommand entry : recording) {
-      if (entry.command == RecordID.SET_HTTP) {
-        addRecordDelay();
-        return;
-      }
+    if (isCommandInRecording(RecordID.SET_HTTP)) {
+      addRecordDelay();
+      return;
     }
 
     // if 1st time on HTTP, indicate the port selection and wait till server is up
@@ -2471,8 +2497,17 @@ public final class LauncherMain {
         printCommandMessage("Igoring command " + command.toString() + " until RUN command received");
         return;
       }
-      
-      // add command
+
+      // if last command was CHECK and this command isn't, let's terminate the CHECK tests
+      int count = recording.size();
+      if (count > 1 && RecordID.SHOW_RESULTS != command
+                    && RecordID.CHECK != command
+                    && RecordID.CHECK == recording.get(count - 1).command) {
+        printCommandMessage("--- RECORDED: SHOW_RESULTS");
+        recording.add(new RecordCommand(RecordID.SHOW_RESULTS, ""));
+      }
+
+      // add the command
       printCommandMessage("--- RECORDED: " + command.toString() + " " + arg);
       recording.add(new RecordCommand(command, arg));
 
@@ -3151,12 +3186,9 @@ public final class LauncherMain {
       if (!recording.isEmpty()) {
         // this records that the application has terminated - skip if user issued STOP
         // (we use this to wait for the application to terminate on its own)
-        for (RecordCommand entry : recording) {
-          if (entry.command == RecordID.STOP) {
-            return;
-          }
+        if (!isCommandInRecording(RecordID.STOP)) {
+          addRecordCommand(RecordID.WAIT_FOR_TERM, "");
         }
-        addRecordCommand(RecordID.WAIT_FOR_TERM, "");
       }
     }
   }

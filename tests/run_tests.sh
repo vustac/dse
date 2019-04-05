@@ -118,13 +118,13 @@ function run_test
     echo "Checking test results"
     ./check_result.sh ${pid}
 
-    # kill the tail process
-    pkill tail > /dev/null 2>&1
-
     # delete the pipe we created
     if [ -p inpipe ]; then
-      rm -f inpipe
+      rm -f inpipe > /dev/null 2>&1
     fi
+
+    # kill the tail process
+    pkill tail > /dev/null 2>&1
   fi
 }
 
