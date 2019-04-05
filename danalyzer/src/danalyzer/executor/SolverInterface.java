@@ -70,7 +70,8 @@ public class SolverInterface {
     return ENTRY_BEGIN + id + ":" + (value ? "1" : "0") + ENTRY_END;
   }
   
-  public void sendMessage(int threadId, String method, int opcodeOffset, boolean pathsel, String formula) {
+  public void sendMessage(int threadId, String method, int opcodeOffset, boolean pathsel, 
+      String ctype, String formula) {
     if (tcpDataOut == null) {
       System.err.println("ERROR: <SolverInterface.sendMessage>: no connection (method: " + method + ")");
       return;
@@ -86,6 +87,7 @@ public class SolverInterface {
                  encloseEntry("BOFF", opcodeOffset) +
                  encloseEntry("PATH", pathsel) +
                  encloseEntry("COST", DebugUtil.getInstructionCount()) + // the cost
+                 encloseEntry("CTYP", ctype) +
                  encloseEntry("FORM", formula) + NEWLINE;
 
     // now send the message

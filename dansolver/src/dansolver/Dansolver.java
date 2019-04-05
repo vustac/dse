@@ -169,6 +169,7 @@ public class Dansolver {
         // update the document entry
         doc = doc.append("solvable", false);
         doc = doc.append("calctime", (int) (System.currentTimeMillis() - startTime) / 1000);
+
         collection.replaceOne((Bson) new BasicDBObject("_id", (ObjectId)doc.get("_id")), doc);
         System.out.println("Constraints not satisfiable");
         return;
@@ -184,8 +185,8 @@ public class Dansolver {
       // the constraint was solvable,
       // there may be multiple parameters in the solution. we will place them all in an List
       doc = doc.append("solvable", true);
-      List<Document> solutions = new ArrayList<>();
 
+      List<Document> solutions = new ArrayList<>();
       for (FuncDecl fd : model.getConstDecls()) {
         String paramName = fd.getName().toString().replace('.', '/');
         // arrays
@@ -234,19 +235,25 @@ public class Dansolver {
             Expr expr = model.getConstInterp(fd);
             String eval = model.eval(expr, false).toString();
             System.out.println("Solution: " + fd.getName() + ", value = " + eval);
-            solutions.add(new Document("type", "integral").append("name", paramName).append("value", eval));
+            solutions.add(new Document("type", "integral")
+                               .append("name", paramName)
+                               .append("value", eval));
           } else if (fd.getRange() instanceof SeqSort && fd.getDomainSize() == 0) {
             // add the String solution
             Expr expr = model.getConstInterp(fd);
             String eval = model.eval(expr, false).toString();
             System.out.println("Solution: " + fd.getName() + ", value = " + eval);
-            solutions.add(new Document("type", "string").append("name", paramName).append("value", eval));
+            solutions.add(new Document("type", "string")
+                               .append("name", paramName)
+                               .append("value", eval));
           } else if (fd.getRange() instanceof com.microsoft.z3.RealSort && fd.getDomainSize() == 0) {
             // add the String solution
             Expr expr = model.getConstInterp(fd);
             String eval = model.eval(expr, false).toString();
             System.out.println("Solution: " + fd.getName() + ", value = " + eval);
-            solutions.add(new Document("type", "real").append("name", paramName).append("value", eval));
+            solutions.add(new Document("type", "real")
+                               .append("name", paramName)
+                               .append("value", eval));
           } else {
             System.out.println("Don't know how to handle uninterpreted function with range " +
                 fd.getRange().toString() + ".");

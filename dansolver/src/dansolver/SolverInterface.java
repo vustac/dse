@@ -29,6 +29,7 @@ public class SolverInterface {
   private Integer offset;        // opcode line offset within the method
   private Boolean pathsel;       // indication of whether the branch was taken or not
   private Integer cost;          // number of instructions executed at the branch point
+  private String  ctype;         // type of constraint: PATH, ARRAY, LOOPBOUND
   private String  constraint;    // constraint value
 
   // these are flags to communicate status to caller
@@ -96,6 +97,7 @@ public class SolverInterface {
     mongoDoc = mongoDoc.append("thread", threadId);
     mongoDoc = mongoDoc.append("time", datestr);
     mongoDoc = mongoDoc.append("constraint", constraint);
+    mongoDoc = mongoDoc.append("ctype", ctype);
     mongoDoc = mongoDoc.append("method", method);
     mongoDoc = mongoDoc.append("offset", offset);
     mongoDoc = mongoDoc.append("lastpath", pathsel);
@@ -232,6 +234,9 @@ public class SolverInterface {
           break;
         case "COST":
           cost = Integer.parseUnsignedInt(value);
+          break;
+        case "CTYP":
+          ctype = value;
           break;
         case "FORM":
           constraint = value;

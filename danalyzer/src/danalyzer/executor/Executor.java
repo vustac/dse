@@ -48,6 +48,12 @@ public class Executor {
   // used in formatting debugPrintDump
   private static final String NEWLINE = System.getProperty("line.separator");
 
+  private static enum ConstraintType {
+    PATH,       // normal path constraint
+    ARRAY,      // array out-of-bounds constraint
+    LOOPBOUND,  // loop bounds constraint
+  }
+  
   private StackFrame           currentStackFrame;
   private Stack<StackFrame>    executionStack;
   private boolean              initialized;
@@ -1401,10 +1407,11 @@ public class Executor {
 
     // send info to solver
     boolean pathsel = false;
-    solverPort.sendMessage(threadId, currentStackFrame.getMethodName(), opcodeOffset, pathsel, formula);
+    solverPort.sendMessage(threadId, currentStackFrame.getMethodName(), opcodeOffset, pathsel,
+        ConstraintType.ARRAY.toString(), formula);
   }
-  
-  private void solvePC(int threadId, int opcodeOffset, boolean pathsel) {
+
+  private void solvePC(int threadId, int opcodeOffset, boolean pathsel, ConstraintType ctype) {
     // add up the constraints and invert the last one to find a new path
     // first, start with the last constraint negated (in case there is only 1 constraint)
     int lastix = z3Constraints.size() - 1;
@@ -1419,11 +1426,15 @@ public class Executor {
       }
       expr = z3Context.mkAnd(initexpr, expr);
     }
-    
+
+    // add optimization
     z3Optimize.Push();
     z3Optimize.Add(expr);
     String formula = z3Optimize.toString();
     z3Optimize.Pop();
+//    // Original version: let's put this in a String format for saving to mongo
+//    BoolExpr assump[] = new BoolExpr[0]; // no assumptions here
+//    String formula = z3Context.benchmarkToSMTString("benchmark", "", "unknown", "", assump, expr);
     
     /* ----------debug head--------- *@*/
     debugPrintSolve(threadId, "Table entry[" + threadId + "][" + constraintCount++ + "]:");
@@ -1432,37 +1443,8 @@ public class Executor {
     // ----------debug tail---------- */
 
     // send info to solver
-    solverPort.sendMessage(threadId, currentStackFrame.getMethodName(), opcodeOffset, pathsel, formula);
-  }
-  
-  private void solveOldPC(int threadId, int opcodeOffset, boolean pathsel) {
-    // add up the constraints and invert the last one to find a new path
-    // first, start with the last constraint negated (in case there is only 1 constraint)
-    int lastix = z3Constraints.size() - 1;
-    BoolExpr lastExpr = z3Constraints.get(lastix);
-    BoolExpr expr = z3Context.mkNot(lastExpr);
-
-    // if more than 1, 'and' all the prior constraints plus the last negated one
-    if (lastix > 0) {
-      BoolExpr initexpr = z3Constraints.get(0);
-      for (int i = 1; i < lastix; i++) {
-        initexpr = z3Context.mkAnd(initexpr, z3Constraints.get(i));
-      }
-      expr = z3Context.mkAnd(initexpr, expr);
-    }
-    
-    // now let's put this in a String format for saving to mongo
-    BoolExpr assump[] = new BoolExpr[0]; // no assumptions here
-    String formula = z3Context.benchmarkToSMTString("benchmark", "", "unknown", "", assump, expr);
-
-    /* ----------debug head--------- *@*/
-    debugPrintSolve(threadId, "Table entry[" + threadId + "][" + constraintCount++ + "]:");
-    debugPrintSolve(threadId, formula);
-    debugPrintSolve(threadId, "-------------------------");
-    // ----------debug tail---------- */
-
-    // send info to solver
-    solverPort.sendMessage(threadId, currentStackFrame.getMethodName(), opcodeOffset, pathsel, formula);
+    solverPort.sendMessage(threadId, currentStackFrame.getMethodName(), opcodeOffset, pathsel,
+        ctype.toString(), formula);
   }
   
   private void dumpStackInfo(boolean error) {
@@ -3961,7 +3943,7 @@ public class Executor {
             + " for " + con1 + " ? " + con2);
     // ----------debug tail---------- */
 
-    solvePC(threadId, line, pathsel);
+    solvePC(threadId, line, pathsel, ConstraintType.PATH);
   }
   
   public void compareIntegerGreaterThan(String opcode, int con1, int con2, int line, String method) {
@@ -4001,7 +3983,7 @@ public class Executor {
             + " for " + con1 + " ? " + con2);
     // ----------debug tail---------- */
 
-    solvePC(threadId, line, pathsel);
+    solvePC(threadId, line, pathsel, ConstraintType.PATH);
   }
   
   public void compareIntegerLessThan(String opcode, int con1, int con2, int line, String method) {
@@ -4040,7 +4022,7 @@ public class Executor {
             + " for " + con1 + " ? " + con2);
     // ----------debug tail---------- */
 
-    solvePC(threadId, line, pathsel);
+    solvePC(threadId, line, pathsel, ConstraintType.PATH);
   }
   
   public void maxCompareIntegerLessThan(String opcode, int con1, int con2, int line, String method) {
@@ -4085,7 +4067,7 @@ public class Executor {
       z3Optimize.MkMaximize(expr2);
     }
     
-    solvePC(threadId, line, pathsel);
+    solvePC(threadId, line, pathsel, ConstraintType.LOOPBOUND);
     
     if (sym2) {
       z3Optimize.Pop();
@@ -4198,7 +4180,7 @@ public class Executor {
     debugPrintConstraint(threadId, "added IF_ACMPEQ constraint: " + (isEqual ? "Eq" : "Eq + Not"));
     // ----------debug tail---------- */
 
-    solvePC(threadId, line, isEqual);
+    solvePC(threadId, line, isEqual, ConstraintType.PATH);
 
     // TODO: construct symbolic counterpart of the concrete object
   }
@@ -4246,7 +4228,7 @@ public class Executor {
       debugPrintConstraint(threadId, "added IF_ACMPNE constraint: " + (isNotEqual ? "Eq" : "Eq + Not"));
       // ----------debug tail---------- */
 
-      solvePC(threadId, line, isNotEqual);
+      solvePC(threadId, line, isNotEqual, ConstraintType.PATH);
 //    }
 
     // TODO: construct symbolic counterpart of the concrete object
