@@ -116,7 +116,7 @@ function check_solution
   local expname=$1
   local expvalue=$2
   
-  for ((ix=0; ix<${count}; ix++)); do
+  for ((ix=0; ix<${SOLUTIONS}; ix++)); do
     # when a string is returned, the result includes the enclosing quotes, so include them in the
     # expected value.
     if [ "${t_array[ix]}" == "string" ]; then
@@ -134,21 +134,6 @@ function check_solution
   STATUS=1
 }
 
-# extracts the solutions from the database and verifies that the single solution given by
-# the passed parameter name and value are found within the results. Note that this allows more
-# than one solution to have been generated, as long as one of them was the specified name and value.
-#
-# $1 = name of parameter expected in solution
-# $2 = value of parameter expected in solution
-#
-# returns 0 on success, 1 on failure
-#
-function check_single_solution
-{
-  extract_solutions
-  check_next_solution $@
-}
-
 # this displays the status results for the specified test
 #
 # $1 = name of test
@@ -160,7 +145,7 @@ function show_results
     echo "----- $1 FAILED -----"
     echo
     echo "Results : ${n_array[0]} = ${v_array[0]}";
-    for ((ix=1; ix<${count}; ix++)); do
+    for ((ix=1; ix<${SOLUTIONS}; ix++)); do
       echo "        : ${n_array[ix]} = ${v_array[ix]}"
     done
     echo

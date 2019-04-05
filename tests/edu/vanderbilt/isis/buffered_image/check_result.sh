@@ -1,5 +1,7 @@
 TESTNAME="BufferedImageTest"
 
+# initialize the pass/fail status to pass and save the pid of the running process"
+STATUS=0
 PID=$1
 echo "pid = ${PID}"
 
@@ -7,8 +9,7 @@ echo "pid = ${PID}"
 wait_for_app_completion 5 ${PID}
 
 # get solver response and check against expected solution
-#  (there may be other solutions, but this is the only one we are interested in)
 echo "Debug info: ${TESTNAME} database entry"
-check_single_solution "x_0_y_1" "1"
-retcode=$?
-show_results ${TESTNAME} ${retcode}
+extract_solutions
+check_solution "x_0_y_1" "1"
+show_results ${TESTNAME}
