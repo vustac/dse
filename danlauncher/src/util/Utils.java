@@ -5,6 +5,8 @@
  */
 package util;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -77,6 +79,36 @@ public class Utils {
           LauncherMain.printCommandError("ERROR: " + ex.getMessage());
         }
       }
+    }
+  }
+  
+  /**
+   * reads the CallGraph.graphMethList entries and saves to file
+   * 
+   * @param object - the object to save as a JSON formatted file
+   * @param file - name of file to save content to
+   */  
+  public static void saveAsJSONFile(Object object, File file) {
+    // open the file to write to
+    BufferedWriter bw;
+    try {
+      bw = new BufferedWriter(new FileWriter(file));
+    } catch (IOException ex) {
+      LauncherMain.printCommandError("ERROR: " + ex.getMessage());
+      return;
+    }
+
+    // convert to json and save to file
+    GsonBuilder builder = new GsonBuilder();
+    builder.setPrettyPrinting().serializeNulls();
+    //builder.excludeFieldsWithoutExposeAnnotation().create();
+    Gson gson = builder.create();
+    gson.toJson(object, bw);
+
+    try {
+      bw.close();
+    } catch (IOException ex) {
+      LauncherMain.printCommandError("ERROR: " + ex.getMessage());
     }
   }
   
