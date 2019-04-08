@@ -97,6 +97,16 @@ public class PropertiesFile {
       logger.printLine(message);
     }
   }
+
+  public boolean isPropertiesDefined (String tag) {
+    if (props != null && tag != null && !tag.isEmpty()) {
+      String value = props.getProperty(tag);
+      if (value != null && !value.isEmpty()) {
+        return true;
+      }
+    }
+    return false;
+  }
   
   public String getPropertiesItem (String tag, String dflt) {
     if (props == null || tag == null || tag.isEmpty()) {
@@ -105,9 +115,8 @@ public class PropertiesFile {
 
     String value = props.getProperty(tag);
     if (value == null || value.isEmpty()) {
+      //logError(propertiesName + " site.properties <" + tag + "> : not found, setting to " + dflt);
       setPropertiesItem (tag, dflt);
-//      logError(propertiesName + " site.properties <" + tag + "> : not found, setting to " + dflt);
-//      props.setProperty(tag, dflt);
       return dflt;
     }
 

@@ -7,6 +7,8 @@ package main;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
+import static main.LauncherMain.printCommandError;
 import static main.LauncherMain.printCommandMessage;
 import util.Utils;
 
@@ -35,75 +37,202 @@ public class Recorder {
   private static boolean         recordState;
   private static long            recordStartTime;
   private static RecordID        recordLastCommand;
+  private static List<RecordID>  recordCommandList;
   private static RecordInfo      recording;
   
   public Recorder() {
     recordState = false;
+    recordStartTime = 0;
     recordLastCommand = RecordID.STOP;
+    recordCommandList = new ArrayList<>();
     recording = new RecordInfo();
   }
+
+  /**
+   * check if we have recorded anything
+   * 
+   * @return true if we have recorded content
+   */
+  public boolean isEmpty() {
+    return recording.commandlist.isEmpty();
+  }
   
-  public boolean isRecording() {
-    return recordState;
+  /**
+   * start the recorder
+   */
+  public void startRecording() {
+    if (recordState) {
+      printCommandMessage("--- previous RECORD session terminated");
+    }
+    printCommandMessage("--- RECORD session started ---");
+    recording.commandlist.clear();
+    recordCommandList.clear();
+    recordStartTime = 0;
+    recordState = true;
+  }
+  
+  /**
+   * stop the recorder
+   */
+  public void stopRecording() {
+    if (recordState) {
+      // if we haven't added the show status results command yet, do it now
+      addCommand(RecordID.SHOW_RESULTS, null);
+      
+      printCommandMessage("--- RECORD session terminated ---");
+      recordState = false;
+    }
+  }
+  
+  /**
+   * begin the test.
+   * (the RUN button was pressed or the test was already running when recording started)
+   * 
+   * @param testname - name of the test being run
+   * @param arglist  - argument list for the test
+   */
+  public void beginTest(String testname, String arglist) {
+    if (recordState) {
+      // init the start time for the next command
+      recordStartTime = System.currentTimeMillis();
+      recording.commandlist.clear();
+      recordCommandList.clear();
+      recording.setTestName(testname, arglist);
+    }
   }
 
-  public void startRecording() {
-    recording.commandlist.clear();
-    recordState = true;
-  }
-  
-  public void startRecording(String testname, String arglist) {
-    recording.commandlist.clear();
-    recordState = true;
-    recording.setTestName(testname, arglist);
-  }
-  
-  public void stopRecording() {
-    recordState = false;
-  }
-  
-  public void clearRecording() {
-    recording.commandlist.clear();
-  }
-  
+  /**
+   * clear the list of symbolic parameters
+   */
   public void clearSymbolics() {
     recording.symbolicList.clear();
   }
   
-  public void addCommand(RecordID cmd, String arg) {
-    if (recordState) {
-      recording.addCommand(cmd, arg);
-    }
-  }
-
-  public void addExpectedParam(String name, String value) {
-    if (recordState) {
-      recording.addExpectedParam(name, value);
-    }
-  }
-  
+  /**
+   * add the specified symbolic parameter.
+   * 
+   * @param method - the method for the parameter
+   * @param name   - the nae of the parameter
+   * @param type   - the data type
+   * @param slot   - the slot it occupies
+   * @param start  - the starting instruction offset from the start of method where param is in scope
+   * @param end    - the ending instruction offset from the start of method where param is in scope
+   */
   public void addSymbolicParam(String method, String name, String type, String slot, String start, String end) {
     if (recordState) {
       recording.addSymbolic(method, name, type, slot, start, end);
     }
   }
   
+  /**
+   * add the specified command and argument that was executed (1 argument).
+   * 
+   * @param cmd - the command executed
+   * @param arg - the associated argument (or null if none)
+   */
+  public void addCommand(RecordID cmd, String arg) {
+    if (recordState && recordStartTime != 0) {
+      // if last command was EXPECTED_PARAM and this command isn't, let's terminate the expected tests
+      if (RecordID.EXPECTED_PARAM == recordLastCommand && RecordID.EXPECTED_PARAM != cmd) {
+        RecordID newcmd = RecordID.SHOW_RESULTS;
+        recording.addCommand(newcmd, new RecordCommand(newcmd, null));
+      }
+
+      recording.addCommand(cmd, new RecordCommand(cmd, arg));
+    }
+  }
+
+  /**
+   * add the specified command and argument that was executed (no arguments).
+   * 
+   * @param cmd - the command executed
+   */
+  public void addCommand(RecordID cmd) {
+    addCommand(cmd, null);
+  }
+
+  /**
+   * add the specified expected parameter command specifying the name and value of the parameter.
+   * 
+   * @param name  - the name of the parameter
+   * @param value - the value of the parameter
+   */
+  public void addExpectedParam(String name, String value) {
+    if (recordState && recordStartTime != 0) {
+      // if EXPECTED_PARAM not in record list (this is the first), preceed it with EXTRACT command
+      if (!recordCommandList.contains(RecordID.EXPECTED_PARAM)) {
+        addCommand(RecordID.EXTRACT_SOLUTIONS, null);
+      }
+    
+      // add the command
+      recording.addCommand(RecordID.EXPECTED_PARAM, new RecordExpectedSingle(name, value));
+    }
+  }
+  
+  /**
+   * add the specified expected parameter command specifying the name and value of the parameter.
+   * 
+   * @param paramlist  - list of the parameters defined for a solution
+   */
+  public void addExpectedParams(ArrayList<ParameterInfo> paramlist) {
+    if (recordState && recordStartTime != 0) {
+      // if EXPECTED_PARAM not in record list (this is the first),  preceed it with EXTRACT command
+      if (!recordCommandList.contains(RecordID.EXPECTED_PARAM)) {
+        addCommand(RecordID.EXTRACT_SOLUTIONS, null);
+      }
+    
+      recording.addCommand(RecordID.EXPECTED_PARAM, new RecordExpectedMulti(paramlist));
+    }
+  }
+  
+  /**
+   * add a delay command (based on the elapsed time from the last command)
+   */
   public void addDelay() {
-    if (recordState) {
-      recording.addDelay();
+    if (recordState && recordStartTime != 0) {
+      // determine the delay time (ignore if it was < 1 sec or start wasn't initialized)
+      if (recordStartTime != 0) {
+        long elapsed = 1 + (System.currentTimeMillis() - recordStartTime) / 1000;
+        if (elapsed > 1) {
+          addCommand(RecordID.DELAY, "" + elapsed);
+        }
+      }
     }
   }
   
+  /**
+   * add a delay for writing to http port (will either do a normal delay or wait for the server
+   * to be listening on the specified port.
+   * 
+   * @param port - the port to check
+   */
   public void addHttpDelay(String port) {
-    if (recordState) {
-      recording.addHttpDelay(port);
+    if (recordState && recordStartTime != 0) {
+      if (recordCommandList.contains(RecordID.SET_HTTP)) {
+        // if we have already established the server port and waited for it, just do a delay
+        addDelay();
+      } else {
+        // if 1st time on HTTP, indicate the port selection and wait till server is up
+        addCommand(RecordID.SET_HTTP, port);
+        addCommand(RecordID.WAIT_FOR_SERVER, null);
+      }
     }
   }
   
+  /**
+   * generate the test configuration file (JSON) from the list of commands and symbolics.
+   * 
+   * @param filename - the name of the file to save the data to
+   */
   public void generateConfigFile(String filename) {
       Utils.saveAsJSONFile(recording, new File(filename));
   }
   
+  /**
+   * generate a test script from the list of commands.
+   * 
+   * @return a String consisting of the test script
+   */
   public String generateTestScript() {
     // create a panel containing the script to run for testing
     String content = "";
@@ -121,7 +250,15 @@ public class Recorder {
         // TODO: this does not accomodate multiple params in a solution
         RecordExpectedSingle param = (RecordExpectedSingle) objitem;
         content += "check_solution \"" + param.name + "\" \"" + param.value + "\"" + Utils.NEWLINE;
-      } else {
+      } else if (objitem instanceof RecordExpectedMulti) {
+        // TODO: this does not accomodate multiple params in a solution
+        content += "check_solution ";
+        RecordExpectedMulti param = (RecordExpectedMulti) objitem;
+        for (ParameterInfo entry : param.paramlist) {
+          content += "\"" + entry.name + "\" \"" + entry.value + "\" ";
+        }
+        content += Utils.NEWLINE;
+      } else if (objitem instanceof RecordCommand) {
         RecordCommand entry = (RecordCommand) objitem;
         switch(entry.command) {
           case STOP:
@@ -178,55 +315,53 @@ public class Recorder {
             content += Utils.NEWLINE;
             break;
         }
+      } else {
+        printCommandError("ERROR: Unhandled command class type: " + objitem.getClass().getName());
       }
     }
 
     return content;
   }
-  
-  public boolean isCommandFound(RecordID cmd) {
-    return recording.isCommandFound(cmd);
+
+  // this defines the data for expected parameters so we can create an array of them for the case
+  // of solutions that have more than one parameter defined.
+  public static class ParameterInfo {
+    private final String name;
+    private final String value;
+    
+    public ParameterInfo(String name, String value) {
+      this.name = name;
+      this.value = value;
+    }
   }
-  
-  public boolean isEmpty() {
-    return recording.commandlist.isEmpty();
-  }
-  
+
+  // this defines the recorded information that can be saved as a config file.
+  // NOTE: this file is saved as a JSON file for the test configuration, so nothing should be
+  // in here that isn't relavant to the test.
   private class RecordInfo {
-    String testname;
-    String arguments;
-    String debugFlags;
-    String debugMode;
-    String debugPort;
-    String debugAddr;
-    ArrayList<RecordSymbolicParam> symbolicList;
-    ArrayList<Object> commandlist;
+    private String testname;
+    private String arguments;
+    private final String debugFlags;
+    private final String debugMode;
+    private final String debugPort;
+    private final String debugAddr;
+    private final ArrayList<RecordSymbolicParam> symbolicList;
+    private final ArrayList<Object> commandlist;
     
     private RecordInfo() {
       testname = "";
       arguments = "";
+
+      // these hard-coded entries allow us to have placeholders in the config file so these
+      // parameters can be modified by hand if needed.
       debugFlags = "";
       debugMode = "STDIN";
       debugPort = "5000";
       debugAddr = "localhost";
+
+      // the lists that are saved (symbolic params and the commands to run)
       symbolicList = new ArrayList<>();
       commandlist = new ArrayList<>();
-    }
-    
-    public boolean isCommandFound(RecordID cmd) {
-      for (Object objitem : commandlist) {
-        if (objitem instanceof RecordExpectedSingle) {
-          if (cmd == RecordID.EXPECTED_PARAM) {
-            return true;
-          }
-        } else {
-          RecordCommand entry = (RecordCommand) objitem;
-          if (cmd == entry.command) {
-            return true;
-          }
-        }
-      }
-      return false;
     }
     
     private void setTestName(String name, String args) {
@@ -238,69 +373,29 @@ public class Recorder {
       symbolicList.add(new RecordSymbolicParam(method, name, type, slot, start, end));
     }
     
-    private void addCommand(RecordID cmd, String arg) {
-      // if command is not RUN command, then only add if RUN was previously saved
-      if (testname == null || testname.isEmpty()) {
-        printCommandMessage("Igoring command " + cmd.toString() + " until RUN command received");
+    private void addCommand(RecordID cmd, Object item) {
+      // skip termination indication if user issued the STOP cmd (we don't need to wait)
+      if (RecordID.WAIT_FOR_TERM == cmd && recordCommandList.contains(RecordID.STOP)) {
         return;
       }
 
-      // if last command was EXPECTED_PARAM and this command isn't, let's terminate the expected tests
-      int count = commandlist.size();
-      if (count > 1 && RecordID.SHOW_RESULTS != cmd
-                    && RecordID.EXPECTED_PARAM != cmd
-                    && RecordID.EXPECTED_PARAM == recordLastCommand) {
-        printCommandMessage("--- RECORDED: SHOW_RESULTS");
-        commandlist.add(new RecordCommand(RecordID.SHOW_RESULTS, ""));
+      // make sure we do not duplicate a SHOW_RESULTS command
+      if (RecordID.SHOW_RESULTS == cmd && recordCommandList.contains(RecordID.SHOW_RESULTS)) {
+        return;
       }
-
+      
       // add the command
-      printCommandMessage("--- RECORDED: " + cmd.toString() + " " + arg);
-      commandlist.add(new RecordCommand(cmd, arg));
+      printCommandMessage("--- RECORDED: " + cmd.toString());
+      commandlist.add(item);
+      recordCommandList.add(cmd);
       recordLastCommand = cmd; // save last command
 
       // get start of delay to next command
       recordStartTime = System.currentTimeMillis();
     }
-  
-    private void addExpectedParam(String name, String value) {
-      // if command is not RUN command, then only add if RUN was previously saved
-      if (testname == null || testname.isEmpty()) {
-        printCommandMessage("Igoring command " + RecordID.EXPECTED_PARAM.toString() + " until RUN command received");
-        return;
-      }
-
-      // add the command
-      printCommandMessage("--- RECORDED: " + RecordID.EXPECTED_PARAM.toString() + " " + name + " = " + value);
-      commandlist.add(new RecordExpectedSingle(name, value));
-      recordLastCommand = RecordID.EXPECTED_PARAM; // save last command
-
-      // get start of delay to next command
-      recordStartTime = System.currentTimeMillis();
-    }
-  
-    private void addDelay() {
-      // determine the delay time (ignore if it was < 1 sec or start wasn't initialized)
-      if (recordStartTime != 0) {
-        long elapsed = 1 + (System.currentTimeMillis() - recordStartTime) / 1000;
-        if (elapsed > 1) {
-          addCommand(RecordID.DELAY, "" + elapsed);
-        }
-      }
-    }
-  
-    private void addHttpDelay(String port) {
-      if (isCommandFound(RecordID.SET_HTTP)) {
-        // if we have already established the server port and waited for it, just do a delay
-        addDelay();
-      } else {
-        // if 1st time on HTTP, indicate the port selection and wait till server is up
-        addCommand(RecordID.SET_HTTP, port);
-        addCommand(RecordID.WAIT_FOR_SERVER, null);
-      }
-    }
   }
 
+  
   // The class for standard commands
   private static class RecordCommand {
     public RecordID command;
@@ -314,9 +409,9 @@ public class Recorder {
 
   // the class for EXPECTED_PARAM command
   private static class RecordExpectedSingle {
-    public RecordID command;
-    public String   name;
-    public String   value;
+    private final RecordID command;
+    private final String   name;
+    private final String   value;
     
     private RecordExpectedSingle(String name, String value) {
       this.command = RecordID.EXPECTED_PARAM;
@@ -326,17 +421,28 @@ public class Recorder {
   }
 
   // the class for EXPECTED_PARAM command
+  private static class RecordExpectedMulti {
+    private final RecordID command;
+    private final ArrayList<ParameterInfo> paramlist;
+    
+    private RecordExpectedMulti(ArrayList<ParameterInfo> paramlist) {
+      this.command = RecordID.EXPECTED_PARAM;
+      this.paramlist = paramlist;
+    }
+  }
+
+  // the class for defining Symbolic Parameters
   private static class RecordSymbolicParam {
-    public RecordID command;
-    public String   method;
-    public String   name;
-    public String   type;
-    public String   slot;
-    public String   start;
-    public String   end;
+    private final RecordID command;
+    private final String   method;
+    private final String   name;
+    private final String   type;
+    private final String   slot;
+    private final String   start;
+    private final String   end;
     
     private RecordSymbolicParam(String method, String name, String type, String slot, String start, String end) {
-      this.command = RecordID.EXPECTED_PARAM;
+      this.command = RecordID.SYMBOLIC_PARAM;
       this.method = method;
       this.name = name;
       this.type = type;

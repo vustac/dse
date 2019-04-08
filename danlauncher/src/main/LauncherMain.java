@@ -112,6 +112,7 @@ public final class LauncherMain {
   // Properties that are project-specific (excluding the DebugParams settings)
   private enum ProjectProperties { 
     RUN_ARGUMENTS,    // the argument list for the application to run
+    SEND_ARGUMENTS,   // the argument list for the SEND button
     MAIN_CLASS,       // the Main Class for the application
     APP_SERVER_PORT,  // the server port to send messages to in the application
     INPUT_MODE,       // type of input for the application
@@ -208,6 +209,8 @@ public final class LauncherMain {
   private static final PropertiesTable[] PROJ_PROP_TBL = {
     new PropertiesTable (ProjectProperties.RUN_ARGUMENTS,
                       mainFrame, "TXT_ARGLIST"  , GuiControls.InputControl.TextField),
+    new PropertiesTable (ProjectProperties.SEND_ARGUMENTS,
+                      mainFrame, "TXT_INPUT"    , GuiControls.InputControl.TextField),
     new PropertiesTable (ProjectProperties.APP_SERVER_PORT,
                       mainFrame, "TXT_PORT"     , GuiControls.InputControl.TextField),
     new PropertiesTable (ProjectProperties.MAIN_CLASS,
@@ -394,28 +397,21 @@ public final class LauncherMain {
   }
   
   public static void checkSelectedSolution(String solution) {
-    // if EXPECTED_PARAM not in record list (this is the first),  preceed it with EXTRACT command
-    if (!recorder.isCommandFound(RecordID.EXPECTED_PARAM)) {
-      recorder.addCommand(RecordID.EXTRACT_SOLUTIONS, null);
-    }
-    
     // split the solution into name and value
     if (solution.contains(Utils.NEWLINE)) {
-      // multiple parameter entries
-      // TODO: for now, lets just get the first parameter
-      int offset = solution.indexOf(Utils.NEWLINE);
-      solution = solution.substring(0, offset);
-      String[] array = solution.split(" ");
-      recorder.addExpectedParam(array[0], array[2]);
-//      String[] params = solution.split(Utils.NEWLINE);
-//      solution = "";
-//      for (int ix = 0; ix < params.length; ix++) {
-//        solution += (ix == 0) ? "" : " & ";
-//        solution += params[ix];
-//        recorder.addExpectedParam(solution);
-//      }
+      // multiple parameter entries are separated by NEWLINEs
+      String[] params = solution.split(Utils.NEWLINE);
+      ArrayList<Recorder.ParameterInfo> plist = new ArrayList<>();
+      for (int ix = 0; ix < params.length; ix++) {
+        // each entry is composed of <name> = <value> with each item separated by a space
+        String[] array = params[ix].split(" ");
+        Recorder.ParameterInfo entry = new Recorder.ParameterInfo(array[0], array[2]);
+        plist.add(entry);
+      }
+      recorder.addExpectedParams(plist);
     } else {
       // single entry
+      // entry is composed of <name> = <value> with each item separated by a space
       String[] array = solution.split(" ");
       recorder.addExpectedParam(array[0], array[2]);
     }
@@ -718,7 +714,7 @@ public final class LauncherMain {
     enableInputModeSelections();
     
     // setup the handlers for the controls
-    inModeCombo.addActionListener(new Action_EnablePost());
+    inModeCombo.addActionListener(new Action_SetInputMode());
     gui.getCombobox("COMBO_CLASS").addActionListener(new Action_BytecodeClassSelect());
     gui.getCombobox("COMBO_METHOD").addActionListener(new Action_BytecodeMethodSelect());
     gui.getCombobox("COMBO_MAINCLS").addActionListener(new Action_MainClassSelect());
@@ -731,6 +727,8 @@ public final class LauncherMain {
     gui.getTextField("TXT_ARGLIST").addFocusListener(new Focus_UpdateArglist());
     gui.getTextField("TXT_PORT").addActionListener(new Action_UpdatePort());
     gui.getTextField("TXT_PORT").addFocusListener(new Focus_UpdatePort());
+    gui.getTextField("TXT_INPUT").addActionListener(new Action_UpdateSendArgument());
+    gui.getTextField("TXT_INPUT").addFocusListener(new Focus_UpdateSendArgument());
 
     // initially disable the class/method select and generating bytecode
     mainClassCombo = gui.getCombobox ("COMBO_MAINCLS");
@@ -841,7 +839,7 @@ public final class LauncherMain {
     }
   }
 
-  private class Action_EnablePost implements ActionListener {
+  private class Action_SetInputMode implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       // enable the input mode controls based on the selection
@@ -871,7 +869,7 @@ public final class LauncherMain {
         case HTTP_GET:
           sendHttpMessage("GET", port, input);
           recorder.addHttpDelay(port);
-          recorder.addCommand(RecordID.SEND_HTTP_GET, null);
+          recorder.addCommand(RecordID.SEND_HTTP_GET);
           break;
         case HTTP_POST:
           sendHttpMessage("POST", port, input);
@@ -916,14 +914,8 @@ public final class LauncherMain {
       String arglist = mainFrame.getTextField("TXT_ARGLIST").getText();
       runTest(arglist);
 
-      // if prev recorder currently running, terminate it first, so user can start a new one
-      if (recorder.isRecording() && !recorder.isEmpty()) {
-        printCommandMessage("--- RECORD session terminated ---");
-        recorder.clearRecording();
-      }
-      
       String testName = projectName.substring(0, projectName.indexOf(".jar"));
-      recorder.startRecording(testName, arglist);
+      recorder.beginTest(testName, arglist);
       
       // add all symbolic parameters that are currently defined
       recorder.clearSymbolics();
@@ -955,12 +947,31 @@ public final class LauncherMain {
         // check on progress and take further action if necessary
         killTimer.start();
 
-        // if recorder enabled, add command to list
-        recorder.addCommand(RecordID.STOP, null);
+        // indicate test is being user-terminated to recorder
+        recorder.addCommand(RecordID.STOP);
       }
     }
   }
   
+  private class Action_UpdateSendArgument implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // update the project properties file
+      updateProjectProperty("TXT_INPUT");
+    }
+  }
+
+  private class Focus_UpdateSendArgument implements FocusListener {
+    @Override
+    public void focusGained(FocusEvent e) {
+    }
+    @Override
+    public void focusLost(FocusEvent e) {
+      // update the project properties file
+      updateProjectProperty("TXT_INPUT");
+    }
+  }
+
   private class Action_UpdateArglist implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -1040,6 +1051,7 @@ public final class LauncherMain {
     menu = menuRecord; // selections for the Record Menu
     addMenuItem     (menu, "MENU_RECORD_START", "Start Recording", new Action_RecordStart());
     addMenuItem     (menu, "MENU_RECORD_STOP" , "Stop Recording", new Action_RecordStop());
+    addMenuItem     (menu, "MENU_RECORD_SAVE" , "Save Test Config", new Action_RecordSave());
     
 //    menuHelp.addActionListener(new Action_ShowHelp());
     menu = menuHelp; // selections for the Help Menu
@@ -1228,23 +1240,21 @@ public final class LauncherMain {
   private class Action_RecordStart implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
-      printCommandMessage("--- RECORD session started ---");
-      
-      // start recorder
-      recorder.startRecording();
-      mainFrame.getLabel("LBL_RECORDING").setVisible(true);
-
       // clear the debug output and solver
       clearDebugLogger();
       if (solverConnection.isValid()) {
         solverConnection.sendClearAll();
       }
     
+      // start recorder
+      recorder.startRecording();
+      mainFrame.getLabel("LBL_RECORDING").setVisible(true);
+
       // if application already running, auto-insert the RUN command
       if (runMode != RunMode.IDLE) {
         String testName = projectName.substring(0, projectName.indexOf(".jar"));
         String arglist = mainFrame.getTextField("TXT_ARGLIST").getText();
-        recorder.startRecording(testName, arglist);
+        recorder.beginTest(testName, arglist);
       }
     }
   }
@@ -1252,31 +1262,40 @@ public final class LauncherMain {
   private class Action_RecordStop implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
-      if (recorder.isRecording()) {
-        // if we haven't added the show status results command yet, do it now
-        if (!recorder.isCommandFound(RecordID.SHOW_RESULTS)) {
-          recorder.addCommand(RecordID.SHOW_RESULTS, null);
-        }
-        printCommandMessage("--- RECORD session terminated ---");
-        recorder.stopRecording();
-        mainFrame.getLabel("LBL_RECORDING").setVisible(false);
-      }
-      
-      if (recorder.isEmpty()) {
-        printStatusError("Nothing was recorded");
-        return;
-      }
-      
-      // save the configuration file
-      printCommandMessage("Generating config file: " + projectPathName + "testcfg.json");
-      recorder.generateConfigFile(projectPathName + "testcfg.json");
+      recorder.stopRecording();
+      mainFrame.getLabel("LBL_RECORDING").setVisible(false);
       
       // display the test script to the user
       String content = recorder.generateTestScript();
       JFrame testPanel = GuiControls.makeFrameWithText(null, "check_results.sh", content, 400, 300);
     }
   }
-    
+
+  private class Action_RecordSave implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      if (recorder.isEmpty()) {
+        printStatusError("Nothing was recorded");
+        return;
+      }
+      
+      String filetype = "json";
+      String defaultName = "testcfg." + filetype;
+      FileNameExtensionFilter filter = new FileNameExtensionFilter(filetype.toUpperCase() + " Files", filetype);
+      fileSelector.setFileFilter(filter);
+      fileSelector.setApproveButtonText("Save");
+      fileSelector.setMultiSelectionEnabled(false);
+      fileSelector.setSelectedFile(new File(defaultName));
+      int retVal = fileSelector.showOpenDialog(graphSetupFrame.getFrame());
+      if (retVal == JFileChooser.APPROVE_OPTION) {
+        File file = fileSelector.getSelectedFile();
+        file.delete();
+        printCommandMessage("Generating config file: " + projectPathName + "testcfg.json");
+        recorder.generateConfigFile(file.getAbsolutePath());
+      }
+    }
+  }
+  
   private class Action_ShowHelp implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -2369,11 +2388,19 @@ public final class LauncherMain {
     for (PropertiesTable propEntry : PROJ_PROP_TBL) {
       // get properties values if defined (use the current gui control value as the default if not)
       String setting = propEntry.panel.getInputControl(propEntry.controlName, propEntry.controlType);
-      String val = projectProps.getPropertiesItem(propEntry.tag.toString(), setting);
-      if (!setting.equals(val)) {
-        // if property value was found & differs from gui setting, update the gui
-        printCommandMessage("Project updated " + propEntry.controlName + " to value: " + val);
-        propEntry.panel.setInputControl(propEntry.controlName, propEntry.controlType, val);
+      String tag = propEntry.tag.toString();
+
+      if (projectProps.isPropertiesDefined(tag)) {
+        String val = projectProps.getPropertiesItem(tag, setting);
+        if (!setting.equals(val)) {
+          // if property value was found & differs from gui setting, update the gui
+          printCommandMessage("Project updated " + propEntry.controlName + " to value: " + val);
+          propEntry.panel.setInputControl(propEntry.controlName, propEntry.controlType, val);
+        }
+      } else {
+        // value wasn't in properties table - update the table & use value from control
+        printCommandMessage("Project properties new entry for " + tag + " - set to value: " + setting);
+        projectProps.setPropertiesItem (tag, setting);
       }
     }
   }
@@ -3057,14 +3084,8 @@ public final class LauncherMain {
       mainFrame.getButton("BTN_RUNTEST").setEnabled(true);
       mainFrame.getButton("BTN_BYTECODE").setEnabled(true);
 
-      // if recorder enabled, add command to list
-      if (!recorder.isEmpty()) {
-        // this records that the application has terminated - skip if user issued STOP
-        // (we use this to wait for the application to terminate on its own)
-        if (!recorder.isCommandFound(RecordID.STOP)) {
-          recorder.addCommand(RecordID.WAIT_FOR_TERM, null);
-        }
-      }
+      // this records that the application has terminated
+      recorder.addCommand(RecordID.WAIT_FOR_TERM);
     }
   }
         
