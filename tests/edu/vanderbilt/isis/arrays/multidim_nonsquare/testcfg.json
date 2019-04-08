@@ -1,0 +1,38 @@
+{
+  "testname": "MultiArrayNonSquare",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/arrays/multidim_nonsquare/MultiArrayNonSquare/testNonSquare()V",
+      "name": "value",
+      "type": "B",
+      "slot": "3",
+      "start": "10",
+      "end": "60"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "125"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

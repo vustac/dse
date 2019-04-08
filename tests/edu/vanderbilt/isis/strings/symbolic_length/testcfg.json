@@ -1,0 +1,38 @@
+{
+  "testname": "SymbolicStringLength",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/strings/symbolic_length/SymbolicStringLength/symbolicLengthTest()V",
+      "name": "str",
+      "type": "Ljava/lang/String;",
+      "slot": "0",
+      "start": "4",
+      "end": "17"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "str",
+      "value": "\"\""
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

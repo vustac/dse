@@ -1,0 +1,40 @@
+{
+  "testname": "SimpleNano",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "SET_HTTP",
+      "argument": "8080"
+    },
+    {
+      "command": "WAIT_FOR_SERVER",
+      "argument": ""
+    },
+    {
+      "command": "SEND_HTTP_POST",
+      "argument": "a\u003d0\u0026b\u003d0"
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "a",
+      "value": "1"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "testname": "RefReturnMultiArray",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/uninstrumented_return/ref_return_multiarray/RefReturnMultiArray/testReturn()V",
+      "name": "value",
+      "type": "I",
+      "slot": "3",
+      "start": "15",
+      "end": "35"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "0"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

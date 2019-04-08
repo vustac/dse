@@ -1,0 +1,38 @@
+{
+  "testname": "SymbolicIndexArray",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/arrays/symbolic_index/SymbolicIndexArray/testBasic()V",
+      "name": "index",
+      "type": "I",
+      "slot": "0",
+      "start": "2",
+      "end": "37"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "index",
+      "value": "4"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

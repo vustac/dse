@@ -1,0 +1,38 @@
+{
+  "testname": "RefReturnArray",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/uninstrumented_return/ref_return_array/RefReturnArray/testReturn()V",
+      "name": "value",
+      "type": "Ljava/lang/String;",
+      "slot": "2",
+      "start": "10",
+      "end": "21"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "\"c\""
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

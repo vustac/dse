@@ -1,0 +1,38 @@
+{
+  "testname": "SymbolicStringEquals",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/strings/symbolic_equals/SymbolicStringEquals/symbolicEqualsTest()V",
+      "name": "str",
+      "type": "Ljava/lang/String;",
+      "slot": "0",
+      "start": "2",
+      "end": "13"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "str",
+      "value": "\"abc123\""
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

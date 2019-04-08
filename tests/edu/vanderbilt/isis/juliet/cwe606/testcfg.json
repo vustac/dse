@@ -1,0 +1,36 @@
+{
+  "testname": "SimpleCWE606",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [],
+  "commandlist": [
+    {
+      "command": "DELAY",
+      "argument": "4"
+    },
+    {
+      "command": "SEND_STDIN",
+      "argument": "2"
+    },
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "parsedInt",
+      "value": "1"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

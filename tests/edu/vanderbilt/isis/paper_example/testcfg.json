@@ -1,0 +1,59 @@
+{
+  "testname": "SimpleServer",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/paper_example/SimpleServer/getResponse(II)Ljava/lang/String;",
+      "name": "a",
+      "type": "I",
+      "slot": "1",
+      "start": "0",
+      "end": "0"
+    },
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/paper_example/SimpleServer/getResponse(II)Ljava/lang/String;",
+      "name": "b",
+      "type": "I",
+      "slot": "2",
+      "start": "0",
+      "end": "0"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "SET_HTTP",
+      "argument": "8080"
+    },
+    {
+      "command": "WAIT_FOR_SERVER",
+      "argument": ""
+    },
+    {
+      "command": "SEND_HTTP_POST",
+      "argument": "a\u003d1\u0026b\u003d0"
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "a",
+      "value": "0"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}

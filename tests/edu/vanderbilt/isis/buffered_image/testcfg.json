@@ -1,0 +1,38 @@
+{
+  "testname": "BufferedImageTest",
+  "arguments": "",
+  "debugFlags": "",
+  "debugMode": "STDIN",
+  "debugPort": "5000",
+  "debugAddr": "localhost",
+  "symbolicList": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/buffered_image/BufferedImageTest/makeImage()V",
+      "name": "image",
+      "type": "Ljava/awt/image/BufferedImage;",
+      "slot": "0",
+      "start": "7",
+      "end": "45"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "x_0_y_1",
+      "value": "1"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}
