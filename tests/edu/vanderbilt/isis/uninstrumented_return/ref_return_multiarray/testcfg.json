@@ -1,10 +1,6 @@
 {
   "testname": "RefReturnMultiArray",
-  "arguments": "",
-  "debugFlags": "",
-  "debugMode": "STDIN",
-  "debugPort": "5000",
-  "debugAddr": "localhost",
+  "runargs": "",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

@@ -1,10 +1,6 @@
 {
   "testname": "SimpleCWE129",
-  "arguments": "",
-  "debugFlags": "",
-  "debugMode": "STDIN",
-  "debugPort": "5000",
-  "debugAddr": "localhost",
+  "runargs": "",
   "symbolicList": [],
   "commandlist": [
     {
