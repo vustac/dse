@@ -262,7 +262,6 @@ public class Recorder {
   public String generateTestScript() {
     // create a panel containing the script to run for testing
     String content = "";
-    String httpport = "";
     content += "TESTNAME=\"" + recording.testname + "\"" + Utils.NEWLINE;
     content += Utils.NEWLINE;
     content += "# initialize the pass/fail status to pass and save the pid of the running process" + Utils.NEWLINE;
@@ -282,12 +281,8 @@ public class Recorder {
         content += getCommandOutput(param.command.toString(), param.name, param.value);
       } else if (objitem instanceof RecordExpectedMulti) {
         // this is for multiple params in a solution
-        content += "check_solution ";
         RecordExpectedMulti param = (RecordExpectedMulti) objitem;
-        for (ParameterInfo entry : param.paramlist) {
-          content += "\"" + entry.name + "\" \"" + entry.value + "\" ";
-        }
-        content += Utils.NEWLINE;
+        content += getExpectedParamList(param.paramlist);
       } else if (objitem instanceof LinkedTreeMap) {
         // this handles the case of reading the structure in from the json file
         LinkedTreeMap map = (LinkedTreeMap) objitem;
@@ -299,14 +294,26 @@ public class Recorder {
         String arg1 = "";
         String arg2 = "";
         if (map.containsKey("argument")) {
+          // the "normal" commands (1 argument)
           arg1 = (String) map.get("argument");
+          content += getCommandOutput(cmd, arg1, arg2);
         } else if (map.containsKey("name")) {
+          // the EXPECTED_PARAM command - single value
           arg1 = (String) map.get("name");
-        }
-        if (map.containsKey("value")) {
           arg2 = (String) map.get("value");
+          content += getCommandOutput(cmd, arg1, arg2);
+        } else if (map.containsKey("paramlist")) {
+          // the EXPECTED_PARAM command - multi value
+          ArrayList<ParameterInfo> paramlist = new ArrayList<>();
+          ArrayList<LinkedTreeMap> list = (ArrayList<LinkedTreeMap>) map.get("paramlist");
+          for (LinkedTreeMap entry : list) {
+            paramlist.add(new ParameterInfo((String)entry.get("name"), (String)entry.get("value")));
+          }
+          content += getExpectedParamList(paramlist);
+        } else {
+          // if no arguments...
+          content += getCommandOutput(cmd, arg1, arg2);
         }
-        content += getCommandOutput(cmd, arg1, arg2);
       } else {
         Utils.printCommandError("ERROR: Unhandled command class type: " + objitem.getClass().getName());
       }
@@ -377,7 +384,16 @@ public class Recorder {
 
     return content;
   }
-  
+
+  private static String getExpectedParamList(ArrayList<ParameterInfo> paramlist) {
+    String content = "check_solution ";
+    for (ParameterInfo entry : paramlist) {
+      content += "\"" + entry.name + "\" \"" + entry.value + "\" ";
+    }
+    content += Utils.NEWLINE;
+    return content;
+  }
+
   // this defines the data for expected parameters so we can create an array of them for the case
   // of solutions that have more than one parameter defined.
   public static class ParameterInfo {
