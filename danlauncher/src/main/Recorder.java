@@ -395,24 +395,13 @@ public class Recorder {
   // in here that isn't relavant to the test.
   private class RecordInfo {
     private String testname;
-    private String arguments;
-    private final String debugFlags;
-    private final String debugMode;
-    private final String debugPort;
-    private final String debugAddr;
+    private String runargs;
     private final ArrayList<RecordSymbolicParam> symbolicList;
     private final ArrayList<Object> commandlist;
     
     private RecordInfo() {
       testname = "";
-      arguments = "";
-
-      // these hard-coded entries allow us to have placeholders in the config file so these
-      // parameters can be modified by hand if needed.
-      debugFlags = "";
-      debugMode = "STDIN";
-      debugPort = "5000";
-      debugAddr = "localhost";
+      runargs = "";
 
       // the lists that are saved (symbolic params and the commands to run)
       symbolicList = new ArrayList<>();
@@ -421,7 +410,7 @@ public class Recorder {
     
     private void setTestName(String name, String args) {
       testname = name;
-      arguments = args;
+      runargs = args;
     }
     
     private void addSymbolic(String method, String name, String type, String slot, String start, String end) {
