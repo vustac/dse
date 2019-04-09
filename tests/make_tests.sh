@@ -152,16 +152,22 @@ function run_test
     CLASSPATH=${CLASSPATH}:lib/*
   fi
 
+  # get the args from the JSON config file (if it exists)
+  runargs=""
+  if [[ -f ${jsonfile} ]]; then
+    runargs=`cat ${jsonfile} | jq -r '.runargs'`
+  fi
+
   # now run the test in background mode in case verification process needs to issue message to it
   echo "Running instrumented jar file (in background)"
   if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}"
+    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs}"
   else
     # use a pipe to handle redirecting stdin to the application, since it runs as background process
     if [ ! -p inpipe ]; then
       mkfifo inpipe
     fi
-    tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} &
+    tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs} &
     pid=$!
 
     # delay just a bit to make sure app is running before starting checker
@@ -200,41 +206,64 @@ function clear_database
 function check_if_viable
 {
   VALID=1
-  MISSING=""
   
-  # check for the danfig file
-  if [[ ! -f ${class}/danfig ]]; then
-    MISSING="${MISSING} DANFIG"
+  # check for the required config file
+  if [[ ! -f ${jsonfile} ]]; then
+    echo "SKIPPING ${test}: MISSING: testcfg.json"
     VALID=0
-  fi
-
-  # check for the correctness checking script
-  if [[ ! -f ${class}/check_result.sh ]]; then
-    MISSING="${MISSING} CHECK_RESULT.SH"
-    VALID=0
-  fi
-
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    if [[ ${VALID} -eq 0 ]]; then
-      echo "SKIPPING ${test}: MISSING: ${MISSING}"
-    fi
     return
   fi
   
-  # if files present, copy them to build directory
-  if [[ ${VALID} -eq 1 ]]; then
-    # make the directory for the selected test (if already exists, delete it first)
-    builddir="results/${test}"
-    if [[ -d ${builddir} ]]; then
-      rm -Rf ${builddir}
-    fi
-    mkdir -p ${builddir}
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    return
+  fi
   
-    cp ${class}/danfig ${builddir}
-    cat base_check.sh ${class}/check_result.sh > ${builddir}/check_result.sh
-    chmod +x ${builddir}/check_result.sh
+  # make the directory for the selected test (if already exists, delete it first)
+  builddir="results/${test}"
+  if [[ -d ${builddir} ]]; then
+    rm -Rf ${builddir}
+  fi
+  mkdir -p ${builddir}
+  
+  # create the danfig file from the test config file
+  create_danfig
+
+  # create the test script from the test config file
+  java -jar ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar ${class}/testcfg.json ${builddir}/test_script.sh
+  cat base_check.sh ${builddir}/test_script.sh > ${builddir}/check_result.sh
+  chmod +x ${builddir}/check_result.sh
+}
+
+function create_danfig
+{
+  echo "Creating danfig file"
+  echo "#! DANALYZER SYMBOLIC EXPRESSION LIST" > ${builddir}/danfig
+  echo "#" >> ${builddir}/danfig
+  echo "# DEBUG SETUP" >> ${builddir}/danfig
+  echo "DebugFlags: " >> ${builddir}/danfig
+  echo "DebugMode: TCPPORT" >> ${builddir}/danfig
+  echo "DebugPort: 5000" >> ${builddir}/danfig
+  echo "IPAddress: localhost" >> ${builddir}/danfig
+  echo "#" >> ${builddir}/danfig
+  echo "# SOLVER INTERFACE" >> ${builddir}/danfig
+  echo "SolverPort: 4000" >> ${builddir}/danfig
+  echo "SolverAddress: localhost" >> ${builddir}/danfig
+  echo "SolverMethod: NONE" >> ${builddir}/danfig
+  echo "#" >> ${builddir}/danfig
+  echo "# SYMBOLIC_PARAMETERS" >> ${builddir}/danfig
+  count=`cat ${jsonfile} | jq -r '.symbolicList' | jq length`
+  if [ ${count} -eq 0 ]; then
+    echo "# <none defined>" >> ${builddir}/danfig
   else
-    echo "SKIPPING ${test}: MISSING: ${MISSING}"
+    for ((index=0; index < ${count}; index++)) do
+      local name=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].name'`
+      local meth=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].method'`
+      local type=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].type'`
+      local slot=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].slot'`
+      local strt=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].start'`
+      local end=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].end'`
+      echo "Symbolic: ${name} ${meth} ${slot} ${strt} ${end} ${type}" >> ${builddir}/danfig
+    done
   fi
 }
 
@@ -291,6 +320,9 @@ function build_chain
     return
   fi
 
+  # find the JSON config file
+  jsonfile="${class}/testcfg.json"
+  
   # if we're not running test, skip the check if the test conditions are defined
   if [[ ${RUNTEST} -eq 0 ]]; then
     echo "Building test '${test}' from path '${class}'"
