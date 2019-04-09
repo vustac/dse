@@ -377,16 +377,20 @@ public class Danfig {
   }
 
   public static class TriggerSetup {
-    public static Integer  tEnable;   // bits are set to enable triggering
-    public static Integer  tCount;    // number of condition occurrances before call/return trigger (e.g. 1 = 1st occurrance)
-    public static Integer  tRefCount; // number of condition occurrances before reference trigger (e.g. 1 = 1st occurrance)
-    public static Integer  tRange;    // number of debug lines to capture before disabling trigger (0 = never)
-    public static Integer  tInsNum;   // instruction count number to trigger on
-    public static Integer  tRefIndex; // reference parameter index number
-    public static Boolean  tAuto;     // true if trigger will occur every time conditions are met (tRange must not be 0)
-    public static Boolean  tAnyMeth;  // true if trigger on call/return of any method of specified class
-    public static String   tClass;    // class name to trigger on
-    public static String   tMethod;   // method name to trigger on
+    public static Integer  tEnable = 0;   // bits are set to enable triggering
+    public static Integer  tCount = 1;    // number of condition occurrances before call/return trigger (e.g. 1 = 1st occurrance)
+    public static Integer  tRefCount = 1; // number of condition occurrances before reference trigger (e.g. 1 = 1st occurrance)
+    public static Integer  tRange = 0;    // number of debug lines to capture before disabling trigger (0 = never)
+    public static Integer  tInsNum = 1;   // instruction count number to trigger on
+    public static Integer  tRefIndex = 0; // reference parameter index number
+    public static Boolean  tAuto = false;     // true if trigger will occur every time conditions are met (tRange must not be 0)
+    public static Boolean  tAnyMeth = false;  // true if trigger on call/return of any method of specified class
+    public static String   tClass = "";    // class name to trigger on
+    public static String   tMethod = "";   // method name to trigger on
+    
+    public TriggerSetup() {
+      init();
+    }
     
     public static void init() {
       tEnable   = 0;
