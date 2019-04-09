@@ -5,11 +5,16 @@
  */
 package main;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.internal.LinkedTreeMap;
+import com.google.gson.reflect.TypeToken;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
-import static main.LauncherMain.printCommandError;
-import static main.LauncherMain.printCommandMessage;
 import util.Utils;
 
 /**
@@ -29,7 +34,7 @@ public class Recorder {
     SEND_HTTP_GET,      // send GET-formatted  message to HTTP port
     SEND_STDIN,         // send message to standard input
     EXTRACT_SOLUTIONS,  // extract the solutions to be chacked
-    EXPECTED_PARAM,     // specify the expected parameter
+    EXPECTED_PARAM,     // specify the expected parameter (single or multiple param name & value)
     SHOW_RESULTS,       // show the final pass/fail status
     SYMBOLIC_PARAM,     // define a symbolic parameter
   }
@@ -62,9 +67,9 @@ public class Recorder {
    */
   public void startRecording() {
     if (recordState) {
-      printCommandMessage("--- previous RECORD session terminated");
+      Utils.printCommandMessage("--- previous RECORD session terminated");
     }
-    printCommandMessage("--- RECORD session started ---");
+    Utils.printCommandMessage("--- RECORD session started ---");
     recording.commandlist.clear();
     recordCommandList.clear();
     recordStartTime = 0;
@@ -79,7 +84,7 @@ public class Recorder {
       // if we haven't added the show status results command yet, do it now
       addCommand(RecordID.SHOW_RESULTS, null);
       
-      printCommandMessage("--- RECORD session terminated ---");
+      Utils.printCommandMessage("--- RECORD session terminated ---");
       recordState = false;
     }
   }
@@ -229,6 +234,27 @@ public class Recorder {
   }
   
   /**
+   * read from JSON file into recording
+   * 
+   * @param file - name of file to load data from
+   */  
+  public void loadFromJSONFile(File file) {
+    // open the file to read from
+    BufferedReader br;
+    try {
+      br = new BufferedReader(new FileReader(file));
+    } catch (FileNotFoundException ex) {
+      System.err.println(ex.getMessage());
+      return;
+    }
+    
+    // load the method list info from json file
+		GsonBuilder builder = new GsonBuilder();
+		Gson gson = builder.create();
+    recording = gson.fromJson(br, new TypeToken<RecordInfo>() {}.getType());
+  }
+  
+  /**
    * generate a test script from the list of commands.
    * 
    * @return a String consisting of the test script
@@ -246,78 +272,107 @@ public class Recorder {
     content += Utils.NEWLINE;
 
     for (Object objitem : recording.commandlist) {
-      if (objitem instanceof RecordExpectedSingle) {
-        // TODO: this does not accomodate multiple params in a solution
+      if (objitem instanceof RecordCommand) {
+        // this is a normal command (0 or 1 arguments)
+        RecordCommand entry = (RecordCommand) objitem;
+        content += getCommandOutput(entry.command.toString(), entry.argument, "");
+      } else if (objitem instanceof RecordExpectedSingle) {
+        // this is for single param in a solution
         RecordExpectedSingle param = (RecordExpectedSingle) objitem;
-        content += "check_solution \"" + param.name + "\" \"" + param.value + "\"" + Utils.NEWLINE;
+        content += getCommandOutput(param.command.toString(), param.name, param.value);
       } else if (objitem instanceof RecordExpectedMulti) {
-        // TODO: this does not accomodate multiple params in a solution
+        // this is for multiple params in a solution
         content += "check_solution ";
         RecordExpectedMulti param = (RecordExpectedMulti) objitem;
         for (ParameterInfo entry : param.paramlist) {
           content += "\"" + entry.name + "\" \"" + entry.value + "\" ";
         }
         content += Utils.NEWLINE;
-      } else if (objitem instanceof RecordCommand) {
-        RecordCommand entry = (RecordCommand) objitem;
-        switch(entry.command) {
-          case STOP:
-            content += "# terminate process (this one doesn't auto-terminate)" + Utils.NEWLINE;
-            content += "kill -15 ${PID} > /dev/null 2>&1" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case DELAY:
-            content += "# wait a short period" + Utils.NEWLINE;
-            content += "sleep " + entry.argument + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case WAIT_FOR_TERM:
-            content += "# wait for application to complete" + Utils.NEWLINE;
-            content += "wait_for_app_completion 5 ${PID}" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case WAIT_FOR_SERVER:
-            content += "# wait for server to start then post message to it" + Utils.NEWLINE;
-            content += "wait_for_server 10 ${PID} ${SERVERPORT}" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case SET_HTTP:
-            httpport = entry.argument;
-            content += "# http port and message to send" + Utils.NEWLINE;
-            content += "SERVERPORT=\"" + httpport + "\"" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case SEND_HTTP_POST:
-            content += "# send the HTTP POST" + Utils.NEWLINE;
-            content += "echo \"Sending message to application\"" + Utils.NEWLINE;
-            content += "curl -d \"" + entry.argument + "\" http://localhost:${SERVERPORT}" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case SEND_HTTP_GET:
-            content += "# send the HTTP GET" + Utils.NEWLINE;
-            content += "echo \"Sending message to application\"" + Utils.NEWLINE;
-            content += "curl http://localhost:${SERVERPORT}" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case SEND_STDIN:
-            content += "# send the message to STDIN" + Utils.NEWLINE;
-            content += "echo \"Sending message to application\"" + Utils.NEWLINE;
-            content += "echo \"" + entry.argument + "\" > /proc/${PID}/fd/0" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
-          case EXTRACT_SOLUTIONS:
-            content += "# get solver response and check against expected solution" + Utils.NEWLINE;
-            content += "echo \"Debug info: ${TESTNAME} database entry\"" + Utils.NEWLINE;
-            content += "extract_solutions" + Utils.NEWLINE;
-            break;
-          case SHOW_RESULTS:
-            content += "show_results ${TESTNAME}" + Utils.NEWLINE;
-            content += Utils.NEWLINE;
-            break;
+      } else if (objitem instanceof LinkedTreeMap) {
+        // this handles the case of reading the structure in from the json file
+        LinkedTreeMap map = (LinkedTreeMap) objitem;
+        if (map.size() < 2 || !map.containsKey("command")) {
+          Utils.printCommandError("ERROR: Invalid map type: " + objitem.getClass().getName());
+          continue;
         }
+        String cmd = (String) map.get("command");
+        String arg1 = "";
+        String arg2 = "";
+        if (map.containsKey("argument")) {
+          arg1 = (String) map.get("argument");
+        } else if (map.containsKey("name")) {
+          arg1 = (String) map.get("name");
+        }
+        if (map.containsKey("value")) {
+          arg2 = (String) map.get("value");
+        }
+        content += getCommandOutput(cmd, arg1, arg2);
       } else {
-        printCommandError("ERROR: Unhandled command class type: " + objitem.getClass().getName());
+        Utils.printCommandError("ERROR: Unhandled command class type: " + objitem.getClass().getName());
       }
+    }
+
+    return content;
+  }
+
+  private static String getCommandOutput(String id, String arg1, String arg2) {
+    String content = "";
+    switch(id) {
+      case "STOP":
+        content += "# terminate process (this one doesn't auto-terminate)" + Utils.NEWLINE;
+        content += "kill -15 ${PID} > /dev/null 2>&1" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "DELAY":
+        content += "# wait a short period" + Utils.NEWLINE;
+        content += "sleep " + arg1 + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "WAIT_FOR_TERM":
+        content += "# wait for application to complete" + Utils.NEWLINE;
+        content += "wait_for_app_completion 5 ${PID}" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "WAIT_FOR_SERVER":
+        content += "# wait for server to start then post message to it" + Utils.NEWLINE;
+        content += "wait_for_server 10 ${PID} ${SERVERPORT}" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "SET_HTTP":
+        content += "# http port and message to send" + Utils.NEWLINE;
+        content += "SERVERPORT=\"" + arg1 + "\"" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "SEND_HTTP_POST":
+        content += "# send the HTTP POST" + Utils.NEWLINE;
+        content += "echo \"Sending message to application\"" + Utils.NEWLINE;
+        content += "curl -d \"" + arg1 + "\" http://localhost:${SERVERPORT}" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "SEND_HTTP_GET":
+        content += "# send the HTTP GET" + Utils.NEWLINE;
+        content += "echo \"Sending message to application\"" + Utils.NEWLINE;
+        content += "curl http://localhost:${SERVERPORT}" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "SEND_STDIN":
+        content += "# send the message to STDIN" + Utils.NEWLINE;
+        content += "echo \"Sending message to application\"" + Utils.NEWLINE;
+        content += "echo \"" + arg1 + "\" > /proc/${PID}/fd/0" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "EXTRACT_SOLUTIONS":
+        content += "# get solver response and check against expected solution" + Utils.NEWLINE;
+        content += "echo \"Debug info: ${TESTNAME} database entry\"" + Utils.NEWLINE;
+        content += "extract_solutions" + Utils.NEWLINE;
+        break;
+      case "SHOW_RESULTS":
+        content += "show_results ${TESTNAME}" + Utils.NEWLINE;
+        content += Utils.NEWLINE;
+        break;
+      case "EXPECTED_PARAM":
+        content += "check_solution \"" + arg1 + "\" \"" + arg2 + "\"" + Utils.NEWLINE;
+        break;
     }
 
     return content;
@@ -385,7 +440,7 @@ public class Recorder {
       }
       
       // add the command
-      printCommandMessage("--- RECORDED: " + cmd.toString());
+      Utils.printCommandMessage("--- RECORDED: " + cmd.toString());
       commandlist.add(item);
       recordCommandList.add(cmd);
       recordLastCommand = cmd; // save last command

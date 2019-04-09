@@ -24,12 +24,22 @@ public class Utils {
   
   public static final String NEWLINE = System.getProperty("line.separator");
   
+  public static void printCommandMessage(String message) {
+    LauncherMain.printCommandError(message);
+    //System.out.println(message);
+  }
+  
+  public static void printCommandError(String message) {
+    LauncherMain.printCommandError(message);
+    //System.err.println(message);
+  }
+  
   public static String readTextFile(String filename) {
 
     String content = "";
     File file = new File(filename);
     if (!file.isFile()) {
-      LauncherMain.printCommandError("ERROR: file not found: " + filename);
+      printCommandError("ERROR: file not found: " + filename);
     } else {
       try {
         FileReader fileReader = new FileReader(file);
@@ -39,7 +49,7 @@ public class Utils {
           content += line + NEWLINE;
         }
       } catch (IOException ex) {
-        LauncherMain.printCommandError("ERROR: " + ex.getMessage());
+        printCommandError("ERROR: " + ex.getMessage());
       }
     }
 
@@ -70,13 +80,13 @@ public class Utils {
       bw = new BufferedWriter(fw);
       bw.write(content);
     } catch (IOException ex) {
-      LauncherMain.printCommandError("ERROR: " + ex.getMessage());
+      printCommandError("ERROR: " + ex.getMessage());
     } finally {
       if (bw != null) {
         try {
           bw.close();
         } catch (IOException ex) {
-          LauncherMain.printCommandError("ERROR: " + ex.getMessage());
+          printCommandError("ERROR: " + ex.getMessage());
         }
       }
     }
@@ -94,7 +104,7 @@ public class Utils {
     try {
       bw = new BufferedWriter(new FileWriter(file));
     } catch (IOException ex) {
-      LauncherMain.printCommandError("ERROR: " + ex.getMessage());
+      printCommandError("ERROR: " + ex.getMessage());
       return;
     }
 
@@ -108,7 +118,7 @@ public class Utils {
     try {
       bw.close();
     } catch (IOException ex) {
-      LauncherMain.printCommandError("ERROR: " + ex.getMessage());
+      printCommandError("ERROR: " + ex.getMessage());
     }
   }
   
