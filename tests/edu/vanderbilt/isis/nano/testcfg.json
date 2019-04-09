@@ -8,10 +8,6 @@
   "symbolicList": [],
   "commandlist": [
     {
-      "command": "WAIT_FOR_TERM",
-      "argument": ""
-    },
-    {
       "command": "SET_HTTP",
       "argument": "8080"
     },
@@ -21,7 +17,7 @@
     },
     {
       "command": "SEND_HTTP_POST",
-      "argument": "a\u003d0\u0026b\u003d0"
+      "argument": "0"
     },
     {
       "command": "EXTRACT_SOLUTIONS",
@@ -29,11 +25,15 @@
     },
     {
       "command": "EXPECTED_PARAM",
-      "name": "a",
-      "value": "1"
+      "name": "parsedInt",
+      "value": "4"
     },
     {
       "command": "SHOW_RESULTS",
+      "argument": ""
+    },
+    {
+      "command": "STOP",
       "argument": ""
     }
   ]

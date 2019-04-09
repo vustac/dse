@@ -27,10 +27,6 @@
   ],
   "commandlist": [
     {
-      "command": "WAIT_FOR_TERM",
-      "argument": ""
-    },
-    {
       "command": "SET_HTTP",
       "argument": "8080"
     },
@@ -53,6 +49,10 @@
     },
     {
       "command": "SHOW_RESULTS",
+      "argument": ""
+    },
+    {
+      "command": "STOP",
       "argument": ""
     }
   ]
