@@ -402,6 +402,13 @@ fi
 
 COUNT_TOTAL=0
 
+# make sure the generate tool has been built
+if [[ ! -f ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar ]]; then
+  cd ../GenerateTestScript
+  ant
+  cd ${BASEDIR}
+fi
+
 # this is assumed to be running from the tests directory
 if [ ${ALLTESTS} -eq 0 ]; then
   # if a single test is requested, just make that one

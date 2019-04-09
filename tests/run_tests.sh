@@ -94,12 +94,12 @@ function run_test
   # now run the test in background mode in case verification process needs to issue message to it
   echo "Running instrumented jar file (in background)"
   if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}"
+    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs}"
   else
     # if the danfig or check_results.sh script files are missing, skip the verification
     check_if_viable
     if [[ ${VERIFY} -eq 0 || ${VALID} -eq 0 ]]; then
-      java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test}
+      java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs}
       return
     fi
     
@@ -107,7 +107,7 @@ function run_test
     if [ ! -p inpipe ]; then
       mkfifo inpipe
     fi
-    tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} &
+    tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs} &
     pid=$!
 
     # delay just a bit to make sure app is running before starting checker
@@ -150,13 +150,13 @@ function check_if_viable
   
   # check for the danfig file
   if [[ ! -f danfig ]]; then
-    MISSING="${MISSING} DANFIG"
+    MISSING="${MISSING} danfig"
     VALID=0
   fi
 
   # check for the correctness checking script
   if [[ ! -f check_result.sh ]]; then
-    MISSING="${MISSING} CHECK_RESULT.SH"
+    MISSING="${MISSING} check_result.sh"
     VALID=0
   fi
 
@@ -237,6 +237,13 @@ if [[ ${file} == "" ]]; then
   exit 0
 fi
 extract_test ${file}
+
+# get the run command args from the JSON config file (if it exists)
+runargs=""
+jsonfile="${class}/testcfg.json"
+if [[ -f ${jsonfile} ]]; then
+  runargs=`cat ${jsonfile} | jq -r '.runargs'`
+fi
 
 # all tests are kept in a sub-folder of the current location called "results"
 if [[ ! -d "results/${COMMAND}" ]]; then
