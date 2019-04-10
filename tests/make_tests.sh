@@ -229,7 +229,7 @@ function check_if_viable
   create_danfig
 
   # create the test script from the test config file
-  java -jar ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar ${class}/testcfg.json ${builddir}/test_script.sh
+  java -cp ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar:${DSE_DIR}GenerateTestScript/lib/gson-2.8.1.jar main.GenerateTestScript ${class}/testcfg.json ${builddir}/test_script.sh
   cat base_check.sh ${builddir}/test_script.sh > ${builddir}/check_result.sh
   chmod +x ${builddir}/check_result.sh
 }
