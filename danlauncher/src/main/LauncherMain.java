@@ -1262,6 +1262,11 @@ public final class LauncherMain {
   private class Action_RecordStop implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // if application is currently running, add a STOP command to the end of the recording
+      // so the test script always terminates with the application stopped.
+      if (runMode != RunMode.IDLE) {
+        recorder.addCommand(RecordID.STOP);
+      }
       recorder.stopRecording();
       mainFrame.getLabel("LBL_RECORDING").setVisible(false);
       

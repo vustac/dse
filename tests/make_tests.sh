@@ -212,7 +212,7 @@ function create_test_script
   fi
   
   echo "==> Creating test script"
-  java -jar ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar ${class}/testcfg.json ${builddir}/test_script.sh > /dev/null 2>&1
+  java -cp ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar:${DSE_DIR}GenerateTestScript/lib/gson-2.8.1.jar main.GenerateTestScript ${class}/testcfg.json ${builddir}/test_script.sh > /dev/null 2>&1
   cat base_check.sh ${builddir}/test_script.sh > ${builddir}/check_result.sh
   chmod +x ${builddir}/check_result.sh
 }
