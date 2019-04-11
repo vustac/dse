@@ -47,13 +47,14 @@ function build_test
       ;&   # fall through...
     RefReturnDouble)
       # build the library (uninstrumented code) jar file
-      # (need to use $path instead of $class/.. because the latter will not keep path structure of lib within jar file)
+      # (need to use $path instead of $class/.. because the latter will not keep path structure
+      # of lib within jar file)
       path="edu/vanderbilt/isis/uninstrumented_return"
       LIBFILE="LibReturnObject"
       if [ ! -d ${LIBPATH} ]; then
         mkdir -p ${LIBPATH}
       fi
-      echo "Building ${LIBFILE} lib file for ${test}..."
+      echo "==> Building ${LIBFILE} lib file for ${test}..."
       if [[ ${TESTMODE} -ne 0 ]]; then
         echo "javac ${path}/lib/${LIBFILE}.java"
         echo "jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java"
@@ -68,7 +69,7 @@ function build_test
   esac
 
   # now build the file(s) and jar them up (include source and class files in jar)
-  echo "Building ${test}..."
+  echo "==> Building initial un-instrumented '${test}'"
   if [[ ${TESTMODE} -ne 0 ]]; then
     echo "javac -g ${libs} ${class}/${test}.java"
     echo "jar cvf results/${test}/${test}.jar ${class}/*.class ${class}/${test}.java"
@@ -109,6 +110,7 @@ function instrument_test
     echo
   else
     # strip debug info from jar file
+    echo "==> Stripping debug info from jar file"
     pack200 -r -G ${test}-strip.jar ${test}.jar
     if [[ ! -f ${test}-strip.jar ]]; then
       echo "FAILURE: stripped file not produced!"
@@ -117,7 +119,7 @@ function instrument_test
     fi
 
     # instrument jar file
-    echo "Instrumenting jar file"
+    echo "==> Building instrumented jar file for '${test}'"
     java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
 
     if [[ -f ${test}-strip-dan-ed.jar ]]; then
@@ -141,7 +143,7 @@ function run_test
   if [[ "`uname`" == "Darwin" ]]; then
     # (these are the tests that require sending command to STDIN of application)
     if [[ "${test}" == "SimpleCWE129" || "${test}" == "SimpleCWE606" ]]; then
-      echo "Skipping test ${test} on macOS..."
+      echo "==> Skipping test ${test} on macOS..."
       return
     fi
   fi
@@ -152,14 +154,8 @@ function run_test
     CLASSPATH=${CLASSPATH}:lib/*
   fi
 
-  # get the args from the JSON config file (if it exists)
-  runargs=""
-  if [[ -f ${jsonfile} ]]; then
-    runargs=`cat ${jsonfile} | jq -r '.runargs'`
-  fi
-
   # now run the test in background mode in case verification process needs to issue message to it
-  echo "Running instrumented jar file (in background)"
+  echo "==> Running instrumented jar file (in background)"
   if [[ ${TESTMODE} -ne 0 ]]; then
     echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs}"
   else
@@ -174,9 +170,7 @@ function run_test
     sleep 2
 
     # run the script to check correctness
-    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
-    echo "Checking test results"
-    ./check_result.sh ${pid}
+    verify_test
 
     # kill the tail process
     pkill tail > /dev/null 2>&1
@@ -188,9 +182,18 @@ function run_test
   fi
 }
 
+function verify_test
+{
+  if [[ ${TESTMODE} -eq 0 ]]; then
+    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
+    echo "==> Checking test results"
+    ./check_result.sh ${pid}
+  fi
+}
+
 function clear_database
 {
-  echo "Clearing the database"
+  echo "==> Clearing the database"
   if [[ ${TESTMODE} -ne 0 ]]; then
     echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
     echo
@@ -200,43 +203,28 @@ function clear_database
   fi
 }
 
-# determine if the test is valid to run.
-# the jar file for the test was found in order to get here. now we make sure that a danfig
-# and check_results.sh file are also found with the source code. If not, we skip the test.
-function check_if_viable
+# create the test script from the test config file
+function create_test_script
 {
-  VALID=1
-  
-  # check for the required config file
-  if [[ ! -f ${jsonfile} ]]; then
-    echo "SKIPPING ${test}: MISSING: testcfg.json"
-    VALID=0
+  # exit if in test mode
+  if [[ ${TESTMODE} -eq 1 ]]; then
     return
   fi
   
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    return
-  fi
-  
-  # make the directory for the selected test (if already exists, delete it first)
-  builddir="results/${test}"
-  if [[ -d ${builddir} ]]; then
-    rm -Rf ${builddir}
-  fi
-  mkdir -p ${builddir}
-  
-  # create the danfig file from the test config file
-  create_danfig
-
-  # create the test script from the test config file
-  java -jar ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar ${class}/testcfg.json ${builddir}/test_script.sh
+  echo "==> Creating test script"
+  java -jar ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar ${class}/testcfg.json ${builddir}/test_script.sh > /dev/null 2>&1
   cat base_check.sh ${builddir}/test_script.sh > ${builddir}/check_result.sh
   chmod +x ${builddir}/check_result.sh
 }
 
 function create_danfig
 {
-  echo "Creating danfig file"
+  # exit if in test mode
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    return
+  fi
+  
+  echo "==> Creating danfig file"
   echo "#! DANALYZER SYMBOLIC EXPRESSION LIST" > ${builddir}/danfig
   echo "#" >> ${builddir}/danfig
   echo "# DEBUG SETUP" >> ${builddir}/danfig
@@ -320,45 +308,61 @@ function build_chain
     return
   fi
 
-  # find the JSON config file
-  jsonfile="${class}/testcfg.json"
+  # make the directory for the selected test (if already exists, delete it first)
+  builddir="results/${test}"
+  if [[ -d ${builddir} ]]; then
+    rm -Rf ${builddir}
+  fi
+  mkdir -p ${builddir}
   
-  # if we're not running test, skip the check if the test conditions are defined
-  if [[ ${RUNTEST} -eq 0 ]]; then
-    echo "Building test '${test}' from path '${class}'"
-    # create the jar file from the source code (includes full debug info)
-    build_test
-    # these commands must be executed from the build directory of the specified test
-    cd results/${test}
-    # create instrumented jar (from debug-stripped version of jar)
-    instrument_test
+  # create a mainclass.txt file that contains the main class for the test (for the run_tests.sh)
+  echo "${class}/${test}" > ${builddir}/mainclass.txt
+  
+  # check for the required JSON config file
+  # (required if we are going to perform a check of the test results)
+  runargs=""
+  RUNCHECK=0
+  if [[ -f ${class}/testcfg.json ]]; then
+    # copy the file to the build directory
+    cp ${class}/testcfg.json ${builddir}/testcfg.json
+    jsonfile="${builddir}/testcfg.json"
+    # get the args from the JSON config file (if it exists)
+    runargs=`cat ${jsonfile} | jq -r '.runargs'`
+    RUNCHECK=1
+  fi
 
-    COUNT_TOTAL=`expr ${COUNT_TOTAL} + 1`
+  # if we are running the test and we have a valid JSON file deined for it,
+  # create the danfig and check_results.sh script files.
+  if [[ ${RUNTEST} -eq 1 && ${RUNCHECK} -eq 1 ]]; then
+    # create the danfig and test script files from the test config file
+    create_danfig
+    create_test_script
+  fi
+  
+  # create the jar file from the source code (includes full debug info)
+  build_test
+
+  # the rest of the commands must be executed from the build directory of the specified test
+  cd results/${test}
+
+  # create instrumented jar (from debug-stripped version of jar)
+  instrument_test
+
+  # don't run test unless we have the test script to verify it
+  if [[ ${RUNTEST} -eq 0 || ${RUNCHECK} -eq 0 ]]; then
+    if [[ ${RUNTEST} -eq 1 ]]; then
+      echo "SKIPPING ${test}: MISSING: testcfg.json"
+    fi
     return
   fi
+  
+  # clear the database before we run
+  clear_database
+  # run instrumented jar and and verify results
+  run_test
 
-  # else we are running the test as well.
-  # verify the danfig and check_results.sh script files are present or we skip the test.
-  check_if_viable
-  if [[ ${VALID} -eq 1 ]]; then
-    echo "Building test '${test}' from path '${class}'"
-    # create the jar file from the source code (includes full debug info)
-    build_test
-    # these commands must be executed from the build directory of the specified test
-    cd results/${test}
-    # create instrumented jar (from debug-stripped version of jar)
-    instrument_test
-    if [[ ${RUNTEST} -eq 1 ]]; then
-      # clear the database before we run
-      clear_database
-      # run instrumented jar and and verify results
-      run_test
-      # clear the database for next test
-      #clear_database
-    fi
-
-    COUNT_TOTAL=`expr ${COUNT_TOTAL} + 1`
-  fi
+  # count number of tests run
+  COUNT_TOTAL=`expr ${COUNT_TOTAL} + 1`
 }
 
 #========================================= START HERE ============================================

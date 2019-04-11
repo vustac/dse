@@ -48,6 +48,7 @@ function instrument_test
     echo
   else
     # strip debug info from jar file
+    echo "==> Stripping debug info from jar file"
     pack200 -r -G ${test}-strip.jar ${test}.jar
     if [[ ! -f ${test}-strip.jar ]]; then
       echo "FAILURE: stripped file not produced!"
@@ -56,7 +57,7 @@ function instrument_test
     fi
 
     # instrument jar file
-    echo "Instrumenting jar file"
+    echo "==> Building instrumented jar file for '${test}'"
     java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
 
     if [[ -f ${test}-strip-dan-ed.jar ]]; then
@@ -80,7 +81,7 @@ function run_test
   if [[ "`uname`" == "Darwin" ]]; then
     # (these are the tests that require sending command to STDIN of application)
     if [[ "${test}" == "SimpleCWE129" || "${test}" == "SimpleCWE606" ]]; then
-      echo "Skipping test ${test} on macOS..."
+      echo "==> Skipping test ${test} on macOS..."
       return
     fi
   fi
@@ -91,106 +92,66 @@ function run_test
     CLASSPATH=${CLASSPATH}:lib/*
   fi
 
-  # now run the test in background mode in case verification process needs to issue message to it
-  echo "Running instrumented jar file (in background)"
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs}"
-  else
-    # if the danfig or check_results.sh script files are missing, skip the verification
-    check_if_viable
-    if [[ ${VERIFY} -eq 0 || ${VALID} -eq 0 ]]; then
-      java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs}
-      return
+  # if verification requested & the danfig or check_results.sh script files are missing, skip the verification
+  if [[ ${VERIFY} -eq 1 ]]; then
+    if [[ ! -f danfig ]]; then
+      echo "==> SKIPPING verify of ${test}: MISSING: danfig"
+      VERIFY=0
+    elif [[ ! -f check_result.sh ]]; then
+      echo "==> SKIPPING verify of ${test}: MISSING: check_result.sh"
+      VERIFY=0
     fi
-    
-    # use a pipe to handle redirecting stdin to the application, since it runs as background process
-    if [ ! -p inpipe ]; then
-      mkfifo inpipe
-    fi
-    tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs} &
-    pid=$!
-
-    # delay just a bit to make sure app is running before starting checker
-    sleep 2
-
-    # run the script to check correctness
-    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
-    echo "Checking test results"
-    ./check_result.sh ${pid}
-
-    # delete the pipe we created
-    if [ -p inpipe ]; then
-      rm -f inpipe > /dev/null 2>&1
-    fi
-
-    # kill the tail process
-    pkill tail > /dev/null 2>&1
   fi
+
+  # now run the test
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}"
+    return
+  fi
+  
+  # no verification - run test in foreground and wait for it to finish
+  if [[ ${VERIFY} -eq 0 ]]; then
+    echo "==> Running instrumented jar file"
+    java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}
+    return
+  fi
+    
+  # else run the test in background mode so verification process can issue message to it
+  # use a pipe to handle redirecting stdin to the application, since it runs as background process
+  echo "==> Running instrumented jar file (in background)"
+  if [ ! -p inpipe ]; then
+    mkfifo inpipe
+  fi
+  tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs} &
+  pid=$!
+
+  # delay just a bit to make sure app is running before starting checker
+  sleep 2
+
+  # run the script to check correctness
+  # (NOTE: a failure in this call will perform an exit, which will terminate the script)
+  echo "==> Checking test results"
+  ./check_result.sh ${pid}
+
+  # delete the pipe we created
+  if [ -p inpipe ]; then
+    rm -f inpipe > /dev/null 2>&1
+  fi
+
+  # kill the tail process
+  pkill tail > /dev/null 2>&1
 }
 
 function clear_database
 {
-  echo "Clearing the database"
-  if [[ ${TESTMODE} -ne 0 ]]; then
+  echo "==> Clearing the database"
+  if [[ ${TESTMODE} -eq 1 ]]; then
     echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
     echo
   else
     # clear the database
     mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
   fi
-}
-
-# determine if the test is valid to run.
-# the jar file for the test was found in order to get here. now we make sure that a danfig
-# and check_results.sh file are also found with the source code. If not, we skip the test.
-function check_if_viable
-{
-  VALID=1
-  MISSING=""
-  
-  # check for the danfig file
-  if [[ ! -f danfig ]]; then
-    MISSING="${MISSING} danfig"
-    VALID=0
-  fi
-
-  # check for the correctness checking script
-  if [[ ! -f check_result.sh ]]; then
-    MISSING="${MISSING} check_result.sh"
-    VALID=0
-  fi
-
-  if [[ ${VALID} -eq 0 ]]; then
-    echo "SKIPPING ${test}: MISSING: ${MISSING}"
-  fi
-}
-
-# this takes the full pathname of the source file and converts it into a 'test' name (the name
-# of the source file without the path or the ".java" extension) and a 'class' name (the path).
-function extract_test
-{
-  cmd=$1
-  # if running in loop, each file entry will begin with './', which we must eliminate
-  if [[ ${cmd} == "./"* ]]; then
-    cmd=${cmd:2}
-  fi
-  if [[ ${cmd} == "" ]]; then
-    echo "FAILURE: File '${cmd}' not found!"
-    exit 1
-  fi
-  # extract the java filename only & get its length
-  test=`echo ${cmd} | sed 's#.*/##g'`
-  local namelen=${#test}
-  if [[ ${namelen} -eq 0 ]]; then
-    echo "FAILURE: extraction of filename failed!"
-    exit 1
-  fi
-  # now remove the filename from the path
-  local pathlen=`echo "${#cmd} - ${namelen} -1" | bc`
-  class=${cmd:0:${pathlen}}
-  # remove ".java" from the filename
-  namelen=`echo "${namelen} - 5" | bc`
-  test=${test:0:${namelen}}
 }
 
 #========================================= START HERE ============================================
@@ -225,32 +186,42 @@ if [ -z ${COMMAND} ]; then
 fi
 set -o nounset
 
-if [[ ${ALLTESTS} -ne 0 ]]; then
+if [[ ${ALLTESTS} -eq 1 ]]; then
   echo "FAILURE: Must specify a test to run"
   exit 0
 fi
+test=${COMMAND}
 
 # find the source file for the specified test and get the corresponding Main Class for it
-file=`find edu -name "${COMMAND}.java"`
-if [[ ${file} == "" ]]; then
-  echo "FAILURE: test not found for: ${COMMAND}"
-  exit 0
-fi
-extract_test ${file}
+#file=`find edu -name "${test}.java"`
+#if [[ ${file} == "" ]]; then
+#  echo "FAILURE: source path not found for: ${test}"
+#  exit 0
+#fi
+#extract_test ${file}
 
-# get the run command args from the JSON config file (if it exists)
+# make sure we have a directory for the specified test
+if [[ ! -d "results/${test}" ]]; then
+  echo "FAILURE: results directory ${test} not found!"
+  exit 1
+fi
+cd results/${test}
+
+# now get the mainclass definition file (exit if not found)
+if [[ ! -f mainclass.txt ]]; then
+  echo "FAILURE: mainclass.txt file not found in results directory!"
+  exit 1
+else
+  MAINCLASS=`cat mainclass.txt`
+fi
+
+# check for the optional JSON config file
+# (required if we are going to perform a check of the test results)
 runargs=""
-jsonfile="${class}/testcfg.json"
-if [[ -f ${jsonfile} ]]; then
-  runargs=`cat ${jsonfile} | jq -r '.runargs'`
+if [[ -f testcfg.json ]]; then
+  # get the args from the JSON config file (if it exists)
+  runargs=`cat testcfg.json | jq -r '.runargs'`
 fi
-
-# all tests are kept in a sub-folder of the current location called "results"
-if [[ ! -d "results/${COMMAND}" ]]; then
-  echo "FAILURE: results directory ${COMMAND} not found!"
-  exit 0
-fi
-cd results/${COMMAND}
 
 # if instrumented file is not found, create it
 if [ ! -f ${test}-dan-ed.jar ]; then
@@ -259,5 +230,6 @@ fi
   
 # clear the database before we run
 clear_database
+
 # run instrumented jar and and verify results
 run_test
