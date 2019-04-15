@@ -58,9 +58,9 @@ public class SymbolTable {
   private static int      colSortSelection;
   private static int      rowSelection;
   private static JTable   table;
-  private static ArrayList<TableListInfo> paramList = new ArrayList<>();
-  private static ArrayList<String> paramNameList = new ArrayList<>();
-  private static GuiControls optionsPanel = new GuiControls();
+  private static ArrayList<TableListInfo> paramList;
+  private static ArrayList<String> paramNameList;
+  private static GuiControls optionsPanel;
   private static boolean  bEdited;
 
   
@@ -129,6 +129,9 @@ public class SymbolTable {
     rowSelection = -1;
     colSortSelection = 0;
     bEdited = false;
+    paramList = new ArrayList<>();
+    paramNameList = new ArrayList<>();
+    optionsPanel = null;
     
     table.setModel(new DefaultTableModel(new Object [][]{ }, TABLE_COLUMNS) {
       Class[] types = new Class [] {
@@ -429,11 +432,19 @@ public class SymbolTable {
   }                                           
 
   private void addButtonListener(String name, ActionListener listener) {
+    if (optionsPanel == null) {
+      return;
+    }
+    
     JButton button = optionsPanel.getButton(name);
     button.addActionListener(listener);
   }
   
   private String getEditorButtonSelection(String title) {
+    if (optionsPanel == null) {
+      return "";
+    }
+    
     String basenane = title.toUpperCase();
     JButton button = optionsPanel.getButton("BTN_EDIT_" + basenane);
     if (button == null) {
@@ -464,11 +475,19 @@ public class SymbolTable {
   }
   
   private void restoreEditorSelection(String title, String value) {
+    if (optionsPanel == null) {
+      return;
+    }
+    
     String basenane = title.toUpperCase();
     optionsPanel.getTextField("TXT_EDIT_" + basenane).setText(value);
   }
   
   private void updateConstraintMenu(boolean bConstraints) {
+    if (optionsPanel == null) {
+      return;
+    }
+    
     // if no constraints, add the no constraints msg, else don't
     if (bConstraints) {
       optionsPanel.getLabel ("LBL_CON_NONE").setText("");
@@ -484,6 +503,13 @@ public class SymbolTable {
   }
   
   private void showMenuSelection() {
+    // if panel is currently displayed for another method, close that one before opening the new one
+    if (optionsPanel != null) {
+      optionsPanel.close();
+    }
+    
+    // create the panel to display the selected method info on
+    optionsPanel = new GuiControls();
     JFrame frame = optionsPanel.newFrame("Symbolic Parameter Modification", 650, 550,
         GuiControls.FrameSize.NOLIMIT);
     frame.addWindowListener(new Window_ExitListener());
