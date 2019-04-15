@@ -253,7 +253,7 @@ public final class BytecodeViewer {
 
       // look for start of file - skip anything before this as it may be a remnant of a terminated run.
       if (!validLine) {
-        if (entry.startsWith("Compiled from ")) {
+        if (entry.startsWith("Compiled from ") || entry.startsWith("No unimplemented opcodes !")) {
           LauncherMain.printCommandMessage("Line: " + curLine + " - found start");
           validLine = true;
         } else if (entry.startsWith("class ") && entry.endsWith("{")) {
