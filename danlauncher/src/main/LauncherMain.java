@@ -784,13 +784,14 @@ public final class LauncherMain {
       if (runMode == RunMode.RUNNING) {
         ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
         if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
-          Utils.printStatusInfo("Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
+          Utils.printStatusInfo("CommandLauncher: Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
           String[] command = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
           CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
           commandLauncher.start(command, null);
           runMode = RunMode.EXITING;
 
           // check on progress and take further action if necessary
+          Utils.printStatusInfo("Starting Kill Timer");
           killTimer.start();
         }
       } else {
@@ -956,13 +957,14 @@ public final class LauncherMain {
       // stop the running process
       ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
       if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
-        Utils.printStatusInfo("Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
+        Utils.printStatusInfo("CommandLauncher: Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
         String[] command = { "kill", "-15", threadInfo.pid.toString() }; // SIGTERM
         CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
         commandLauncher.start(command, null);
         runMode = RunMode.TERMINATING;
 
         // check on progress and take further action if necessary
+        Utils.printStatusInfo("Starting Kill Timer");
         killTimer.start();
 
         // indicate test is being user-terminated to recorder
@@ -2566,30 +2568,30 @@ public final class LauncherMain {
 
       // strip out any debug info (it screws up the agent)
       // this will transform the temp file and name it the same as the original instrumented file
-      Utils.printStatusInfo("Stripping debug info from uninstrumented jar file");
+      Utils.printStatusInfo("CommandLauncher: Stripping debug info from uninstrumented jar file");
       String outputName = baseName + "-strip.jar";
       String[] command2 = { "pack200", "-r", "-G", projectPathName + outputName, projectPathName + projectName };
       // this creates a command launcher that runs on the current thread
       CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
       retcode = commandLauncher.start(command2, projectPathName);
       if (retcode == 0) {
-        Utils.printStatusMessage("Debug stripping was successful");
+        Utils.printStatusMessage("CommandLauncher: COMPLETED - Debug stripping was successful");
         Utils.printStatusInfo(commandLauncher.getResponse());
       } else {
-        Utils.printStatusError("stripping file: " + projectName);
+        Utils.printStatusError("CommandLauncher: FAILED - stripping file: " + projectName);
         return -1;
       }
         
       // instrument the jar file
-      Utils.printStatusInfo("Instrumenting stripped file: " + outputName);
+      Utils.printStatusInfo("CommandLauncher: Instrumenting stripped file: " + outputName);
       String[] command = { "java", "-cp", classpath, mainclass, outputName, "1" };
       retcode = commandLauncher.start(command, projectPathName);
       if (retcode == 0) {
-        Utils.printStatusMessage("Instrumentation successful");
+        Utils.printStatusMessage("CommandLauncher: COMPLETED - Instrumentation successful");
         Utils.printStatusInfo(commandLauncher.getResponse());
         outputName = baseName + "-strip-dan-ed.jar";
       } else {
-        Utils.printStatusError("instrumenting file: " + outputName);
+        Utils.printStatusError("CommandLauncher: FAILED - instrumenting file: " + outputName);
         return -1;
       }
         
@@ -2845,15 +2847,17 @@ public final class LauncherMain {
       return null;
     }
 
-    Utils.printStatusInfo("Generating javap file for: " + classSelect);
+    Utils.printStatusInfo("CommandLauncher: Generating javap file for: " + classSelect);
     
     // decompile the selected class file
     String[] command = { "javap", "-p", "-c", "-s", "-l", CLASSFILE_STORAGE + "/" + classSelect };
     // this creates a command launcher that runs on the current thread
     CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
     int retcode = commandLauncher.start(command, projectPathName);
-    if (retcode != 0) {
-      Utils.printStatusError("running javap on file: " + classSelect);
+    if (retcode == 0) {
+      Utils.printStatusError("CommandLauncher: COMPLETED - generating javap file");
+    } else {
+      Utils.printStatusError("CommandLauncher: FAILED - running javap on file: " + classSelect);
       return null;
     }
 
@@ -3100,9 +3104,13 @@ public final class LauncherMain {
       } else {
         Utils.printStatusError("Failure executing command: " + threadInfo.jobname);
       }
-      
+
+      // set run mode to IDLE since we have completed, unless we are exiting program
+      if (runMode != RunMode.EXITING) {
+        runMode = RunMode.IDLE;
+      }
+
       // disable stop key abd re-enable the Run and Get Bytecode buttons
-      runMode = RunMode.IDLE;
       mainFrame.getButton("BTN_STOPTEST").setEnabled(false);
       mainFrame.getButton("BTN_RUNTEST").setEnabled(true);
       mainFrame.getButton("BTN_BYTECODE").setEnabled(true);
@@ -3115,12 +3123,7 @@ public final class LauncherMain {
   private class KillTimerListener implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
-      ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
-      if (threadInfo == null || threadInfo.pid < 0) {
-        runMode = RunMode.IDLE;
-        killTimer.stop();
-        return;
-      }
+      Utils.printStatusInfo("KillTimerListener: " + runMode.toString());
       
       switch (runMode) {
         case IDLE:
@@ -3130,15 +3133,23 @@ public final class LauncherMain {
           break;
 
         case TERMINATING:
-          Utils.printStatusInfo("Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
-          String[] command2 = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
-          CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
-          commandLauncher.start(command2, null);
-          runMode = RunMode.KILLING;
+          ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
+          if (threadInfo != null || threadInfo.pid < 0) {
+            Utils.printStatusInfo("KillTimerListener: thread not found");
+            runMode = RunMode.IDLE;
+            killTimer.stop();
+          } else {
+            Utils.printStatusInfo("CommandLauncher: Kill job " + threadInfo.jobid + ": pid " + threadInfo.pid);
+            String[] command2 = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
+            CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
+            commandLauncher.start(command2, null);
+            runMode = RunMode.KILLING;
+          }
           break;
 
         case KILLING:
           // didn't work - let's give up
+          Utils.printStatusInfo("failed to terminate thread");
           runMode = RunMode.IDLE;
           killTimer.stop();
           break;

@@ -27,6 +27,8 @@ public class Utils {
   
   public static final String NEWLINE = System.getProperty("line.separator");
 
+  public enum LogType { ERROR, WARNING, INFO }
+  
   private static final Logger LOGGER = Logger.getLogger("MyLog");
   private static FileHandler fh;
   
@@ -43,6 +45,22 @@ public class Utils {
     }
   }
 
+  public static void msgLogger(LogType type, String message) {
+    if (LOGGER != null) {
+      switch(type) {
+        case ERROR:
+          LOGGER.severe(message);
+          break;
+        case WARNING:
+          LOGGER.warning(message);
+          break;
+        case INFO:
+          LOGGER.info(message);
+          break;
+      }
+    }
+  }
+  
   public static void printStatusClear() {
     LauncherMain.printStatusClear();
   }
@@ -50,33 +68,25 @@ public class Utils {
   public static void printStatusInfo(String message) {
     //System.out.println(message);
     LauncherMain.printCommandMessage(message);
-    if (LOGGER != null) {
-      LOGGER.info(message);
-    }
+    msgLogger(LogType.INFO, message);
   }
   
   public static void printStatusMessage(String message) {
     //System.out.println(message);
     LauncherMain.printStatusMessage(message);
-    if (LOGGER != null) {
-      LOGGER.info(message);
-    }
+    msgLogger(LogType.INFO, message);
   }
   
   public static void printStatusWarning(String message) {
     //System.err.println(message);
     LauncherMain.printStatusWarning(message);
-    if (LOGGER != null) {
-      LOGGER.warning(message);
-    }
+    msgLogger(LogType.WARNING, message);
   }
   
   public static void printStatusError(String message) {
     //System.err.println(message);
     LauncherMain.printStatusError(message);
-    if (LOGGER != null) {
-      LOGGER.severe(message);
-    }
+    msgLogger(LogType.ERROR, message);
   }
   
   public static String readTextFile(String filename) {
