@@ -47,7 +47,7 @@ public class ThreadInfo {
     this.exceptions = new ArrayList<>();
     this.errors = new ArrayList<>();
     this.tid = tid;
-    //LauncherMain.printCommandMessage("start time: " + start_ref + " (init) - " + fullName);
+    //Utils.printStatusInfo("start time: " + start_ref + " (init) - " + fullName);
   }
     
   public void resetReference(long tstamp, int insCount) {
@@ -95,7 +95,7 @@ public class ThreadInfo {
       incInstructions(delta);
     }
     exit = true;
-    //LauncherMain.printCommandMessage("exit time: " + currentTime + ", elapsed " + duration_ms + " - " +  fullName);
+    //Utils.printStatusInfo("exit time: " + currentTime + ", elapsed " + duration_ms + " - " +  fullName);
   }
   
   public void incElapsed(long delta) {

@@ -53,6 +53,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Level;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -263,12 +264,12 @@ public final class LauncherMain {
       @Override
       public void showConnection(String connection) {
         clientPort = connection;
-        printCommandMessage("connected to  " + clientPort);
+        Utils.printStatusInfo("connected to  " + clientPort);
       }
 
       @Override
       public void resetConnection() {
-        printCommandMessage("connected to  " + clientPort + "  (CONNECTION CLOSED)");
+        Utils.printStatusInfo("connected to  " + clientPort + "  (CONNECTION CLOSED)");
       }
     };
 
@@ -280,10 +281,20 @@ public final class LauncherMain {
     tabIndex = 0;
     String projectPath;
 
+    // start a command logger
+    String logfile = HOMEPATH + "/commands.log";
+    new File(logfile).delete();
+    Utils.msgLoggerInit(logfile);
+    
     // check for the global danlauncher properties file and init default values if not found
     systemProps = new PropertiesFile(HOMEPATH + "/" + PROJ_CONFIG, "SYSTEM_PROPERTIES");
     javaHome     = systemProps.getPropertiesItem("SYS_JAVA_HOME", JAVA_HOME);
-    dsePath      = systemProps.getPropertiesItem("SYS_DSEPATH", HOMEPATH);
+    try {
+      // the main DSE path should be one level up from where we are running from
+      dsePath    = systemProps.getPropertiesItem("SYS_DSEPATH", new File(HOMEPATH + "/..").getCanonicalPath());
+    } catch (IOException ex) {
+      dsePath    = systemProps.getPropertiesItem("SYS_DSEPATH", HOMEPATH);
+    }
     maxLogLength = systemProps.getPropertiesItem("SYS_LOG_LENGTH", "500000");
     projectPath  = systemProps.getPropertiesItem("SYS_PROJECT_PATH", HOMEPATH);
     debugPort    = systemProps.getIntegerProperties("SYS_DEBUG_PORT", 5000, 100, 65535);
@@ -308,17 +319,17 @@ public final class LauncherMain {
         int size = Integer.parseUnsignedInt(maxLogLength);
         debugLogger.setMaxBufferSize(size);
       } catch (NumberFormatException ex) {
-        printCommandError("ERROR: invalid value for System Properties SYS_LOG_LENGTH: " + maxLogLength);
+        Utils.printStatusError("invalid value for System Properties SYS_LOG_LENGTH: " + maxLogLength);
       }
     }
 
     // create an interface to send commands to the solver
     solverConnection= new SolverInterface(solverPort);
     if (!solverConnection.isValid()) {
-      printStatusError("solver port failure on " + solverPort +
+      Utils.printStatusError("solver port failure on " + solverPort +
           ". Make sure dansolver is running and verify port.");
     } else {
-      printStatusMessage("Connected to Solver on port " + solverPort);
+      Utils.printStatusMessage("Connected to Solver on port " + solverPort);
     }
     
     // init recorder
@@ -349,7 +360,16 @@ public final class LauncherMain {
     textField.setText(message);
       
     // echo status to command output window
-    printCommandError(message);
+    printCommandMessage(message);
+  }
+  
+  public static void printStatusWarning(String message) {
+    JTextField textField = mainFrame.getTextField("TXT_MESSAGES");
+    textField.setForeground(Color.red);
+    textField.setText("!! " + message);
+      
+    // echo status to command output window
+    printCommandMessage("WARNING: " + message);
   }
   
   public static void printStatusError(String message) {
@@ -358,14 +378,10 @@ public final class LauncherMain {
     textField.setText("ERROR: " + message);
       
     // echo status to command output window
-    printCommandError("ERROR: " + message);
+    printCommandMessage("ERROR: " + message);
   }
   
   public static void printCommandMessage(String message) {
-    commandLogger.printLine(message);
-  }
-  
-  public static void printCommandError(String message) {
     commandLogger.printLine(message);
   }
   
@@ -465,7 +481,7 @@ public final class LauncherMain {
 
     // now save to the file
     Utils.saveTextFile(projectPathName + "danfig", content);
-    printStatusMessage("Updated danfig file: " + symbolTbl.getSize() + " symbolic entries");
+    Utils.printStatusMessage("Updated danfig file: " + symbolTbl.getSize() + " symbolic entries");
   }
 
   public static void setBytecodeSelections(String classSelect, String methodSelect) {
@@ -484,20 +500,20 @@ public final class LauncherMain {
   }
 
   public static int runBytecodeViewer(String classSelect, String methodSelect) {
-    printCommandMessage("Running Bytecode Viewer for class: " + classSelect + " method: " + methodSelect);
+    Utils.printStatusInfo("Running Bytecode Viewer for class: " + classSelect + " method: " + methodSelect);
     
     // check if bytecode for this method already displayed
     if (bytecodeViewer.isMethodDisplayed(classSelect, methodSelect)) {
       // just clear any highlighting
       bytecodeViewer.highlightClear();
-      printStatusMessage("Bytecode already loaded");
+      Utils.printStatusMessage("Bytecode already loaded");
     } else {
       String content;
       String fname = projectPathName + JAVAPFILE_STORAGE + "/" + classSelect + ".txt";
       File file = new File(fname);
       if (file.isFile()) {
         // use the javap file already generated
-        printCommandMessage("Using existing javap file: " + fname);
+        Utils.printStatusInfo("Using existing javap file: " + fname);
         content = Utils.readTextFile(fname);
       } else {
         // else, we need to generate bytecode source from jar using javap...
@@ -551,6 +567,7 @@ public final class LauncherMain {
   private void createMainPanel() {
     // if a panel already exists, close the old one
     if (mainFrame.isValidFrame()) {
+      Utils.printStatusInfo("Closing previous Main Frame that was still running");
       mainFrame.close();
     }
 
@@ -754,7 +771,7 @@ public final class LauncherMain {
   private class Window_MainListener extends java.awt.event.WindowAdapter {
     @Override
     public void windowClosing(java.awt.event.WindowEvent evt) {
-      printCommandMessage("Closing danlauncher...");
+      Utils.printStatusInfo("Closing danlauncher...");
       
       // close up services
       enableUpdateTimers(false);
@@ -767,7 +784,7 @@ public final class LauncherMain {
       if (runMode == RunMode.RUNNING) {
         ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
         if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
-          printCommandMessage("Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
+          Utils.printStatusInfo("Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
           String[] command = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
           CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
           commandLauncher.start(command, null);
@@ -778,6 +795,7 @@ public final class LauncherMain {
         }
       } else {
         // else we can close the frame and exit
+        Utils.printStatusInfo("Closing Main Frame and exiting danlauncher");
         mainFrame.close();
         System.exit(0);
       }
@@ -938,7 +956,7 @@ public final class LauncherMain {
       // stop the running process
       ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
       if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
-        printCommandMessage("Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
+        Utils.printStatusInfo("Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
         String[] command = { "kill", "-15", threadInfo.pid.toString() }; // SIGTERM
         CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
         commandLauncher.start(command, null);
@@ -1140,13 +1158,13 @@ public final class LauncherMain {
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       // if solver didn't connect initially, try again here
       if (!solverConnection.isValid()) {
-        printStatusError("Attempting to Reconnecting to port " + solverPort);
+        Utils.printStatusWarning("Attempting to Reconnecting to port " + solverPort);
         solverConnection = new SolverInterface(solverPort);
         if (!solverConnection.isValid()) {
-          printStatusError("Still not connected to Solver. Make sure dansolver is running and verify port.");
+          Utils.printStatusError("Still not connected to Solver. Make sure dansolver is running and verify port.");
           return;
         } else {
-          printStatusMessage("Connected to Solver on port " + solverPort);
+          Utils.printStatusMessage("Connected to Solver on port " + solverPort);
         }
       }
 
@@ -1159,13 +1177,13 @@ public final class LauncherMain {
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       // if solver didn't connect initially, try again here
       if (!solverConnection.isValid()) {
-        printStatusError("Attempting to Reconnecting to port " + solverPort);
+        Utils.printStatusWarning("Attempting to Reconnecting to port " + solverPort);
         solverConnection = new SolverInterface(solverPort);
         if (!solverConnection.isValid()) {
-          printStatusError("Still not connected to Solver. Make sure dansolver is running and verify port.");
+          Utils.printStatusError("Still not connected to Solver. Make sure dansolver is running and verify port.");
           return;
         } else {
-          printStatusMessage("Connected to Solver on port " + solverPort);
+          Utils.printStatusMessage("Connected to Solver on port " + solverPort);
         }
       }
 
@@ -1280,7 +1298,7 @@ public final class LauncherMain {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       if (recorder.isEmpty()) {
-        printStatusError("Nothing was recorded");
+        Utils.printStatusError("Nothing was recorded");
         return;
       }
       
@@ -1295,7 +1313,7 @@ public final class LauncherMain {
       if (retVal == JFileChooser.APPROVE_OPTION) {
         File file = fileSelector.getSelectedFile();
         file.delete();
-        printCommandMessage("Generating config file: " + projectPathName + "testcfg.json");
+        Utils.printStatusInfo("Generating config file: " + projectPathName + "testcfg.json");
         recorder.generateConfigFile(file.getAbsolutePath());
       }
     }
@@ -1611,7 +1629,7 @@ public final class LauncherMain {
       if (debugParams.updateFromPanel()) {
         updateDanfigFile();
       } else {
-        printCommandMessage("No changes to debug settings");
+        Utils.printStatusInfo("No changes to debug settings");
       }
 
       // now put this frame back into hiding
@@ -1758,13 +1776,13 @@ public final class LauncherMain {
             } else {
               solverConnection = new SolverInterface(solverPort);
               systemSetupFrame.getTextField("TXT_SOLVEPORT").setText(solverPort + "");
-              printStatusError("solver port failure on " + intval + ". Reconnecting to port " + solverPort);
+              Utils.printStatusError("solver port failure on " + intval + ". Reconnecting to port " + solverPort);
             }
           }
         }
       } catch (NumberFormatException ex) {
         systemSetupFrame.getTextField("TXT_SOLVEPORT").setText(solverPort + "");
-        printStatusError("Invalid selection: must be value between 100 and 65535");
+        Utils.printStatusError("Invalid selection: must be value between 100 and 65535");
       }
       
       // Debug Port
@@ -1779,7 +1797,7 @@ public final class LauncherMain {
         }
       } catch (NumberFormatException ex) {
         systemSetupFrame.getTextField("TXT_MYPORT").setText(debugPort + "");
-        printStatusError("Invalid selection: must be value between 100 and 65535");
+        Utils.printStatusError("Invalid selection: must be value between 100 and 65535");
       }
       
       // Max String Length
@@ -1792,7 +1810,7 @@ public final class LauncherMain {
         }
       } catch (NumberFormatException ex) {
         systemSetupFrame.getTextField("TXT_MAXLEN").setText(maxLogLength);
-        printStatusError("Invalid selection: must be value between 10000 and 100000000 (10k to 100M)");
+        Utils.printStatusError("Invalid selection: must be value between 10000 and 100000000 (10k to 100M)");
       }
 
       // now put this frame back into hiding
@@ -2225,7 +2243,7 @@ public final class LauncherMain {
         System.err.println("ERROR: unable to start NetworkServer. " + ex);
       }
 
-      printCommandMessage("danlauncher receiving port: " + debugPort);
+      Utils.printStatusInfo("danlauncher receiving port: " + debugPort);
       udpThread.start();
       udpThread.setLoggingCallback(makeConnection);
       networkListener = udpThread; // this allows us to signal the network listener
@@ -2273,13 +2291,13 @@ public final class LauncherMain {
       }
       fileReader.close();
     } catch (IOException ex) {
-      printCommandError("ERROR: setupClassList: " + ex);
+      Utils.printStatusError("setupClassList: " + ex);
       return;
     }
 
     // exit if no methods were found
     if (fullMethList.isEmpty()) {
-      printCommandError("ERROR: setupClassList: No methods found in methodlist.txt file!");
+      Utils.printStatusError("ERROR: setupClassList: No methods found in methodlist.txt file!");
       return;
     }
         
@@ -2313,7 +2331,7 @@ public final class LauncherMain {
 
     // setup the class and method selections
     setClassSelections();
-    printCommandMessage(classList.size() + " classes and " + fullMethList.size() + " methods found");
+    Utils.printStatusInfo(classList.size() + " classes and " + fullMethList.size() + " methods found");
   }
 
   private static void setClassSelections() {
@@ -2399,12 +2417,12 @@ public final class LauncherMain {
         String val = projectProps.getPropertiesItem(tag, setting);
         if (!setting.equals(val)) {
           // if property value was found & differs from gui setting, update the gui
-          printCommandMessage("Project updated " + propEntry.controlName + " to value: " + val);
+          Utils.printStatusInfo("Project updated " + propEntry.controlName + " to value: " + val);
           propEntry.panel.setInputControl(propEntry.controlName, propEntry.controlType, val);
         }
       } else {
         // value wasn't in properties table - update the table & use value from control
-        printCommandMessage("Project properties new entry for " + tag + " - set to value: " + setting);
+        Utils.printStatusInfo("Project properties new entry for " + tag + " - set to value: " + setting);
         projectProps.setPropertiesItem (tag, setting);
       }
     }
@@ -2428,7 +2446,7 @@ public final class LauncherMain {
       return true;
     }
 
-    printStatusError("Missing file: " + fname);
+    Utils.printStatusError("Missing file: " + fname);
     return false;
   }
   
@@ -2452,7 +2470,7 @@ public final class LauncherMain {
 
     // if application is running, tell user to stop before loading a new one
     if (runMode == RunMode.RUNNING) {
-      printStatusError("Application is currently running - STOP it beefore loading new jar file");
+      Utils.printStatusError("Application is currently running - STOP it beefore loading new jar file");
       return -1;
     }
       
@@ -2533,14 +2551,14 @@ public final class LauncherMain {
         FileUtils.deleteDirectory(new File(projectPathName + CLASSFILE_STORAGE));
         FileUtils.deleteDirectory(new File(projectPathName + JAVAPFILE_STORAGE));
       } catch (IOException ex) {
-        printCommandError("ERROR: " + ex.getMessage());
+        Utils.printStatusError(ex.getMessage());
       }
     }
       
     // determine if jar file needs instrumenting
     if (projectName.endsWith("-dan-ed.jar")) {
       // file is already instrumented - use it as-is
-      printCommandMessage("Input file already instrumented - using as is.");
+      Utils.printStatusInfo("Input file already instrumented - using as is.");
       projectName = projectName.substring(0, projectName.indexOf("-dan-ed.jar")) + ".jar";
     } else {
       int retcode = 0;
@@ -2548,40 +2566,40 @@ public final class LauncherMain {
 
       // strip out any debug info (it screws up the agent)
       // this will transform the temp file and name it the same as the original instrumented file
-      printCommandMessage("Stripping debug info from uninstrumented jar file");
+      Utils.printStatusInfo("Stripping debug info from uninstrumented jar file");
       String outputName = baseName + "-strip.jar";
       String[] command2 = { "pack200", "-r", "-G", projectPathName + outputName, projectPathName + projectName };
       // this creates a command launcher that runs on the current thread
       CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
       retcode = commandLauncher.start(command2, projectPathName);
       if (retcode == 0) {
-        printStatusMessage("Debug stripping was successful");
-        printCommandMessage(commandLauncher.getResponse());
+        Utils.printStatusMessage("Debug stripping was successful");
+        Utils.printStatusInfo(commandLauncher.getResponse());
       } else {
-        printStatusError("stripping file: " + projectName);
+        Utils.printStatusError("stripping file: " + projectName);
         return -1;
       }
         
       // instrument the jar file
-      printCommandMessage("Instrumenting stripped file: " + outputName);
+      Utils.printStatusInfo("Instrumenting stripped file: " + outputName);
       String[] command = { "java", "-cp", classpath, mainclass, outputName, "1" };
       retcode = commandLauncher.start(command, projectPathName);
       if (retcode == 0) {
-        printStatusMessage("Instrumentation successful");
-        printCommandMessage(commandLauncher.getResponse());
+        Utils.printStatusMessage("Instrumentation successful");
+        Utils.printStatusInfo(commandLauncher.getResponse());
         outputName = baseName + "-strip-dan-ed.jar";
       } else {
-        printStatusError("instrumenting file: " + outputName);
+        Utils.printStatusError("instrumenting file: " + outputName);
         return -1;
       }
         
       // rename the instrumented file to the correct name
       String tempjar = outputName;
       outputName = baseName + "-dan-ed.jar";
-      printCommandMessage("Renaming " + tempjar + " to " + outputName);
+      Utils.printStatusInfo("Renaming " + tempjar + " to " + outputName);
       File tempfile = new File(projectPathName + tempjar);
       if (!tempfile.isFile()) {
-        printStatusError("instrumented file not found: " + tempjar);
+        Utils.printStatusError("instrumented file not found: " + tempjar);
         return -1;
       }
       File newfile = new File(projectPathName + outputName);
@@ -2591,7 +2609,7 @@ public final class LauncherMain {
       tempjar = baseName + "-strip.jar";
       tempfile = new File(projectPathName + tempjar);
       if (tempfile.isFile()) {
-        printCommandMessage("Removing " + tempjar);
+        Utils.printStatusInfo("Removing " + tempjar);
         tempfile.delete();
       }
     }
@@ -2617,14 +2635,14 @@ public final class LauncherMain {
     
     // if application is running, tell user to stop before running a new one
     if (runMode == RunMode.RUNNING) {
-      printStatusError("Application is currently running - STOP it beefore running again");
+      Utils.printStatusError("Application is currently running - STOP it beefore running again");
       return;
     }
     if (!Utils.isServerRunning(solverPort)) {
       if (allowRunWithoutSolver) {
-        printStatusError("dansolver is not running on port " + solverPort + ". Solutions will not be generated.");
+        Utils.printStatusError("dansolver is not running on port " + solverPort + ". Solutions will not be generated.");
       } else {
-        printStatusError("dansolver is not running on port " + solverPort + ". Start it prior to running the application.");
+        Utils.printStatusError("dansolver is not running on port " + solverPort + ". Start it prior to running the application.");
         return;
       }
     }
@@ -2651,7 +2669,7 @@ public final class LauncherMain {
     // get the user-supplied main class and input value
     String mainclass = (String) mainClassCombo.getSelectedItem();
     if (mainclass == null) {
-      printStatusError("no main class found!");
+      Utils.printStatusError("no main class found!");
       return;
     }
     mainclass = mainclass.replaceAll("/", ".");
@@ -2682,7 +2700,7 @@ public final class LauncherMain {
               + ":" + dsePath + "/danalyzer/lib/asm-tree-7.2.jar"
               + ":" + localpath;
 
-    printStatusMessage("Run command started...");
+    Utils.printStatusMessage("Run command started...");
     
     // run the instrumented jar file
     String[] argarray = arglist.split("\\s+"); // need to seperate arg list into seperate entries
@@ -2709,11 +2727,11 @@ public final class LauncherMain {
   private static void runBytecodeParser(String classSelect, String methodSelect, String content) {
     bytecodeViewer.parseJavap(classSelect, methodSelect, content);
     if (bytecodeViewer.isValidBytecode()) {
-      printStatusMessage("Successfully generated bytecode for method");
+      Utils.printStatusMessage("Successfully generated bytecode for method");
       bytecodeGraph.drawGraphNormal();
       getMenuItem("MENU_SAVE_BCODE").setEnabled(bytecodeGraph.isValid());
     } else {
-      printStatusMessage("Generated class bytecode, but method not found");
+      Utils.printStatusWarning("Generated class bytecode, but method not found");
     }
   }
   
@@ -2735,15 +2753,15 @@ public final class LauncherMain {
           connection.setDoOutput(true);
 
           // Send request
-          printStatusMessage("Sending HTTP request to: " + targetURL);
+          Utils.printStatusMessage("Sending HTTP request to: " + targetURL);
           wr = new DataOutputStream (connection.getOutputStream());
           wr.writeBytes(urlParameters);
           wr.flush();
           wr.close();
 
           responseCode = connection.getResponseCode();
-          printCommandMessage("HTTP parameters: " + urlParameters);
-          printCommandMessage("Response code: " + responseCode);
+          Utils.printStatusInfo("HTTP parameters: " + urlParameters);
+          Utils.printStatusInfo("Response code: " + responseCode);
           break;
           
         case "POST":
@@ -2756,15 +2774,15 @@ public final class LauncherMain {
           connection.setDoOutput(true);
 
           // Send request
-          printStatusMessage("Sending POST request to: " + targetURL);
+          Utils.printStatusMessage("Sending POST request to: " + targetURL);
           wr = new DataOutputStream (connection.getOutputStream());
           wr.writeBytes(urlParameters);
           wr.flush();
           wr.close();
 
           responseCode = connection.getResponseCode();
-          printCommandMessage("POST parameters: " + urlParameters);
-          printCommandMessage("Response code: " + responseCode);
+          Utils.printStatusInfo("POST parameters: " + urlParameters);
+          Utils.printStatusInfo("Response code: " + responseCode);
           break;
           
         case "GET":
@@ -2772,8 +2790,8 @@ public final class LauncherMain {
           connection.setRequestProperty("User-Agent", USER_AGENT);
           responseCode = connection.getResponseCode();
 
-          printStatusMessage("Sending GET request to: " + targetURL);
-          printCommandMessage("Response code: " + responseCode);
+          Utils.printStatusMessage("Sending GET request to: " + targetURL);
+          Utils.printStatusInfo("Response code: " + responseCode);
           break;
       }
 
@@ -2788,11 +2806,11 @@ public final class LauncherMain {
       }
       rd.close();
       // display response.toString()
-      printStatusMessage(mode + " successful");
-      printCommandMessage(mode + " RESPONSE: " + response.toString());
+      Utils.printStatusMessage(mode + " successful");
+      Utils.printStatusInfo(mode + " RESPONSE: " + response.toString());
     } catch (IOException ex) {
       // display error
-      printStatusError(mode + " failure: " +ex.getMessage());
+      Utils.printStatusError(mode + " failure: " +ex.getMessage());
     } finally {
       if (connection != null) {
         connection.disconnect();
@@ -2808,12 +2826,12 @@ public final class LauncherMain {
     
     // first we have to extract the class file from the jar file
     if (projectPathName == null || projectName == null) {
-      printStatusError("No project jar file hass been loaded.");
+      Utils.printStatusError("No project jar file hass been loaded.");
       return null;
     }
     File jarfile = new File(projectPathName + projectName);
     if (!jarfile.isFile()) {
-      printStatusError("The project jar file was not found: " + projectName);
+      Utils.printStatusError("The project jar file was not found: " + projectName);
       return null;
     }
     try {
@@ -2823,11 +2841,11 @@ public final class LauncherMain {
         return null;
       }
     } catch (IOException ex) {
-      printStatusError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
       return null;
     }
 
-    printCommandMessage("Generating javap file for: " + classSelect);
+    Utils.printStatusInfo("Generating javap file for: " + classSelect);
     
     // decompile the selected class file
     String[] command = { "javap", "-p", "-c", "-s", "-l", CLASSFILE_STORAGE + "/" + classSelect };
@@ -2835,7 +2853,7 @@ public final class LauncherMain {
     CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
     int retcode = commandLauncher.start(command, projectPathName);
     if (retcode != 0) {
-      printStatusError("running javap on file: " + classSelect);
+      Utils.printStatusError("running javap on file: " + classSelect);
       return null;
     }
 
@@ -2854,7 +2872,7 @@ public final class LauncherMain {
       className = className.substring(offset + 1);
     }
     
-    printCommandMessage("Extracting '" + className + "' from " + relpathname);
+    Utils.printStatusInfo("Extracting '" + className + "' from " + relpathname);
     
     // get the location of the jar file (where we will extract the class files to)
     String jarpathname = jarfile.getAbsolutePath();
@@ -2876,7 +2894,7 @@ public final class LauncherMain {
         File fout = new File(fullpath + className);
         // skip if file already exists
         if (fout.isFile()) {
-          printStatusMessage("File '" + className + "' already created");
+          Utils.printStatusMessage("File '" + className + "' already created");
         } else {
           // make sure to create the entire dir path needed
           File relpath = new File(fullpath);
@@ -2896,7 +2914,7 @@ public final class LauncherMain {
       }
     }
     
-    printStatusError("The selected class '" + className + "' is not contained in the current project jar file");
+    Utils.printStatusError("The selected class '" + className + "' is not contained in the current project jar file");
     return -1;
   }
   
@@ -2942,19 +2960,19 @@ public final class LauncherMain {
     
     File file = new File(projectPathName + "danfig");
     if (!file.isFile()) {
-      printCommandMessage("No danfig file found at path: " + projectPathName);
+      Utils.printStatusInfo("No danfig file found at path: " + projectPathName);
       updateFile = true;
     } else {
       try {
         FileReader fileReader = new FileReader(file);
         BufferedReader bufferedReader = new BufferedReader(fileReader);
         String line;
-        printCommandMessage("Reading danfig selections");
+        Utils.printStatusInfo("Reading danfig selections");
         while ((line = bufferedReader.readLine()) != null) {
           line = line.trim();
           if (line.startsWith("# DANLAUNCHER_VERSION")) {
             // determine if this file was created by danlauncher (else, it was a danalyzer original)
-            printCommandMessage("danfig file was generated by danlauncher");
+            Utils.printStatusInfo("danfig file was generated by danlauncher");
             makeBackup = false;
           } else if (line.startsWith("Symbolic:")) {
             // extract symbolic definition
@@ -2986,7 +3004,7 @@ public final class LauncherMain {
                 type   = word[6].trim();
                 break;
               default:
-                printCommandError("ERROR: Invalid Symbolic word count (" + word.length + "): " + line);
+                Utils.printStatusError("Invalid Symbolic word count (" + word.length + "): " + line);
                 return;
             }
             try {
@@ -2994,13 +3012,13 @@ public final class LauncherMain {
               int lineEnd   = Integer.parseUnsignedInt(end);
               name = symbolTbl.addEntryByLine(method, name, type, index, lineStart, lineEnd);
             } catch (NumberFormatException ex) {
-              printCommandError("ERROR: Invalid numeric values for lineStart and lineEnd: " + line);
+              Utils.printStatusError("Invalid numeric values for lineStart and lineEnd: " + line);
               return;
             }
             if (name == null) {
-              printCommandMessage("This symbolic value already exists");
+              Utils.printStatusInfo("This symbolic value already exists");
             } else {
-              printCommandMessage("Symbol added - id: '" + name + "', method: " + method + ", slot: " + index +
+              Utils.printStatusInfo("Symbol added - id: '" + name + "', method: " + method + ", slot: " + index +
                   ", type: " + type + ", range { " + start + ", " + end + " }");
 
               // save line content
@@ -3011,14 +3029,14 @@ public final class LauncherMain {
             // extract symbolic constraint
             String word[] = line.split("\\s+");
             if (word.length != 4) {
-              printCommandError("ERROR: Invalid Constraint word count (" + word.length + "): " + line);
+              Utils.printStatusError("Invalid Constraint word count (" + word.length + "): " + line);
               return;
             }
             // get the entries in the line
             String id = word[1].trim();
             String compare = word[2].trim();
             String constrVal = word[3].trim();
-            printCommandMessage("Constraint added - id: '" + id + "' : " + compare + " " + constrVal);
+            Utils.printStatusInfo("Constraint added - id: '" + id + "' : " + compare + " " + constrVal);
 
             // add entry to list 
             addSymbConstraint(id, compare, constrVal);
@@ -3030,7 +3048,7 @@ public final class LauncherMain {
         }
         fileReader.close();
       } catch (IOException ex) {
-        printCommandError("ERROR: " + ex.getMessage());
+        Utils.printStatusError(ex.getMessage());
       }
     }
 
@@ -3038,12 +3056,12 @@ public final class LauncherMain {
     if (updateFile || makeBackup) {
       // backup current file if it was not one we made just for danlauncher
       if (makeBackup) {
-        printCommandMessage("Making backup of original danfig file");
+        Utils.printStatusInfo("Making backup of original danfig file");
         file.renameTo(new File(projectPathName + "danfig.save"));
       }
       
       // create the new file
-      printCommandMessage("Updating danfig file: " + symbolTbl.getSize() + " symbolics added");
+      Utils.printStatusInfo("Updating danfig file: " + symbolTbl.getSize() + " symbolics added");
       Utils.saveTextFile(projectPathName + "danfig", content);
     }
   }
@@ -3064,23 +3082,23 @@ public final class LauncherMain {
 
     @Override
     public void jobprestart(ThreadLauncher.ThreadInfo threadInfo) {
-//      printCommandMessage("jobprestart - job " + threadInfo.jobid + ": " + threadInfo.jobname);
+//      Utils.printStatusInfo("jobprestart - job " + threadInfo.jobid + ": " + threadInfo.jobname);
     }
 
     @Override
     public void jobstarted(ThreadLauncher.ThreadInfo threadInfo) {
-      printCommandMessage("jobstart - " + threadInfo.jobname + ": pid " + threadInfo.pid);
+      Utils.printStatusInfo("jobstart - " + threadInfo.jobname + ": pid " + threadInfo.pid);
     }
         
     @Override
     public void jobfinished(ThreadLauncher.ThreadInfo threadInfo) {
-      printCommandMessage("jobfinished - " + threadInfo.jobname + ": status = " + threadInfo.exitcode);
+      Utils.printStatusInfo("jobfinished - " + threadInfo.jobname + ": status = " + threadInfo.exitcode);
       if (threadInfo.exitcode == 0) {
-        printStatusMessage(threadInfo.jobname + " command (pid " + threadInfo.pid + ") completed successfully");
+        Utils.printStatusMessage(threadInfo.jobname + " command (pid " + threadInfo.pid + ") completed successfully");
       } else if (!threadInfo.signal.isEmpty()) {
-        printStatusMessage(threadInfo.jobname + " command terminated with " + threadInfo.signal);
+        Utils.printStatusMessage(threadInfo.jobname + " command terminated with " + threadInfo.signal);
       } else {
-        printStatusError("Failure executing command: " + threadInfo.jobname);
+        Utils.printStatusError("Failure executing command: " + threadInfo.jobname);
       }
       
       // disable stop key abd re-enable the Run and Get Bytecode buttons
@@ -3112,7 +3130,7 @@ public final class LauncherMain {
           break;
 
         case TERMINATING:
-          printCommandMessage("Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
+          Utils.printStatusInfo("Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
           String[] command2 = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
           CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
           commandLauncher.start(command2, null);
@@ -3127,6 +3145,7 @@ public final class LauncherMain {
           
         case EXITING:
           // complete the exit process by closing the frame and exiting
+          Utils.printStatusInfo("Closing Main Frame and exiting danlauncher");
           mainFrame.close();
           System.exit(0);
           break;

@@ -8,6 +8,7 @@ package panels;
 import gui.GuiControls;
 import logging.FontInfo;
 import logging.Logger;
+import util.Utils;
 
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
@@ -24,8 +25,6 @@ import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextPane;
 import javax.swing.WindowConstants;
-import main.LauncherMain;
-import util.Utils;
 
 /**
  *
@@ -805,7 +804,7 @@ public class HelpLogger {
       // set caret to the mouse location and get the caret position (char offset within text)
       panel.setCaretPosition(panel.viewToModel(evt.getPoint()));
       int curpos = panel.getCaretPosition();
-      //LauncherMain.printCommandMessage("HelpLogger: cursor = " + curpos
+      //Utils.printStatusInfo("HelpLogger: cursor = " + curpos
       //    + ", char = '" + contents.charAt(curpos) + "'");
       
       // now determine if the selected word is a hypertext word
@@ -823,16 +822,16 @@ public class HelpLogger {
               if (entry.value.equals("BACK") && !backPages.empty()) {
                 // the user selected the BACK button
                 String lastPage = backPages.pop();
-                LauncherMain.printCommandMessage("HYPERTEXT page: BACK -> " + lastPage);
+                Utils.printStatusInfo("HYPERTEXT page: BACK -> " + lastPage);
                 printHelpPanel(lastPage);
               } else if (!entry.value.equals(curPage)) {
                 // else we are visiting a new page
-                LauncherMain.printCommandMessage("HYPERTEXT page: " + entry.value);
+                Utils.printStatusInfo("HYPERTEXT page: " + entry.value);
                 backPages.push(curPage);
                 printHelpPanel(entry.value);
               }
             } else if (entry.type == MsgType.EMPHASIS) {
-              LauncherMain.printCommandMessage("EMPHASIS page: " + entry.value);
+              Utils.printStatusInfo("EMPHASIS page: " + entry.value);
             }
           }
         }

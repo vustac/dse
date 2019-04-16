@@ -14,6 +14,7 @@ import javax.swing.JLabel;
 import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import util.Utils;
 
 /**
  *
@@ -96,18 +97,14 @@ public class UserParams {
    */
   public void addParam(String ptag, Component control, String dflt) {
     if (paramTable.containsKey(ptag)) {
-      printError("defineParam: " + ptag + " already defined in param group " + groupName);
+      Utils.printStatusError("defineParam: " + ptag + " already defined in param group " + groupName);
       return;
     }
     paramTable.put(ptag, new ParameterItem(ptag, control, dflt));
   }
   
-  private void printError(String message) {
-    LauncherMain.printCommandError("ERROR: UserParams." + message);
-  }
-  
   private void printFatal(String message) {
-    printError("FATAL " + message);
+    Utils.printStatusError("FATAL " + message);
     System.exit(1);
   }
   
@@ -204,7 +201,7 @@ public class UserParams {
    */
   private void saveToProperties() {
     if (propTable == null) {
-      printError("saveToProperties: no properties file defined!");
+      Utils.printStatusError("saveToProperties: no properties file defined!");
       return;
     }
     
@@ -234,7 +231,7 @@ public class UserParams {
    */
   private void loadFromProperties() {
     if (propTable == null) {
-      printError("loadFromProperties: no properties file defined!");
+      Utils.printStatusError("loadFromProperties: no properties file defined!");
       return;
     }
 
@@ -247,7 +244,7 @@ public class UserParams {
           try {
             item.value = Integer.parseInt(value);
           } catch (NumberFormatException ex) {
-            printError("loadFromProperties: invalid numeric for '" + item.propTag + "' = " + value);
+            Utils.printStatusError("loadFromProperties: invalid numeric for '" + item.propTag + "' = " + value);
             propTable.setPropertiesItem(item.propTag, item.defVal);
             item.value = item.idefVal;
           }

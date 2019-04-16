@@ -103,18 +103,6 @@ public class CallGraph {
     tabSelected = selected.equals(tabName);
   }
 
-  private void printError(String message) {
-    LauncherMain.printCommandError("ERROR: " + message);
-  }
-  
-  private void printCommandMessage(String message) {
-    LauncherMain.printCommandMessage(message);
-  }
-  
-  private void printStatus(String message) {
-    LauncherMain.printStatusMessage(message);
-  }
-  
   /**
    * this resets the graphics so a new call graph can be drawn.
    * the current list of methods is not changed.
@@ -284,7 +272,7 @@ public class CallGraph {
         }
 
         callGraph.colorVertex(mthNode, color);
-        //printCommandMessage(color + " for: " + mthNode.getFullName());
+        //Utils.printStatusInfo(color + " for: " + mthNode.getFullName());
       }
   }
   
@@ -296,7 +284,7 @@ public class CallGraph {
   private void drawCG(List<MethodInfo> methList) {
     callGraph = new BaseGraph<>();
 
-    printCommandMessage("drawCG: Methods = " + methList.size());
+    Utils.printStatusInfo("drawCG: Methods = " + methList.size());
     // add vertexes to graph
     for(MethodInfo mthNode : methList) {
       callGraph.addVertex(mthNode, mthNode.getCGName());
@@ -614,6 +602,7 @@ public class CallGraph {
   }
   
   public void saveAsImageFile(File file) {
+    Utils.printStatusInfo("save CallGraph as ImageFile: " + graphMethList.size() + " methods");
     BufferedImage bi = new BufferedImage(graphPanel.getSize().width,
       graphPanel.getSize().height, BufferedImage.TYPE_INT_ARGB); 
     Graphics graphics = bi.createGraphics();
@@ -622,7 +611,7 @@ public class CallGraph {
     try {
       ImageIO.write(bi,"png",file);
     } catch (IOException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
     }
   }
 
@@ -633,7 +622,7 @@ public class CallGraph {
    */  
   public void saveAsCompFile(File file) {
     if (graphMethList.isEmpty()) {
-      printError("Call Graph is empty!");
+      Utils.printStatusError("Call Graph is empty!");
       return;
     }
     
@@ -643,7 +632,7 @@ public class CallGraph {
       newGraph.addMethodEntry(callEntry.getFullName(),
                               callEntry.getParents(ALL_THREADS));
     }
-    printCommandMessage("found: " + graphMethList.size() + " methods");
+    Utils.printStatusInfo("save CallGraph as CompFile: " + graphMethList.size() + " methods");
 
     // convert to json and save to file
     newGraph.saveAsJSONFile(file, true);
@@ -661,7 +650,7 @@ public class CallGraph {
     try {
       bw = new BufferedWriter(new FileWriter(file));
     } catch (IOException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
       return;
     }
 
@@ -670,7 +659,7 @@ public class CallGraph {
     if (!allThreads && !threadMethList.isEmpty()) {
       methlist = threadMethList;
     }
-    printStatus("saving: " + methlist.size() + " methods");
+    Utils.printStatusInfo("saving CallGraph: " + methlist.size() + " methods to file " + file.getName());
 
     // convert to json and save to file
     GsonBuilder builder = new GsonBuilder();
@@ -682,7 +671,7 @@ public class CallGraph {
     try {
       bw.close();
     } catch (IOException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
     }
   }
   
@@ -698,7 +687,7 @@ public class CallGraph {
     try {
       br = new BufferedReader(new FileReader(file));
     } catch (FileNotFoundException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
       return 0;
     }
     
@@ -707,7 +696,7 @@ public class CallGraph {
 		Gson gson = builder.create();
     Type methodListType = new TypeToken<List<MethodInfo>>() {}.getType();
     graphMethList = gson.fromJson(br, methodListType);
-    printStatus("loaded: " + graphMethList.size() + " methods");
+    Utils.printStatusInfo("loaded CallGraph: " + graphMethList.size() + " methods from file " + file.getName());
     if (graphMethList != null && !graphMethList.isEmpty() && graphMethList.get(0).getMethodName() == null) {
       System.out.println("converting from methods-only list");
       // must be a methods only list, let's fix the invalid entries
@@ -843,7 +832,7 @@ public class CallGraph {
    */  
   public void methodExit(int tid, long tstamp, String icount) {
     if (graphMethList == null) {
-      //printCommandMessage("Return: " + method + " - NOT FOUND!");
+      //Utils.printStatusInfo("Return: " + method + " - NOT FOUND!");
       return;
     }
 
@@ -861,7 +850,7 @@ public class CallGraph {
       if (ix >= 0 && ix < graphMethList.size()) {
         MethodInfo mthNode = graphMethList.get(ix);
         mthNode.exit(tid, tstamp, insCount);
-        //printCommandMessage("Return: (" + mthNode.getDuration() + ") " + mthNode.getClassAndMethod());
+        //Utils.printStatusInfo("Return: (" + mthNode.getDuration() + ") " + mthNode.getClassAndMethod());
       }
     }
   }

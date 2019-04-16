@@ -5,10 +5,9 @@
  */
 package logging;
 
-import main.LauncherMain;
 import main.PropertiesFile;
+import util.Utils;
 import gui.GuiControls;
-import javax.swing.JCheckBox;
 
 /**
  *
@@ -74,7 +73,7 @@ public class DebugParams {
    */
   public void setPropertiesFile(PropertiesFile propsFile) {
     if (propsFile == null) {
-      LauncherMain.printStatusError("DebugParams: Missing Properties file");
+      Utils.printStatusError("DebugParams: Missing Properties file");
       System.exit(1);
     }
 
@@ -224,7 +223,7 @@ public class DebugParams {
    */
   private void saveToProperties() {
     if (props == null) {
-      LauncherMain.printCommandError("DebugParams.saveToProperties: no properties file defined!");
+      Utils.printStatusError("DebugParams.saveToProperties: no properties file defined!");
       return;
     }
     
@@ -257,7 +256,7 @@ public class DebugParams {
    */
   private void setFromProperties() {
     if (props == null) {
-      LauncherMain.printCommandError("DebugParams.setFromProperties: no properties file defined!");
+      Utils.printStatusError("DebugParams.setFromProperties: no properties file defined!");
       return;
     }
     
@@ -288,7 +287,7 @@ public class DebugParams {
     
   private boolean getCheckboxValue(String widget, boolean value) {
     if (frame == null) {
-      LauncherMain.printCommandError("getCheckboxValue <" + widget + "> - frame is null");
+      Utils.printStatusError("getCheckboxValue <" + widget + "> - frame is null");
       return false;
     }
     
@@ -301,7 +300,7 @@ public class DebugParams {
 
   private int getSpinnerValue(String widget, int value) {
     if (frame == null) {
-      LauncherMain.printCommandError("getSpinnerValue <" + widget + "> - frame is null");
+      Utils.printStatusError("getSpinnerValue <" + widget + "> - frame is null");
       return 1;
     }
     
@@ -314,7 +313,7 @@ public class DebugParams {
 
   private String getComboboxValue(String widget, String value) {
     if (frame == null) {
-      LauncherMain.printCommandError("getComboboxValue <" + widget + "> - frame is null");
+      Utils.printStatusError("getComboboxValue <" + widget + "> - frame is null");
       return "";
     }
     

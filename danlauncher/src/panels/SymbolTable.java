@@ -208,7 +208,7 @@ public class SymbolTable {
     name = getUniqueName(name);
     TableListInfo entry = new TableListInfo(meth, name, type, slot, start, end, opstrt, oplast);
     if (isMatch(entry)) {
-      LauncherMain.printStatusError("This symbolic value already exists");
+      Utils.printStatusError("This symbolic value already exists");
       return null;
     }
 
@@ -230,7 +230,7 @@ public class SymbolTable {
     name = getUniqueName(name);
     TableListInfo entry = new TableListInfo(meth, name, type, slot, start, end);
     if (isMatch(entry)) {
-      LauncherMain.printStatusError("This symbolic value already exists");
+      Utils.printStatusError("This symbolic value already exists");
       return null;
     }
 
@@ -646,11 +646,11 @@ public class SymbolTable {
       if (paramNameList.contains(newval)) {
         // restore previous value
         restoreEditorSelection(type, curval);
-        LauncherMain.printStatusError("Symbolic name is already used: " + newval);
+        Utils.printStatusError("Symbolic name is already used: " + newval);
       } else if (newval.isEmpty()) {
         // restore previous value
         restoreEditorSelection(type, curval);
-        LauncherMain.printStatusError("Must define a valid name");
+        Utils.printStatusError("Must define a valid name");
       } else {
         // remove previous name entry and add the new one
         paramNameList.remove(curval);
@@ -678,7 +678,7 @@ public class SymbolTable {
       if (newval.isEmpty()) {
         // restore previous value
         restoreEditorSelection(type, curval);
-        LauncherMain.printStatusError("Must define a valid type");
+        Utils.printStatusError("Must define a valid type");
       } else {
         entry.type = newval;
         tableSortAndDisplay();
@@ -714,7 +714,7 @@ public class SymbolTable {
       } catch (NumberFormatException ex) {
         // restore previous value
         restoreEditorSelection(type, curval);
-        LauncherMain.printStatusError("Invalid start offset value: " + newval);
+        Utils.printStatusError("Invalid start offset value: " + newval);
       }
     }
   }
@@ -740,7 +740,7 @@ public class SymbolTable {
       } catch (NumberFormatException ex) {
         // restore previous value
         restoreEditorSelection(type, curval);
-        LauncherMain.printStatusError("Invalid end offset value: " + newval);
+        Utils.printStatusError("Invalid end offset value: " + newval);
       }
     }
   }
@@ -856,7 +856,7 @@ public class SymbolTable {
 
       int offset = result.indexOf(" ");
       if (offset < 0) {
-        LauncherMain.printStatusError("missing numeric comparison value");
+        Utils.printStatusError("missing numeric comparison value");
         return;
       }
 
@@ -864,7 +864,7 @@ public class SymbolTable {
       String compval  = result.substring(offset + 1).trim();
 
       if (!entry.type.equals("D") && !entry.type.equals("F") && compval.contains(".")) {
-        LauncherMain.printStatusMessage("comparison value will ignore decimal entries");
+        Utils.printStatusInfo("comparison value will ignore decimal entries");
         compval = compval.substring(0, compval.indexOf("."));
       }
 
@@ -876,7 +876,7 @@ public class SymbolTable {
           lvalue = Long.parseLong(compval);
         }
       } catch (NumberFormatException ex) {
-        LauncherMain.printStatusError("invalid comparison value (must be numeric)");
+        Utils.printStatusError("invalid comparison value (must be numeric)");
         return;
       }
 
@@ -887,7 +887,7 @@ public class SymbolTable {
           minval = 0;
           maxval = 1;
           if (lvalue < minval || lvalue > maxval) {
-            LauncherMain.printStatusError("out-of-range comparison value: " + lvalue +
+            Utils.printStatusError("out-of-range comparison value: " + lvalue +
                     " [" + minval + ", " + maxval + "]");
             return;
           }
@@ -896,7 +896,7 @@ public class SymbolTable {
           minval = Character.MIN_VALUE;
           maxval = Character.MAX_VALUE;
           if (lvalue < minval || lvalue > maxval) {
-            LauncherMain.printStatusError("out-of-range comparison value: " + lvalue +
+            Utils.printStatusError("out-of-range comparison value: " + lvalue +
                     " [" + minval + ", " + maxval + "]");
             return;
           }
@@ -905,7 +905,7 @@ public class SymbolTable {
           minval = Byte.MIN_VALUE;
           maxval = Byte.MAX_VALUE;
           if (lvalue < minval || lvalue > maxval) {
-            LauncherMain.printStatusError("out-of-range comparison value: " + lvalue +
+            Utils.printStatusError("out-of-range comparison value: " + lvalue +
                     " [" + minval + ", " + maxval + "]");
             return;
           }
@@ -914,7 +914,7 @@ public class SymbolTable {
           minval = Short.MIN_VALUE;
           maxval = Short.MAX_VALUE;
           if (lvalue < minval || lvalue > maxval) {
-            LauncherMain.printStatusError("out-of-range comparison value: " + lvalue +
+            Utils.printStatusError("out-of-range comparison value: " + lvalue +
                     " [" + minval + ", " + maxval + "]");
             return;
           }
@@ -923,7 +923,7 @@ public class SymbolTable {
           minval = Integer.MIN_VALUE;
           maxval = Integer.MAX_VALUE;
           if (lvalue < minval || lvalue > maxval) {
-            LauncherMain.printStatusError("out-of-range comparison value: " + lvalue +
+            Utils.printStatusError("out-of-range comparison value: " + lvalue +
                     " [" + minval + ", " + maxval + "]");
             return;
           }
@@ -932,7 +932,7 @@ public class SymbolTable {
           minval = Long.MIN_VALUE;
           maxval = Long.MAX_VALUE;
           if (lvalue < minval || lvalue > maxval) {
-            LauncherMain.printStatusError("out-of-range comparison value: " + lvalue +
+            Utils.printStatusError("out-of-range comparison value: " + lvalue +
                     " [" + minval + ", " + maxval + "]");
             return;
           }
@@ -954,7 +954,7 @@ public class SymbolTable {
       }
       if (!comptype.equals("EQ") && !comptype.equals("GT") && !comptype.equals("LT") &&
           !comptype.equals("NE") && !comptype.equals("GE") && !comptype.equals("LE")) {
-        LauncherMain.printStatusError("constraint must begin with { EQ, NE, GT, GE, LT, LE }");
+        Utils.printStatusError("constraint must begin with { EQ, NE, GT, GE, LT, LE }");
         return;
       }
 

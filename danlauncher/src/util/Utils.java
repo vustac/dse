@@ -14,6 +14,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import main.LauncherMain;
 
 /**
@@ -23,15 +26,57 @@ import main.LauncherMain;
 public class Utils {
   
   public static final String NEWLINE = System.getProperty("line.separator");
+
+  private static final Logger LOGGER = Logger.getLogger("MyLog");
+  private static FileHandler fh;
   
-  public static void printCommandMessage(String message) {
-    LauncherMain.printCommandError(message);
-    //System.out.println(message);
+  public static void msgLoggerInit(String fname) {
+    try {
+      fh = new FileHandler(fname);  
+      LOGGER.addHandler(fh);
+      SimpleFormatter formatter = new SimpleFormatter();  
+      fh.setFormatter(formatter);  
+      LOGGER.info("danlauncher started");  
+    } catch (SecurityException | IOException ex) {  
+      LauncherMain.printStatusError(ex.getMessage());
+      //System.err.println(message);
+    }
+  }
+
+  public static void printStatusClear() {
+    LauncherMain.printStatusClear();
   }
   
-  public static void printCommandError(String message) {
-    LauncherMain.printCommandError(message);
+  public static void printStatusInfo(String message) {
+    //System.out.println(message);
+    LauncherMain.printCommandMessage(message);
+    if (LOGGER != null) {
+      LOGGER.info(message);
+    }
+  }
+  
+  public static void printStatusMessage(String message) {
+    //System.out.println(message);
+    LauncherMain.printStatusMessage(message);
+    if (LOGGER != null) {
+      LOGGER.info(message);
+    }
+  }
+  
+  public static void printStatusWarning(String message) {
     //System.err.println(message);
+    LauncherMain.printStatusWarning(message);
+    if (LOGGER != null) {
+      LOGGER.warning(message);
+    }
+  }
+  
+  public static void printStatusError(String message) {
+    //System.err.println(message);
+    LauncherMain.printStatusError(message);
+    if (LOGGER != null) {
+      LOGGER.severe(message);
+    }
   }
   
   public static String readTextFile(String filename) {
@@ -39,7 +84,7 @@ public class Utils {
     String content = "";
     File file = new File(filename);
     if (!file.isFile()) {
-      printCommandError("ERROR: file not found: " + filename);
+      printStatusError("file not found: " + filename);
     } else {
       try {
         FileReader fileReader = new FileReader(file);
@@ -49,7 +94,7 @@ public class Utils {
           content += line + NEWLINE;
         }
       } catch (IOException ex) {
-        printCommandError("ERROR: " + ex.getMessage());
+        printStatusError(ex.getMessage());
       }
     }
 
@@ -80,13 +125,13 @@ public class Utils {
       bw = new BufferedWriter(fw);
       bw.write(content);
     } catch (IOException ex) {
-      printCommandError("ERROR: " + ex.getMessage());
+      printStatusError(ex.getMessage());
     } finally {
       if (bw != null) {
         try {
           bw.close();
         } catch (IOException ex) {
-          printCommandError("ERROR: " + ex.getMessage());
+          printStatusError(ex.getMessage());
         }
       }
     }
@@ -104,7 +149,7 @@ public class Utils {
     try {
       bw = new BufferedWriter(new FileWriter(file));
     } catch (IOException ex) {
-      printCommandError("ERROR: " + ex.getMessage());
+      printStatusError(ex.getMessage());
       return;
     }
 
@@ -118,7 +163,7 @@ public class Utils {
     try {
       bw.close();
     } catch (IOException ex) {
-      printCommandError("ERROR: " + ex.getMessage());
+      printStatusError(ex.getMessage());
     }
   }
   

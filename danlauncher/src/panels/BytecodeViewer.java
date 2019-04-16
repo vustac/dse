@@ -149,28 +149,26 @@ public final class BytecodeViewer {
   }
   
   public void highlightClear() {
-    LauncherMain.printCommandMessage("BytecodeLogger: highlightClear");
+    Utils.printStatusInfo("BytecodeLogger: highlightClear");
     panel.getHighlighter().removeAllHighlights();
     clearHighlighting(HIGHLIGHT_ALL);
   }
 
   public ArrayList<Integer> highlightBranch(int line, boolean branch) {
     ArrayList<Integer> branchMarks = new ArrayList<>();
-    LauncherMain.printCommandMessage("BytecodeLogger: highlightBranch " + line + " (" + branch + ")");
+    Utils.printStatusInfo("BytecodeLogger: highlightBranch " + line + " (" + branch + ")");
     // check for error conditions
     if (bytecode.isEmpty()) {
-      LauncherMain.printCommandError("ERROR: highlightBranch: no bytecode found");
+      Utils.printStatusError("highlightBranch: no bytecode found");
       return null;
     }
     if (bytecode.size() < line) {
-      LauncherMain.printCommandError("ERROR: highlightBranch: line " + line +
-          " exceeds bytecode length " + bytecode.size());
+      Utils.printStatusError("highlightBranch: line " + line + " exceeds bytecode length " + bytecode.size());
       return null;
     }
     BytecodeInfo bc = bytecode.get(line);
     if (bc.optype != OpcodeType.SYMBRA) {
-      LauncherMain.printCommandError("ERROR: highlightBranch: " + line +
-          " not branch opcode: " + bc.opcode);
+      Utils.printStatusError("highlightBranch: " + line + " not branch opcode: " + bc.opcode);
       return null;
     }
 
@@ -191,8 +189,7 @@ public final class BytecodeViewer {
           int nextLine = Integer.parseUnsignedInt(bc.param);
           branchMarks.add(nextLine);
         } catch (NumberFormatException ex) {
-          LauncherMain.printCommandError("ERROR: highlightBranch: " + line +
-              " invalid branch location: " + bc.param);
+          Utils.printStatusError("highlightBranch: " + line + " invalid branch location: " + bc.param);
         }
       }
     } else {
@@ -216,7 +213,7 @@ public final class BytecodeViewer {
     // make sure we use dotted format for class name as that is what javap uses
     classLoaded = classSelect;
     classSelect = classSelect.replaceAll("/", ".");
-    LauncherMain.printCommandMessage("parseJavap: " + classSelect + "." + methodSelect);
+    Utils.printStatusInfo("parseJavap: " + classSelect + "." + methodSelect);
     
     // javap uses the dot format for the class name, so convert it
     classSelect = classSelect.replace("/", ".");
@@ -228,7 +225,7 @@ public final class BytecodeViewer {
 //    // check if method is already loaded
 //    if (methodLoaded.equals(classSelect + "." + methodSelect) && !bytecode.isEmpty()) {
 //      // make sure highlighting is desabled for the text, and we're good to exit
-//      LauncherMain.printCommandMessage(classSelect + "." + methodSelect + " is already loaded");
+//      Utils.printStatusInfo(classSelect + "." + methodSelect + " is already loaded");
 //      highlightClear();
 //      validMethod = true;
 //      return;
@@ -254,10 +251,10 @@ public final class BytecodeViewer {
       // look for start of file - skip anything before this as it may be a remnant of a terminated run.
       if (!validLine) {
         if (entry.startsWith("Compiled from ") || entry.startsWith("No unimplemented opcodes !")) {
-          LauncherMain.printCommandMessage("Line: " + curLine + " - found start");
+          Utils.printStatusInfo("Line: " + curLine + " - found start");
           validLine = true;
         } else if (entry.startsWith("class ") && entry.endsWith("{")) {
-          LauncherMain.printCommandMessage("Line: " + curLine + " - found start");
+          Utils.printStatusInfo("Line: " + curLine + " - found start");
           validLine = true;
         }
         continue;
@@ -274,7 +271,7 @@ public final class BytecodeViewer {
       // if we haven't found the method we are looking for yet, ignore any line that doesn't
       // start with 2 spaces.
       if (validLine && !validMethod && leadingSpaces > 2) {
-        LauncherMain.printCommandMessage("Line: " + curLine + " - skip");
+        Utils.printStatusInfo("Line: " + curLine + " - skip");
         continue;
       }
       
@@ -308,23 +305,23 @@ public final class BytecodeViewer {
           break; // handle the data on this line below
         case "LineNumberTable:":
           parseMode = ParseMode.LINENUM_TBL;
-          LauncherMain.printCommandMessage("Line: " + curLine + " - LineNumberTable");
+          Utils.printStatusInfo("Line: " + curLine + " - LineNumberTable");
           continue;
         case "LocalVariableTable:":
           parseMode = ParseMode.LOCALVAR_TBL;
-          LauncherMain.printCommandMessage("Line: " + curLine + " - LocalVariableTable");
+          Utils.printStatusInfo("Line: " + curLine + " - LocalVariableTable");
           continue;
         case "Exception": //  table:
           parseMode = ParseMode.EXCEPTION_TBL;
-          LauncherMain.printCommandMessage("Line: " + curLine + " - Exception table");
+          Utils.printStatusInfo("Line: " + curLine + " - Exception table");
           continue;
         case "descriptor:":
           parseMode = ParseMode.DESCRIPTION;
-          LauncherMain.printCommandMessage("Line: " + curLine + " - descriptor");
+          Utils.printStatusInfo("Line: " + curLine + " - descriptor");
           break; // handle the data on this line below
         case "Code:":
           parseMode = ParseMode.OPCODE;
-          LauncherMain.printCommandMessage("Line: " + curLine + " - Code");
+          Utils.printStatusInfo("Line: " + curLine + " - Code");
           linesRead = 0;
           continue;
         default:
@@ -340,7 +337,7 @@ public final class BytecodeViewer {
             clsCurrent = clsCurrent.substring(0, offset);
           }
           clsCurrent = clsCurrent.trim();
-          LauncherMain.printCommandMessage("Line: " + curLine + " - Class = " + clsCurrent);
+          Utils.printStatusInfo("Line: " + curLine + " - Class = " + clsCurrent);
           parseMode = ParseMode.NONE;
           continue;
         case LINENUM_TBL:
@@ -422,9 +419,9 @@ public final class BytecodeViewer {
               // print the method name as the 1st line
               printBytecodeMethod(methodLoaded);
               validMethod = true;
-              LauncherMain.printCommandMessage("Line: " + curLine + " - signature match: " + entry);
+              Utils.printStatusInfo("Line: " + curLine + " - signature match: " + entry);
             } else {
-              LauncherMain.printCommandMessage("Line: " + curLine + " - no match: " + entry);
+              Utils.printStatusInfo("Line: " + curLine + " - no match: " + entry);
             }
           }
           parseMode = ParseMode.NONE;
@@ -445,7 +442,7 @@ public final class BytecodeViewer {
               switchInProcess = entry.substring(0, entry.indexOf("//")) + SWITCH_DELIMITER;
               switchOffset = offset;
               parseMode = ParseMode.OPSWITCH;
-              LauncherMain.printCommandMessage("Line: " + curLine + " - SWITCH statement");
+              Utils.printStatusInfo("Line: " + curLine + " - SWITCH statement");
               continue;
             }
 
@@ -555,7 +552,7 @@ public final class BytecodeViewer {
             methName = words[2].trim();
             break;
           default:
-            LauncherMain.printCommandError("ERROR: invalid list for method: " + entry);
+            Utils.printStatusError("invalid list for method: " + entry);
             break;
         }
       }
@@ -566,8 +563,7 @@ public final class BytecodeViewer {
         clsName = clsName.substring(0, iStart);
       }
       
-      LauncherMain.printCommandMessage("Line: " + curLine + " Type: " + type +
-              " - Method: " + clsName + "." + methName);
+      Utils.printStatusInfo("Line: " + curLine + " Type: " + type + " - Method: " + clsName + "." + methName);
 
       // entry has paranthesis, must be a method name
       parseMode = ParseMode.METHOD;
@@ -579,11 +575,11 @@ public final class BytecodeViewer {
       // method entry found, let's see if it's the one we want
       if (methodSelect.equals(methName) && classSelect.equals(clsName)) {
         methodLoaded = classSelect + "." + methodSelect + signature;
-        LauncherMain.printCommandMessage("Line: " + curLine + " - Method match");
+        Utils.printStatusInfo("Line: " + curLine + " - Method match");
       }
     }
 
-    LauncherMain.printCommandMessage("Line: " + curLine + " - opcode lines read: " + linesRead);
+    Utils.printStatusInfo("Line: " + curLine + " - opcode lines read: " + linesRead);
   }
 
   public class BytecodeInfo {
@@ -812,7 +808,7 @@ public final class BytecodeViewer {
         bc.mark = bc.mark | HIGHLIGHT_CURSOR;
         bytecode.set(line, bc);
         newpos = bc.ixStart;
-        LauncherMain.printStatusMessage("Bytecode byte offset " + bc.offset + " = line " + line);
+        Utils.printStatusInfo("Bytecode byte offset " + bc.offset + " = line " + line);
       } else {
         // remove mark from all other lines
         bc.mark = bc.mark & ~HIGHLIGHT_CURSOR;
@@ -860,7 +856,7 @@ public final class BytecodeViewer {
     try {
       offset = Integer.parseUnsignedInt(param);
     } catch (NumberFormatException ex) {
-      LauncherMain.printCommandError("ERROR: findBranchLine: invalid branch location value: " + param);
+      Utils.printStatusError("findBranchLine: invalid branch location value: " + param);
       return -1;
     }
     
@@ -871,7 +867,7 @@ public final class BytecodeViewer {
       }
     }
 
-    LauncherMain.printCommandError("ERROR: findBranchLine: branch location value not found in method: " + param);
+    Utils.printStatusError("findBranchLine: branch location value not found in method: " + param);
     return -1;
   }
  
@@ -987,7 +983,7 @@ public final class BytecodeViewer {
           Integer branchpt = Integer.parseUnsignedInt(val);
           bc.switchinfo.put(key, branchpt);
         } catch (NumberFormatException ex) {
-          LauncherMain.printCommandError("ERROR: invalid branch location on line " + lineCount + ": " + val);
+          Utils.printStatusError("invalid branch location on line " + lineCount + ": " + val);
         }
       }
     }
@@ -1027,12 +1023,12 @@ public final class BytecodeViewer {
     @Override
     public void mouseClicked (MouseEvent evt) {
       String contents = panel.getText();
-      LauncherMain.printStatusMessage("");
+      Utils.printStatusClear();
 
       // set caret to the mouse location and get the caret position (char offset within text)
       panel.setCaretPosition(panel.viewToModel(evt.getPoint()));
       int curpos = panel.getCaretPosition();
-      //LauncherMain.printCommandMessage("BytecodeViewer: cursor = " + curpos);
+      //Utils.printStatusInfo("BytecodeViewer: cursor = " + curpos);
       
       // now determine line number and offset within the line for the caret
       int line = 0;
@@ -1053,7 +1049,7 @@ public final class BytecodeViewer {
       line -= LINES_PRECEEDING_BYTECODE; // subtract off the lines preceeding the bytecode info
       if (line >= 0 && line < bytecode.size()) {
         BytecodeInfo bc = bytecode.get(line);
-        //LauncherMain.printCommandMessage("BytecodeViewer: line " + line + " Opcode: " +
+        //Utils.printStatusInfo("BytecodeViewer: line " + line + " Opcode: " +
         //    bc.opcode + ", type = " + bc.optype.toString());
         if (bc.optype == OpcodeType.LOAD || bc.optype == OpcodeType.STORE) {
           // user selected a line containing a load/store to a local parameter.
@@ -1069,7 +1065,7 @@ public final class BytecodeViewer {
           try {
             paramNum = Integer.parseUnsignedInt(paramStr); // should be an integer
           } catch (NumberFormatException ex) {
-            LauncherMain.printStatusError("Missing slot selection for parameter!");
+            Utils.printStatusError("Missing slot selection for parameter!");
             return;
           }
           // Next, attempt to find it in the local arg list
@@ -1120,28 +1116,28 @@ public final class BytecodeViewer {
     @Override
     public void keyPressed(KeyEvent ke) {
       // when the key is initially pressed
-      //LauncherMain.printCommandMessage("BytecodeViewer: keyPressed: " + ke.getKeyCode());
+      //Utils.printStatusInfo("BytecodeViewer: keyPressed: " + ke.getKeyCode());
     }
 
     @Override
     public void keyTyped(KeyEvent ke) {
       // follows keyPressed and preceeds keyReleased when entered key is character type
-      //LauncherMain.printCommandMessage("BytecodeViewer: keyTyped: " + ke.getKeyCode() + " = '" + ke.getKeyChar() + "'");
+      //Utils.printStatusInfo("BytecodeViewer: keyTyped: " + ke.getKeyCode() + " = '" + ke.getKeyChar() + "'");
     }
 
     @Override
     public void keyReleased(KeyEvent ke) {
       // when the key has been released
-      //LauncherMain.printCommandMessage("BytecodeViewer: keyReleased: " + ke.getKeyCode());
-      LauncherMain.printStatusMessage("");
+      //Utils.printStatusInfo("BytecodeViewer: keyReleased: " + ke.getKeyCode());
+      Utils.printStatusClear();
       int curpos = panel.getCaretPosition();
       switch (ke.getKeyCode()) {
         case KeyEvent.VK_UP:    // UP ARROW key
-          //LauncherMain.printCommandMessage("BytecodeViewer: UP key: at cursor " + curpos);
+          //Utils.printStatusInfo("BytecodeViewer: UP key: at cursor " + curpos);
           highlightCursorPosition(curpos);
           break;
         case KeyEvent.VK_DOWN:  // DOWN ARROW key
-          //LauncherMain.printCommandMessage("BytecodeViewer: DN key: at cursor " + curpos);
+          //Utils.printStatusInfo("BytecodeViewer: DN key: at cursor " + curpos);
           highlightCursorPosition(curpos);
           break;
         default:

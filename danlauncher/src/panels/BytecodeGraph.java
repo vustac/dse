@@ -103,12 +103,12 @@ public class BytecodeGraph {
     try {
       ImageIO.write(bi,"png",file);
     } catch (Exception ex) {
-      LauncherMain.printCommandError("ERROR: " + ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
     }
   }
 
   private void drawGraph() {
-    LauncherMain.printCommandMessage("drawGraph: Bytecode entries = " + BytecodeViewer.bytecode.size());
+    Utils.printStatusInfo("drawGraph: Bytecode entries = " + BytecodeViewer.bytecode.size());
     
     // clear the current graph
     clearGraph();
@@ -215,7 +215,7 @@ public class BytecodeGraph {
             nextflow = branchMap.get(nextloc);
           }
           if (nextflow == null) {
-            LauncherMain.printCommandError("ERROR: Failed Connection: " + flow.offset + "_" +
+            Utils.printStatusError("Failed Connection: " + flow.offset + "_" +
                 flow.opcode + " to offset " + nextloc);
             continue;
           }
@@ -236,7 +236,7 @@ public class BytecodeGraph {
             nextflow = branchMap.get(nextflow.nextloc.get(0));
           }
           if (nextflow == null) {
-            LauncherMain.printCommandError("ERROR: Failed Connection: " + flow.offset + "_" +
+            Utils.printStatusError("Failed Connection: " + flow.offset + "_" +
                 flow.opcode + " to offset " + nextloc);
             continue;
           }
@@ -353,7 +353,7 @@ public class BytecodeGraph {
             title = bc.offset + Utils.NEWLINE + bc.opcode.toUpperCase();
             nextloc.add(branchix);
           } catch (NumberFormatException ex) {
-            LauncherMain.printCommandError("ERROR: Invalid Symbolic Branch location: " + bc.param);
+            Utils.printStatusError("Invalid Symbolic Branch location: " + bc.param);
           }
           break;
 
@@ -367,7 +367,7 @@ public class BytecodeGraph {
             title = bc.offset + Utils.NEWLINE + bc.opcode.toUpperCase();
             nextloc.add(branchix);
           } catch (NumberFormatException ex) {
-            LauncherMain.printCommandError("ERROR: Invalid Branch location: " + bc.param);
+            Utils.printStatusError("Invalid Branch location: " + bc.param);
           }
           break;
 
@@ -397,7 +397,7 @@ public class BytecodeGraph {
 
         default:
           // indicate error
-          LauncherMain.printCommandError("ERROR: Unhandled OpcodeType: " + bc.optype.toString());
+          Utils.printStatusError("Unhandled OpcodeType: " + bc.optype.toString());
           break;
       }
     }

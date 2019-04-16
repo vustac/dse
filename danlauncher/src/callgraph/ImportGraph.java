@@ -97,20 +97,8 @@ public class ImportGraph {
     tabSelected = selected.equals(tabName);
   }
   
-  private void printError(String message) {
-    LauncherMain.printCommandError("ERROR: " + message);
-  }
-  
-  private void printCommandMessage(String message) {
-    LauncherMain.printCommandMessage(message);
-  }
-  
-  private void printStatus(String message) {
-    LauncherMain.printStatusMessage(message);
-  }
-  
   public void clearGraph() {
-    printCommandMessage("ImportGraph: clearGraph");
+    Utils.printStatusInfo("ImportGraph: clearGraph");
     callGraph = null;
     graphComponent = null;
 
@@ -171,12 +159,12 @@ public class ImportGraph {
     try {
       bw = new BufferedWriter(new FileWriter(file));
     } catch (IOException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
       return;
     }
 
     // convert to json and save to file
-    printStatus("ImportGraph.saveAsJSONFile: " + graphMethList.size() + " methods");
+    Utils.printStatusInfo("saving ImportGraph: " + graphMethList.size() + " methods to file " + file.getName());
     GsonBuilder builder = new GsonBuilder();
     builder.setPrettyPrinting().serializeNulls();
     //builder.excludeFieldsWithoutExposeAnnotation().create();
@@ -186,7 +174,7 @@ public class ImportGraph {
     try {
       bw.close();
     } catch (IOException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
     }
   }
   
@@ -202,7 +190,7 @@ public class ImportGraph {
     try {
       br = new BufferedReader(new FileReader(file));
     } catch (FileNotFoundException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
       return 0;
     }
     
@@ -211,7 +199,7 @@ public class ImportGraph {
 		Gson gson = builder.create();
     Type methodListType = new TypeToken<List<ImportMethod>>() {}.getType();
     graphMethList = gson.fromJson(br, methodListType);
-    printCommandMessage("ImportGraph.loadFromJSONFile: " + graphMethList.size() + " methods");
+    Utils.printStatusInfo("loaded ImportGraph: " + graphMethList.size() + " methods from file " + file.getName());
 
     // draw the new graph on seperate pane
     clearGraph();
@@ -227,7 +215,7 @@ public class ImportGraph {
   }
   
   public void saveAsImageFile(File file) {
-    printStatus("ImportGraph.saveAsImageFile: " + graphMethList.size() + " methods");
+    Utils.printStatusInfo("save ImportGraph as ImageFile: " + graphMethList.size() + " methods");
     BufferedImage bi = new BufferedImage(graphPanel.getSize().width,
         graphPanel.getSize().height, BufferedImage.TYPE_INT_ARGB); 
     Graphics graphics = bi.createGraphics();
@@ -236,7 +224,7 @@ public class ImportGraph {
     try {
       ImageIO.write(bi,"png",file);
     } catch (IOException ex) {
-      printError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
     }
   }
 
@@ -385,7 +373,7 @@ public class ImportGraph {
   private void drawCallGraph(List<ImportMethod> methList) {
     callGraph = new BaseGraph<>();
 
-    printCommandMessage("ImportGraph.drawCallGraph: Methods = " + methList.size());
+    Utils.printStatusInfo("draw ImportGraph: Methods = " + methList.size());
 
     // add vertexes to graph
     for(ImportMethod mthNode : methList) {

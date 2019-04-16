@@ -43,7 +43,6 @@ import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
-import static main.LauncherMain.printCommandMessage;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -113,8 +112,6 @@ public class DatabaseTable {
     
     ArrayList<String> solutionList; // full list of solution entries (may be multiple params)
     
-    boolean updated;        // true if entry was updated
-    
     public DatabaseInfo(Document doc) {
       // extract the entries from the database document (if entry not found, result is null)
       ObjectId idn = doc.getObjectId("_id");
@@ -168,16 +165,7 @@ public class DatabaseTable {
         solution = solutionList.get(0) + " ...";
       }
       
-      updated = false;
       tabSelected = false;
-    }
-    
-    public void setUpdated() {
-      updated = true;
-    }
-    
-    public boolean isUpdated() {
-      return updated;
     }
   } 
   
@@ -295,7 +283,7 @@ public class DatabaseTable {
   }
   
   public void saveDatabaseToExcel(String filename) {
-    LauncherMain.printStatusMessage("Saving Database to Excel file: " + filename);
+    Utils.printStatusMessage("Saving Database to Excel file: " + filename);
     try {
       Workbook wb = new XSSFWorkbook();
       Sheet sheet = wb.createSheet();
@@ -362,32 +350,55 @@ public class DatabaseTable {
       // write the file
       wb.write(new FileOutputStream(filename));
       wb.close();
-      printCommandMessage(model.getRowCount() + " solutions saved");
+      Utils.printStatusMessage(model.getRowCount() + " solutions saved");
     } catch (IOException ex) {
-      LauncherMain.printStatusError("IOException on saving Database file");
-      LauncherMain.printCommandError(ex.getMessage());
+      Utils.printStatusError(ex.getMessage());
     }
   }
 
-  private static void readDatabase() {
+  private static boolean readDatabase() {
     if (mongoFailure) {
-      return;
+      return false;
     }
     
+    boolean changed = false;
+    int newEntries = 0;
+    int oldSize = dbList.size();
     try {
       // read data base for solutions to specified parameter that are solvable
       FindIterable<Document> iterdocs = collection.find() //(Bson) new BasicDBObject("solvable", true))
           .sort((Bson) new BasicDBObject("_id", -1)); // sort in descending order (oldest first)
 
+      // save list of the unique id values from the current list
+      ArrayList<String> dbCopy = new ArrayList<>();
+      for (int ix = 0; ix < oldSize; ix++) {
+        dbCopy.add(dbList.get(ix).id);
+      }
+      
+      // clear the current list and copy mongo docs into it
       dbList.clear();
       for (Document doc : iterdocs) {
         DatabaseInfo entry = new DatabaseInfo(doc);
         dbList.add(entry);
+        if (!dbCopy.contains(entry.id)) {
+          ++newEntries;
+        }
       }
     } catch (MongoTimeoutException ex) {
-      LauncherMain.printStatusError("Mongo Timeout - make sure mongodb is running.");
+      Utils.printStatusError("Mongo Timeout - make sure mongodb is running.");
       mongoFailure = true;
+      return false;
     }
+
+    // determine if database entries have changed
+    int newSize = dbList.size();
+    if (newSize != oldSize || newEntries != 0) {
+      Utils.printStatusInfo(newSize + " documents read from database: " + newEntries + " new, "
+          + (oldSize + newEntries - newSize) + " removed");
+      changed = true;
+    }
+    
+    return changed;
   }
   
   private static String formatSolutionArrayToString(ArrayList<String> list) {
@@ -681,26 +692,27 @@ public class DatabaseTable {
   @Override
     public void actionPerformed(ActionEvent e) {
       // request the database list and save as list entries
-      readDatabase();
-                
-      // sort the table entries based on current selections
-      tableSortAndDisplay(colSortSelection, bSortOrder);
+      boolean changed = readDatabase();
+      if (changed) {
+        // sort the table entries based on current selections
+        tableSortAndDisplay(colSortSelection, bSortOrder);
 
-      // count the solved equations
-      int solved = 0;
-      for (int ix = 0; ix < dbList.size(); ix++) {
-        if (!dbList.get(ix).solution.isEmpty()) {
-          ++solved;
+        // count the solved equations
+        int solved = 0;
+        for (int ix = 0; ix < dbList.size(); ix++) {
+          if (!dbList.get(ix).solution.isEmpty()) {
+            ++solved;
+          }
         }
-      }
       
-      // update front panel counter
-      LauncherMain.setSolutionsReceived(dbList.size(), solved);
+        // update front panel counter
+        LauncherMain.setSolutionsReceived(dbList.size(), solved);
           
-      // re-mark the selected row (if any)
-//      if (rowSelection >= 0) {
-//        dbTable.setRowSelectionInterval(rowSelection, rowSelection);
-//      }
+        // re-mark the selected row (if any)
+//        if (rowSelection >= 0) {
+//          dbTable.setRowSelectionInterval(rowSelection, rowSelection);
+//        }
+      }
     }
   }    
 

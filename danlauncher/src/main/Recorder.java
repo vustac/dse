@@ -67,9 +67,9 @@ public class Recorder {
    */
   public void startRecording() {
     if (recordState) {
-      Utils.printCommandMessage("--- previous RECORD session terminated");
+      Utils.printStatusMessage("--- previous RECORD session terminated");
     }
-    Utils.printCommandMessage("--- RECORD session started ---");
+    Utils.printStatusMessage("--- RECORD session started ---");
     recording.commandlist.clear();
     recordCommandList.clear();
     recordStartTime = 0;
@@ -84,7 +84,7 @@ public class Recorder {
       // if we haven't added the show status results command yet, do it now
       addCommand(RecordID.SHOW_RESULTS, null);
       
-      Utils.printCommandMessage("--- RECORD session terminated ---");
+      Utils.printStatusMessage("--- RECORD session terminated ---");
       recordState = false;
     }
   }
@@ -287,7 +287,7 @@ public class Recorder {
         // this handles the case of reading the structure in from the json file
         LinkedTreeMap map = (LinkedTreeMap) objitem;
         if (map.size() < 2 || !map.containsKey("command")) {
-          Utils.printCommandError("ERROR: Invalid map type: " + objitem.getClass().getName());
+          Utils.printStatusError("Invalid map type: " + objitem.getClass().getName());
           continue;
         }
         String cmd = (String) map.get("command");
@@ -315,7 +315,7 @@ public class Recorder {
           content += getCommandOutput(cmd, arg1, arg2);
         }
       } else {
-        Utils.printCommandError("ERROR: Unhandled command class type: " + objitem.getClass().getName());
+        Utils.printStatusError("Unhandled command class type: " + objitem.getClass().getName());
       }
     }
 
@@ -445,7 +445,7 @@ public class Recorder {
       }
       
       // add the command
-      Utils.printCommandMessage("--- RECORDED: " + cmd.toString());
+      Utils.printStatusMessage("--- RECORDED: " + cmd.toString());
       commandlist.add(item);
       recordCommandList.add(cmd);
       recordLastCommand = cmd; // save last command

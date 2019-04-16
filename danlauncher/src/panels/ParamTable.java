@@ -6,6 +6,7 @@
 package panels;
 
 import main.LauncherMain;
+import util.Utils;
 
 import java.awt.Component;
 import java.awt.Rectangle;
@@ -165,7 +166,7 @@ public class ParamTable {
             return retval;
           }
         } catch (NumberFormatException ex) {
-          LauncherMain.printCommandError("ERROR: Invalid format for start and end values: " +
+          Utils.printStatusError("Invalid format for start and end values: " +
               entry.start + ", " + entry.end);
         }
       }
@@ -291,7 +292,7 @@ public class ParamTable {
    * action event when the mouse is clicked in the table.
    */
   private void tableMouseClicked(java.awt.event.MouseEvent evt) {                                            
-    LauncherMain.printStatusMessage("");
+    Utils.printStatusClear();
 
     int row = table.rowAtPoint(evt.getPoint());
     //int col = table.columnAtPoint(evt.getPoint());
@@ -320,13 +321,13 @@ public class ParamTable {
         startVal = Integer.parseUnsignedInt(start);
         endVal   = Integer.parseUnsignedInt(end);
       } catch (NumberFormatException ex) {
-        LauncherMain.printCommandError("ERROR: Invalid format for start and end values: " + start + ", " + end);
+        Utils.printStatusError("Invalid format for start and end values: " + start + ", " + end);
         return;
       }
       Integer opstrt = BytecodeViewer.byteOffsetToLineNumber(startVal);
       Integer oplast = BytecodeViewer.byteOffsetToLineNumber(endVal);
       if (opstrt == null || oplast == null) {
-        LauncherMain.printCommandError("ERROR: No line found for start and end values: " + start + ", " + end);
+        Utils.printStatusError("No line found for start and end values: " + start + ", " + end);
       } else {
         LauncherMain.addSymbVariable(methodname, name, type, slot, start, end, opstrt, oplast);
       }

@@ -43,7 +43,7 @@ public final class NetworkServer extends Thread implements NetworkListener {
   private static Visitor          guiCallback = null;
 
   public NetworkServer(int port) throws IOException {
-//  public ServerThread(int port, boolean tcp, String fname, Visitor connection) throws IOException {
+//  public ServerThread(int port, Visitor connection) throws IOException {
     super("ServerThread");
     
     serverPort = port;

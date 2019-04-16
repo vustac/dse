@@ -121,10 +121,6 @@ public class DebugLogger {
     tabSelected = selected.equals(tabName);
   }
   
-  private void printError(String message) {
-    LauncherMain.printCommandError("ERROR: " + message);
-  }
-  
   public int getThreadCount() {
     return threadCount;
   }
@@ -252,7 +248,7 @@ public class DebugLogger {
         if (!msgInfo.valid) {
           // nope - just indicate we lost the line
           lineError = true;
-          printError("invalid input syntax: " + lastMessage + message);
+          Utils.printStatusError("invalid input syntax: " + lastMessage + message);
           return null;
         }
         System.err.println("FIXED !");
