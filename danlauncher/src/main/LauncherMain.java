@@ -392,11 +392,13 @@ public final class LauncherMain {
   }
   
   public static void addLocalVariable(String name, String type, String slot, String start, String end) {
+    Utils.printStatusInfo("ACTION - ADD LOCAL VARIABLE: " + name + " type " + type + " slot " + slot);
     localVarTbl.addEntry(name, type, slot, start, end);
   }
 
   public static String addSymbVariable(String meth, String name, String type, String slot,
                                      String start, String end, int opstrt, int oplast) {
+    Utils.printStatusInfo("ACTION - ADD SYMBOLIC VARIABLE: " + name + " type " + type + " slot " + slot);
     String newEntry = symbolTbl.addEntry(meth, name, type, slot, start, end, opstrt, oplast);
     if (newEntry != null) {
       updateDanfigFile();
@@ -405,6 +407,7 @@ public final class LauncherMain {
   }
 
   public static void addSymbConstraint(String id, String type, String value) {
+    Utils.printStatusInfo("ACTION - ADD USER CONSTRAINT: " + id + " type " + type + " value " + value);
     symbolTbl.addConstraint(id, type, value);
   }
   
@@ -440,6 +443,7 @@ public final class LauncherMain {
     }
     
     // init the background stuff
+    Utils.printStatusInfo("Updating danfig file: " + projectPathName);
     String content = initDanfigInfo();
     
     // now add in the latest and greatest symbolic defs
@@ -772,7 +776,7 @@ public final class LauncherMain {
   private class Window_MainListener extends java.awt.event.WindowAdapter {
     @Override
     public void windowClosing(java.awt.event.WindowEvent evt) {
-      Utils.printStatusInfo("Closing danlauncher...");
+      Utils.printStatusInfo("ACTION - EXITING DANLAUNCHER");
       
       // close up services
       enableUpdateTimers(false);
@@ -816,6 +820,7 @@ public final class LauncherMain {
         JTabbedPane tabPanel = (JTabbedPane) panelInfo.panel;
         int curTab = tabPanel.getSelectedIndex();
         currentTab = tabPanel.getTitleAt(curTab);
+        Utils.printStatusInfo("TAB SELECT: " + currentTab);
       
         // now inform panels of the selection
         debugLogger.setTabSelection(currentTab);
@@ -956,6 +961,7 @@ public final class LauncherMain {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       // stop the running process
+      Utils.printStatusInfo("ACTION - STOP APPLICATION");
       ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
       if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
         Utils.printStatusInfo("CommandLauncher: Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
@@ -2489,6 +2495,7 @@ public final class LauncherMain {
 
     // read the file
     File file = fileSelector.getSelectedFile();
+    Utils.printStatusInfo("ACTION - LOAD JAR FILE: " + file.getAbsolutePath());
     projectName = file.getName();
     projectPathName = file.getParentFile().getAbsolutePath() + "/";
     File outPath = new File(projectPathName + OUTPUT_FOLDER);
@@ -2508,6 +2515,7 @@ public final class LauncherMain {
         !fileCheck(dsePath + "/danalyzer/lib/commons-io-2.5.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/asm-7.2.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/asm-tree-7.2.jar")) {
+      Utils.printStatusError("Missing required files (danalyzer library)");
       return -1;
     }
     
@@ -2526,10 +2534,12 @@ public final class LauncherMain {
       solverConnection.sendClearAll();
     }
 
+    Utils.printStatusInfo("Initializing danfig content");
     String content = initDanfigInfo();
     
     // read the symbolic parameter definitions from debugParams file (if present)
     if (loadDanfigOnStartup) {
+      Utils.printStatusInfo("Reading symbolic definitions from danfig content");
       readSymbolicList(content);
     }
   
@@ -2550,6 +2560,7 @@ public final class LauncherMain {
 
     // remove any existing class and javap files in the location of the jar file
     if (clearClassFilesOnStartup) {
+      Utils.printStatusInfo("Removing existing class and javap output files");
       try {
         FileUtils.deleteDirectory(new File(projectPathName + CLASSFILE_STORAGE));
         FileUtils.deleteDirectory(new File(projectPathName + JAVAPFILE_STORAGE));
@@ -2637,6 +2648,7 @@ public final class LauncherMain {
     
     // enable the input mode controls based on the selection
     enableInputModeSelections();
+    Utils.printStatusInfo("ACTION - LOAD JAR FILE - COMPLETED");
     return 0;
   }
 
@@ -2657,6 +2669,8 @@ public final class LauncherMain {
       }
     }
 
+    Utils.printStatusInfo("ACTION - RUN JAR FILE: " + projectPathName + projectName);
+
     // setup access to the network listener thread
     startDebugPort(projectPathName + OUTPUT_FOLDER + "debug.log");
     
@@ -2676,6 +2690,7 @@ public final class LauncherMain {
         !fileCheck(dsePath + "/danalyzer/lib/asm-7.2.jar") ||
         !fileCheck(dsePath + "/danalyzer/lib/asm-tree-7.2.jar") ||
         !fileCheck(dsePath + "/danhelper/" + System.mapLibraryName("danhelper"))) {
+      Utils.printStatusError("Missing required files (danalyzer/danhelper library)");
       return;
     }
     
@@ -2707,7 +2722,7 @@ public final class LauncherMain {
               + ":" + dsePath + "/danalyzer/lib/asm-tree-7.2.jar"
               + ":" + localpath;
 
-    Utils.printStatusMessage("Run command started...");
+    Utils.printStatusMessage("RUN command started...");
     
     // run the instrumented jar file
     String[] argarray = arglist.split("\\s+"); // need to seperate arg list into seperate entries
@@ -2729,6 +2744,8 @@ public final class LauncherMain {
     
     // allow user to terminate the test
     mainFrame.getButton("BTN_STOPTEST").setEnabled(true);
+
+    Utils.printStatusInfo("ACTION - RUN JAR FILE - COMPLETED");
   }
 
   private static void runBytecodeParser(String classSelect, String methodSelect, String content) {
@@ -2841,6 +2858,7 @@ public final class LauncherMain {
 
     // add the suffix
     classSelect = classSelect  + ".class";
+    Utils.printStatusInfo("ACTION - GENERATE JAVAP: " + classSelect);
     
     // first we have to extract the class file from the jar file
     if (projectPathName == null || projectName == null) {
@@ -2870,14 +2888,13 @@ public final class LauncherMain {
     // this creates a command launcher that runs on the current thread
     CommandLauncher commandLauncher = new CommandLauncher();
     int retcode = commandLauncher.start(command, projectPathName);
-    if (retcode == 0) {
-      Utils.printStatusMessage("CommandLauncher COMPLETED - generating javap file");
-    } else {
-      Utils.printStatusError("CommandLauncher FAILED - running javap on file: " + classSelect);
+    if (retcode != 0) {
+      Utils.printStatusError("ACTION - GENERATE JAVAP FAILED for: " + classSelect);
       return null;
     }
 
     // success - save the output as a file
+    Utils.printStatusInfo("ACTION - GENERATE JAVAP - COMPLETED");
     String content = commandLauncher.getResponse();
     return content;
   }
@@ -2892,7 +2909,7 @@ public final class LauncherMain {
       className = className.substring(offset + 1);
     }
     
-    Utils.printStatusInfo("Extracting '" + className + "' from " + relpathname);
+    Utils.printStatusInfo("ACTION - EXTRACT CLASS FILE: '" + className + "' from " + relpathname);
     
     // get the location of the jar file (where we will extract the class files to)
     String jarpathname = jarfile.getAbsolutePath();
@@ -2930,6 +2947,7 @@ public final class LauncherMain {
             fos.write(istream.read());
           }
         }
+        Utils.printStatusInfo("ACTION - EXTRACT CLASS FILE - COMPLETED");
         return 0;
       }
     }
