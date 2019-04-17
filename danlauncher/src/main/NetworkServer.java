@@ -7,6 +7,8 @@ package main;
 
 import logging.FileSaver;
 import main.LauncherMain.Visitor;
+import util.Utils;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -14,7 +16,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.LinkedBlockingQueue;
 
 // provides callback interface
 interface NetworkListener{
@@ -27,10 +28,6 @@ interface NetworkListener{
  */
 public final class NetworkServer extends Thread implements NetworkListener {
  
-  public static final String DEFAULT_BUFFER_NAME = "debug.log";
-
-  private static LinkedBlockingQueue<String> recvBuffer;
-  
   protected static ServerSocket   serverSocket = null;
   protected static Socket         connectionSocket = null;
 
@@ -38,43 +35,50 @@ public final class NetworkServer extends Thread implements NetworkListener {
   private static boolean          running;
   private static int              pktsRead;
   private static String           storageFileName;
-  private static FileSaver        fileSaver;
+  private static FileSaver        fileSaver = null;
   private static BufferedReader   inFromClient = null;    // TCP input reader
   private static Visitor          guiCallback = null;
 
-  public NetworkServer(int port) throws IOException {
-//  public ServerThread(int port, Visitor connection) throws IOException {
+  public NetworkServer(int port, String fname, Visitor connection) throws IOException {
     super("ServerThread");
     
     serverPort = port;
-    recvBuffer = new LinkedBlockingQueue<>();
-    
-    try {
-      // init statistics
-      pktsRead = 0;
-      storageFileName = DEFAULT_BUFFER_NAME;
+    storageFileName = fname;
+    guiCallback = connection;
+    pktsRead = 0;
 
+    try {
       // open the communications socket
       serverSocket = new ServerSocket(serverPort);
-      System.out.println("TCP server started on port: " + serverPort + ", waiting for connection");
+      Utils.printStatusInfo("TCP server started on port: " + serverPort + ", waiting for connection");
 
+      // remove any previously existing debug file
+      File file = new File(fname);
+      if (file.isFile()) {
+        file.delete();
+      }
+
+      // create the file cache and setup the file to save to
+      fileSaver = new FileSaver();
+      fileSaver.setStorageFile(storageFileName);
       running = true;
 
     } catch (IOException ex) {
-      System.out.println("port " + serverPort + "failed to start");
-      System.out.println(ex.getMessage());
+      Utils.printStatusError("port " + serverPort + "failed to start");
+      Utils.printStatusError(ex.getMessage());
       System.exit(1);
     }
   }
   
   public void clear() {
-      // reset statistics and empty the buffer
-      pktsRead = 0;
-      recvBuffer.clear();
+    // reset statistics and empty the buffer
+    pktsRead = 0;
+    fileSaver.resetInput();
+    fileSaver.clear();
   }
   
   public int getQueueSize() {
-    return recvBuffer.size();
+    return fileSaver.getQueueSize();
   }
   
   public int getPktsRead() {
@@ -85,24 +89,10 @@ public final class NetworkServer extends Thread implements NetworkListener {
     return serverPort;
   }
   
-  public String getOutputFile() {
-    return storageFileName;
-  }
-  
-  public void resetInput() {
-    if (fileSaver != null) {
-      fileSaver.resetInput();
-    }
-  }
-
   public String getNextMessage() {
-    return (fileSaver == null) ? null : fileSaver.getNextMessage();
+    return fileSaver.getNextMessage();
   }
 
-  public void setLoggingCallback(Visitor connection) {
-    guiCallback = connection;
-  }
-  
   public void setStorageFile(String fname) {
     // ignore if name was not changed or empty name given
     if (fname == null || fname.isEmpty() || fname.equals(storageFileName)) {
@@ -117,11 +107,8 @@ public final class NetworkServer extends Thread implements NetworkListener {
     }
 
     // setup the file to save to
-    if (fileSaver == null) {
-      System.out.println("setStorageFile: fileSaver not started yet!");
-    } else {
-      fileSaver.setStorageFile(storageFileName);
-    }
+    fileSaver.setStorageFile(storageFileName);
+    fileSaver.resetInput();
   }
 
   /**
@@ -130,16 +117,14 @@ public final class NetworkServer extends Thread implements NetworkListener {
   @Override
   public void exit() {
     running = false;
-    if (fileSaver != null) {
-      fileSaver.exit();
-    }
+    fileSaver.exit();
   }
 
   @Override
   public void run() {
+    Utils.printStatusInfo("NetworkServer thread started!");
+
     // start the thread for copying input to file
-    fileSaver = new FileSaver(recvBuffer);
-    fileSaver.setStorageFile(storageFileName);
     Thread t = new Thread(fileSaver);
     t.start();
 
@@ -153,7 +138,7 @@ public final class NetworkServer extends Thread implements NetworkListener {
             connectionSocket = serverSocket.accept();
             String connection = connectionSocket.getInetAddress().getHostAddress() + ":" +
                                 connectionSocket.getPort();
-            System.out.println("connected to client: " + connection);
+            Utils.printStatusInfo("connected to client: " + connection);
             if (NetworkServer.guiCallback != null) {
               NetworkServer.guiCallback.showConnection(connection);
             }
@@ -161,7 +146,7 @@ public final class NetworkServer extends Thread implements NetworkListener {
             inFromClient = new BufferedReader(new InputStreamReader(cis));
             //DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
           } catch (IOException ex) {
-            System.err.println("ERROR: " + ex.getMessage());
+            Utils.printStatusError("NetworkServer: " + ex.getMessage());
             try {
               serverSocket.close();
               serverSocket = null;
@@ -176,9 +161,7 @@ public final class NetworkServer extends Thread implements NetworkListener {
         // read input from client and add to buffer
         String message = inFromClient.readLine();
         if (message != null) {
-          try {
-            recvBuffer.put(message);
-          } catch (InterruptedException ex) { /* ignore */ }
+          fileSaver.saveMessage(message);
           ++pktsRead;
         } else {
           // client disconnected - close the socket so a new connection can be made
@@ -190,14 +173,14 @@ public final class NetworkServer extends Thread implements NetworkListener {
           }
         }
       } catch (IOException ex) {
-        System.err.println("ERROR: " + ex.getMessage());
+        Utils.printStatusError("NetworkServer: " + ex.getMessage());
       }
     }
 
     // terminating loop - close all sockets
     try {
       if (connectionSocket != null) {
-        System.out.println("closing TCP connection socket");
+        Utils.printStatusInfo("closing TCP connection socket");
         connectionSocket.close();
         connectionSocket = null;
         if (NetworkServer.guiCallback != null) {
@@ -205,7 +188,7 @@ public final class NetworkServer extends Thread implements NetworkListener {
         }
       }
       if (serverSocket != null) {
-        System.out.println("closing TCP server socket for port: " + serverPort);
+        Utils.printStatusInfo("closing TCP server socket for port: " + serverPort);
         serverSocket.close();
         serverSocket = null;
       }

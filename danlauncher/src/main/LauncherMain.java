@@ -53,7 +53,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Level;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -143,7 +142,7 @@ public final class LauncherMain {
   private static DatabaseTable   dbtable;
   private static ParamTable      localVarTbl;
   private static SymbolTable     symbolTbl;
-  private static NetworkServer   udpThread;
+  private static NetworkServer   netServer;
   private static NetworkListener networkListener;
   private static SolverInterface solverConnection;
   private static Visitor         makeConnection;
@@ -164,6 +163,7 @@ public final class LauncherMain {
   private static Timer           debugMsgTimer;
   private static Timer           graphTimer;
   private static Timer           killTimer;
+  private static Timer           timeTimer;
   private static CallGraph.GraphHighlight  graphMode;
   private static String          projectPathName;
   private static String          projectName;
@@ -342,6 +342,7 @@ public final class LauncherMain {
     debugMsgTimer = new Timer(1, new DebugInputListener()); // reads debug msgs from instrumented code
     graphTimer = new Timer(1000, new GraphUpdateListener());  // updates the call graph
     killTimer = new Timer(2000, new KillTimerListener());  // issues kill to instrumented code
+    timeTimer = new Timer(1000, new ElapsedUpdateListener());  // updates the elapsed time display
 }
 
   //=================== public methods ======================
@@ -692,7 +693,7 @@ public final class LauncherMain {
     gui.addSplitComponent(splitName, 1, "TBL_PARAMLIST", localParams, true);
     
     // add the tabbed message panels and a listener to detect when a tab has been selected
-    System.err.println("**starting tabbed panels");
+    Utils.printStatusInfo("Starting tabbed panels");
     GuiControls.PanelInfo panelInfo = gui.getPanelInfo("PNL_TABBED");
     if (panelInfo != null && panelInfo.panel instanceof JTabbedPane) {
       JTabbedPane tabPanel = (JTabbedPane) panelInfo.panel;
@@ -705,7 +706,7 @@ public final class LauncherMain {
       addPanelToTab(tabPanel, PanelTabs.COMPGRAPH, importGraph.getScrollPanel());
       tabPanel.addChangeListener(new Change_TabPanelSelect());
     }
-    System.err.println("**completed tabbed panels");
+    Utils.printStatusInfo("Completed tabbed panels");
 
     // activate the panels that have listeners and timers
     debugLogger.activate();
@@ -786,7 +787,7 @@ public final class LauncherMain {
         if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
           Utils.printStatusInfo("CommandLauncher: Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
           String[] command = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
-          CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
+          CommandLauncher commandLauncher = new CommandLauncher();
           commandLauncher.start(command, null);
           runMode = RunMode.EXITING;
 
@@ -959,7 +960,7 @@ public final class LauncherMain {
       if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
         Utils.printStatusInfo("CommandLauncher: Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
         String[] command = { "kill", "-15", threadInfo.pid.toString() }; // SIGTERM
-        CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
+        CommandLauncher commandLauncher = new CommandLauncher();
         commandLauncher.start(command, null);
         runMode = RunMode.TERMINATING;
 
@@ -1292,7 +1293,7 @@ public final class LauncherMain {
       
       // display the test script to the user
       String content = recorder.generateTestScript();
-      JFrame testPanel = GuiControls.makeFrameWithText(null, "check_results.sh", content, 400, 300);
+      //JFrame testPanel = GuiControls.makeFrameWithText(null, "check_results.sh", content, 400, 300);
     }
   }
 
@@ -1916,7 +1917,7 @@ public final class LauncherMain {
   
   private static void addMenuItem(JMenu menucat, String id, String title, ActionListener action) {
     if (menuItems.containsKey(id)) {
-      System.err.println("ERROR: Menu Item '" + id + "' already defined!");
+      Utils.printStatusError("LauncherMain: Menu Item '" + id + "' already defined!");
       return;
     }
     JMenuItem item = new JMenuItem(title);
@@ -1931,7 +1932,7 @@ public final class LauncherMain {
   
   private static void addMenuCheckbox(JMenu menucat, String id, String title, boolean dflt, ItemListener action) {
     if (menuCheckboxes.containsKey(id)) {
-      System.err.println("ERROR: Menu Checkbox '" + id + "' already defined!");
+      Utils.printStatusError("LauncherMain: Menu Checkbox '" + id + "' already defined!");
       return;
     }
     JCheckBoxMenuItem item = new JCheckBoxMenuItem(title);
@@ -1950,7 +1951,7 @@ public final class LauncherMain {
   private void addPanelToTab(JTabbedPane tabpane, PanelTabs tabname, Component panel) {
     // make sure we don't already have the entry
     if (tabSelect.containsKey(tabname.toString())) {
-      System.err.println("ERROR: '" + tabname + "' panel already defined in tabs");
+      Utils.printStatusError("LauncherMain: '" + tabname + "' panel already defined in tabs");
       System.exit(1);
     }
     
@@ -1982,7 +1983,7 @@ public final class LauncherMain {
   private static void setTabSelect(String tabname) {
     Integer index = tabSelect.get(tabname);
     if (index == null) {
-      System.err.println("ERROR: '" + tabname + "' panel not found in tabs");
+      Utils.printStatusError("LauncherMain: '" + tabname + "' panel not found in tabs");
       System.exit(1);
     }
 
@@ -2111,9 +2112,8 @@ public final class LauncherMain {
     debugLogger.clear();
 
     // reset debug input from network in case some messages are pending and clear buffer
-    if (udpThread != null) {
-      udpThread.resetInput();
-      udpThread.clear();
+    if (netServer != null) {
+      netServer.clear();
     }
 
     // clear the graphics panel
@@ -2233,25 +2233,26 @@ public final class LauncherMain {
     }
   }
   
-  private static void startDebugPort() {
-    // only run this once
-    if (udpThread == null) {
+  private static void startDebugPort(String logfile) {
+    if (netServer == null) {
+      // if server not started yet,
       // disable timers while we are setting this up
       enableUpdateTimers(false);
 
+      // start the server
       try {
-        udpThread = new NetworkServer(debugPort);
+        netServer = new NetworkServer(debugPort, logfile, makeConnection);
+        netServer.start();
+        networkListener = netServer; // this allows us to signal the network listener
       } catch (IOException ex) {
-        System.err.println("ERROR: unable to start NetworkServer. " + ex);
+        Utils.printStatusError("ERROR: unable to start NetworkServer. " + ex);
       }
-
-      Utils.printStatusInfo("danlauncher receiving port: " + debugPort);
-      udpThread.start();
-      udpThread.setLoggingCallback(makeConnection);
-      networkListener = udpThread; // this allows us to signal the network listener
 
       // re-enable timers
       enableUpdateTimers(true);
+    } else {
+      // else server already running - simply change the location of the logfile
+      netServer.setStorageFile(logfile);
     }
   }
   
@@ -2299,7 +2300,7 @@ public final class LauncherMain {
 
     // exit if no methods were found
     if (fullMethList.isEmpty()) {
-      Utils.printStatusError("ERROR: setupClassList: No methods found in methodlist.txt file!");
+      Utils.printStatusError("setupClassList: No methods found in methodlist.txt file!");
       return;
     }
         
@@ -2406,7 +2407,7 @@ public final class LauncherMain {
   
   private static void initProjectProperties(String pathname) {
     // create the properties file for the project
-    projectProps = new PropertiesFile(pathname + ".danlauncher", "PROJECT_PROPERTIES", commandLogger);
+    projectProps = new PropertiesFile(pathname + ".danlauncher", "PROJECT_PROPERTIES");
     debugParams.setPropertiesFile(projectProps);
 
     // loop thru the properties table and set up each entry
@@ -2440,7 +2441,7 @@ public final class LauncherMain {
         return;
       }
     }
-    System.err.println("ERROR: User control '" + ctlName + "' not found");
+    Utils.printStatusError("LauncherMain: User control '" + ctlName + "' not found");
   }
 
   private static boolean fileCheck(String fname) {
@@ -2572,13 +2573,18 @@ public final class LauncherMain {
       String outputName = baseName + "-strip.jar";
       String[] command2 = { "pack200", "-r", "-G", projectPathName + outputName, projectPathName + projectName };
       // this creates a command launcher that runs on the current thread
-      CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
+      CommandLauncher commandLauncher = new CommandLauncher();
       retcode = commandLauncher.start(command2, projectPathName);
       if (retcode == 0) {
-        Utils.printStatusMessage("CommandLauncher: COMPLETED - Debug stripping was successful");
-        Utils.printStatusInfo(commandLauncher.getResponse());
+        Utils.printStatusMessage("CommandLauncher COMPLETED - Debug stripping was successful");
+        String[] lines = commandLauncher.getResponse().split(Utils.NEWLINE);
+        for (String resp : lines) {
+          if (!resp.isEmpty()) {
+            Utils.printStatusInfo(resp);
+          }
+        }
       } else {
-        Utils.printStatusError("CommandLauncher: FAILED - stripping file: " + projectName);
+        Utils.printStatusError("CommandLauncher FAILED - stripping file: " + projectName);
         return -1;
       }
         
@@ -2587,11 +2593,16 @@ public final class LauncherMain {
       String[] command = { "java", "-cp", classpath, mainclass, outputName, "1" };
       retcode = commandLauncher.start(command, projectPathName);
       if (retcode == 0) {
-        Utils.printStatusMessage("CommandLauncher: COMPLETED - Instrumentation successful");
-        Utils.printStatusInfo(commandLauncher.getResponse());
+        Utils.printStatusMessage("CommandLauncher COMPLETED - Instrumentation successful");
+        String[] lines = commandLauncher.getResponse().split(Utils.NEWLINE);
+        for (String resp : lines) {
+          if (!resp.isEmpty()) {
+            Utils.printStatusInfo(resp);
+          }
+        }
         outputName = baseName + "-strip-dan-ed.jar";
       } else {
-        Utils.printStatusError("CommandLauncher: FAILED - instrumenting file: " + outputName);
+        Utils.printStatusError("CommandLauncher FAILED - instrumenting file: " + outputName);
         return -1;
       }
         
@@ -2626,9 +2637,6 @@ public final class LauncherMain {
     
     // enable the input mode controls based on the selection
     enableInputModeSelections();
-
-    // setup access to the network listener thread
-    startDebugPort();
     return 0;
   }
 
@@ -2648,6 +2656,9 @@ public final class LauncherMain {
         return;
       }
     }
+
+    // setup access to the network listener thread
+    startDebugPort(projectPathName + OUTPUT_FOLDER + "debug.log");
     
     // clear out the debugger so we don't add onto existing call graph
     clearDebugLogger();
@@ -2676,12 +2687,6 @@ public final class LauncherMain {
     }
     mainclass = mainclass.replaceAll("/", ".");
 
-    // init the debug logging to the current project path
-    if (udpThread != null) {
-      udpThread.setStorageFile(projectPathName + OUTPUT_FOLDER + "debug.log");
-      udpThread.resetInput();
-    }
-    
     // build up the command to run
     String localpath = "*";
     if (new File(projectPathName + "lib").isDirectory()) {
@@ -2800,16 +2805,27 @@ public final class LauncherMain {
       // Get Response  
       InputStream is = connection.getInputStream();
       BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-      StringBuilder response = new StringBuilder(); // or StringBuffer if Java version 5+
+      StringBuilder response = new StringBuilder();
       String line;
       while ((line = rd.readLine()) != null) {
         response.append(line);
-        response.append('\r');
+        response.append(Utils.NEWLINE);
       }
       rd.close();
-      // display response.toString()
       Utils.printStatusMessage(mode + " successful");
-      Utils.printStatusInfo(mode + " RESPONSE: " + response.toString());
+
+      String[] lines = response.toString().split(Utils.NEWLINE);
+      int linecnt = 0;
+      for (String resp : lines) {
+        if (!resp.isEmpty()) {
+          if (linecnt == 0) {
+            Utils.printStatusInfo(mode + " RESPONSE: " + resp);
+          } else {
+            Utils.printStatusInfo(resp);
+          }
+          ++linecnt;
+        }
+      }
     } catch (IOException ex) {
       // display error
       Utils.printStatusError(mode + " failure: " +ex.getMessage());
@@ -2852,12 +2868,12 @@ public final class LauncherMain {
     // decompile the selected class file
     String[] command = { "javap", "-p", "-c", "-s", "-l", CLASSFILE_STORAGE + "/" + classSelect };
     // this creates a command launcher that runs on the current thread
-    CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
+    CommandLauncher commandLauncher = new CommandLauncher();
     int retcode = commandLauncher.start(command, projectPathName);
     if (retcode == 0) {
-      Utils.printStatusError("CommandLauncher: COMPLETED - generating javap file");
+      Utils.printStatusMessage("CommandLauncher COMPLETED - generating javap file");
     } else {
-      Utils.printStatusError("CommandLauncher: FAILED - running javap on file: " + classSelect);
+      Utils.printStatusError("CommandLauncher FAILED - running javap on file: " + classSelect);
       return null;
     }
 
@@ -3141,7 +3157,7 @@ public final class LauncherMain {
           } else {
             Utils.printStatusInfo("CommandLauncher: Kill job " + threadInfo.jobid + ": pid " + threadInfo.pid);
             String[] command2 = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
-            CommandLauncher commandLauncher = new CommandLauncher(commandLogger);
+            CommandLauncher commandLauncher = new CommandLauncher();
             commandLauncher.start(command2, null);
             runMode = RunMode.KILLING;
           }
@@ -3174,7 +3190,7 @@ public final class LauncherMain {
     }
   }
 
-  private class DebugInputListener implements ActionListener {
+  private class ElapsedUpdateListener implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
       // update elapsed time display
@@ -3186,33 +3202,41 @@ public final class LauncherMain {
         mins = (mins.length() > 1) ? mins : "0" + mins;
         mainFrame.getTextField("TXT_ELAPSED").setText(mins + ":" + secs);
       }
+    }
+  }
+    
+  private class DebugInputListener implements ActionListener {
+    @Override
+    public void actionPerformed(ActionEvent e) {
+      if (netServer == null) {
+        return;
+      }
       
       // read & process next message
-      if (udpThread != null) {
-        String message = udpThread.getNextMessage();
-        if (message != null) {
-          String methCall = debugLogger.processMessage(message, callGraph);
-          if (methCall != null) {
-            boolean newEntry = importGraph.addPathEntry(methCall);
-            if (newEntry && currentTab.equals(PanelTabs.COMPGRAPH.toString())) {
-              importGraph.updateCallGraph();
-            }
+      String message = netServer.getNextMessage();
+      if (message != null) {
+        String methCall = debugLogger.processMessage(message, callGraph);
+        if (methCall != null) {
+          boolean newEntry = importGraph.addPathEntry(methCall);
+          if (newEntry && currentTab.equals(PanelTabs.COMPGRAPH.toString())) {
+            importGraph.updateCallGraph();
           }
-          // enable/disable Call Graph save buttons based on whether there is anything to save
-          int methodCount = callGraph.getMethodCount();
-          getMenuItem("MENU_SAVE_CGRAPH").setEnabled(methodCount > 0);
-          getMenuItem("MENU_SAVE_JSON").setEnabled(methodCount > 0);
-
-          mainFrame.getTextField("TXT_CLASSES").setText("" + callGraph.getClassCount());
-          mainFrame.getTextField("TXT_METHODS").setText("" + methodCount);
-          
-          // update the thread count display
-          int threads = debugLogger.getThreadCount();
-          if (threads > 1) {
-            setThreadEnabled(true);
-          }
-          graphSetupFrame.getLabel("LBL_THREADS").setText("Threads: " + threads);
         }
+
+        // enable/disable Call Graph save buttons based on whether there is anything to save
+        int methodCount = callGraph.getMethodCount();
+        getMenuItem("MENU_SAVE_CGRAPH").setEnabled(methodCount > 0);
+        getMenuItem("MENU_SAVE_JSON").setEnabled(methodCount > 0);
+
+        mainFrame.getTextField("TXT_CLASSES").setText("" + callGraph.getClassCount());
+        mainFrame.getTextField("TXT_METHODS").setText("" + methodCount);
+          
+        // update the thread count display
+        int threads = debugLogger.getThreadCount();
+        if (threads > 1) {
+          setThreadEnabled(true);
+        }
+        graphSetupFrame.getLabel("LBL_THREADS").setText("Threads: " + threads);
       }
     }
   }

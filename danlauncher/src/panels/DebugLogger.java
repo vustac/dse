@@ -9,7 +9,6 @@ import callgraph.CallGraph;
 import callgraph.MethodInfo;
 import logging.FontInfo;
 import logging.Logger;
-import main.LauncherMain;
 import util.Utils;
 
 import java.awt.event.AdjustmentEvent;
@@ -236,7 +235,7 @@ public class DebugLogger {
       // save it in case the next read returns the rest of the line. If the previous line was also
       // invalid, concatenate this line to the previous one and see if we have a valid line now.
       // If not, let's assume we can't correct it.
-      System.err.println("ERROR (" + msgInfo.error + "): processMessage: invalid input: " + message);
+      Utils.printStatusError(msgInfo.error + ": processMessage: invalid input: " + message);
       if (!lineError) {
         // no previous line error - save current data for concatenation to next line read
         lastMessage = message;
@@ -248,10 +247,10 @@ public class DebugLogger {
         if (!msgInfo.valid) {
           // nope - just indicate we lost the line
           lineError = true;
-          Utils.printStatusError("invalid input syntax: " + lastMessage + message);
+          Utils.printStatusError("processMessage: invalid input syntax: " + lastMessage + message);
           return null;
         }
-        System.err.println("FIXED !");
+        Utils.printStatusError("processMessage: FIXED !");
       }
     }
 
@@ -469,16 +468,10 @@ public class DebugLogger {
       // check if end or start of buffer reached
       if ((scrollBar.getValue() + scrollBar.getVisibleAmount() >= scrollBar.getMaximum()) &&
                   scrollPosition != ScrollPosition.END) {
-        //System.out.println("* Reached end of buffer - unpause *");
         scrollPosition = ScrollPosition.END;
         paused = false;
       } else if (scrollBar.getValue() == 0 && scrollPosition != ScrollPosition.START) {
         scrollPosition = ScrollPosition.START;
-        //if (logger.isBufferTruncated()) {
-        //  System.out.println("* Reached start of data - nothing to do *");
-        //} else {
-        //  System.out.println("* Reached start of buffer - need to pull from file *");
-        //}
       }
     }
     
@@ -489,20 +482,20 @@ public class DebugLogger {
     @Override
     public void keyPressed(KeyEvent ke) {
       // when the key is initially pressed
-      //System.out.println("DebugKeyListener: keyPressed: " + ke.getKeyCode());
+      //Utils.printStatusInfo("DebugKeyListener: keyPressed: " + ke.getKeyCode());
     }
 
     @Override
     public void keyTyped(KeyEvent ke) {
       // follows keyPressed and preceeds keyReleased when entered key is character type
-      //System.out.println("DebugKeyListener: keyTyped: " + ke.getKeyCode() + " = '" + ke.getKeyChar() + "'");
+      //Utils.printStatusInfo("DebugKeyListener: keyTyped: " + ke.getKeyCode() + " = '" + ke.getKeyChar() + "'");
     }
 
     @Override
     public void keyReleased(KeyEvent ke) {
       if (tabSelected) {
         // when the key has been released
-        //System.out.println("DebugKeyListener: keyReleased: " + ke.getKeyCode());
+        //Utils.printStatusInfo("DebugKeyListener: keyReleased: " + ke.getKeyCode());
         //int curpos = panel.getCaretPosition();
         switch (ke.getKeyCode()) {
           case KeyEvent.VK_UP:

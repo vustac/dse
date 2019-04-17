@@ -448,13 +448,13 @@ public class SymbolTable {
     String basenane = title.toUpperCase();
     JButton button = optionsPanel.getButton("BTN_EDIT_" + basenane);
     if (button == null) {
-      System.err.println("editorButtonSelect: not found: BTN_EDIT_" + basenane);
+      Utils.printStatusError("SymbolTable: not found: BTN_EDIT_" + basenane);
       System.exit(1);
     }
 
     JTextField text = optionsPanel.getTextField("TXT_EDIT_" + basenane);
     if (text == null) {
-      System.err.println("editorButtonSelect: not found: TXT_EDIT_" + basenane);
+      Utils.printStatusError("SymbolTable: not found: TXT_EDIT_" + basenane);
       System.exit(1);
     }
     

@@ -78,7 +78,7 @@ public class Logger {
         textArea.setAutoscrolls(true);
         break;
       default:
-        System.err.println("ERROR: Invalid component type for Logger!");
+        Utils.printStatusError("Logger: Invalid component type!");
         System.exit(1);
     }
 
@@ -248,10 +248,10 @@ public class Logger {
           }
           textPane.getDocument().remove(0, start);
           len = textPane.getDocument().getLength();
-//          System.out.println("Reduced text from " + oldlen + " to " + len);
+//          Utils.printStatusInfo("Reduced text from " + oldlen + " to " + len);
           bufferTruncated = true;
         } catch (BadLocationException ex) {
-          System.out.println(ex.getMessage());
+          Utils.printStatusError("Logger.appendToPane: " + ex.getMessage());
         }
       }
 

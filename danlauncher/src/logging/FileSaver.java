@@ -24,27 +24,31 @@ import util.Utils;
     private static PrintWriter storageWriter;
     private static PrintWriter writer;
     private static BufferedReader reader;
-    private static LinkedBlockingQueue<String> queue;
+    private static final LinkedBlockingQueue<String> QUEUE = new LinkedBlockingQueue<>();
 
-    public FileSaver(LinkedBlockingQueue<String> recvBuffer) {
-      queue = recvBuffer;
+    public FileSaver() {
       reader = null;
       writer = null;
       storageWriter = null;
 
       // setup the file to save the data in
       startBufferFile();
-      System.out.println("FileSaver: started");
+      Utils.printStatusInfo("FileSaver: created file cache");
     }
     
     @Override
     public void run() {
       // wait for input and copy to file
+      Utils.printStatusInfo("FileSaver thread started!");
       while(true) {
-        if (!queue.isEmpty()) {
+        synchronized (QUEUE) {
           try {
+            // wait for input if none
+            while (QUEUE.isEmpty()) {
+              QUEUE.wait();
+            }
             // read next message from input buffer
-            String message = queue.take();
+            String message = QUEUE.take();
 
             // append message to buffer file
             if (writer != null) {
@@ -58,14 +62,18 @@ import util.Utils;
               storageWriter.flush();
             }
           } catch (InterruptedException ex) {
-            System.out.println("FileSaver: " + ex.getMessage());
+            Thread.currentThread().interrupt();
+            //Utils.printStatusError("FileSaver: " + ex.getMessage());
           }
         }
       }
     }
 
+    /**
+     * close up shop
+     */
     public void exit() {
-      System.out.println("FileSaver: closing");
+      Utils.printStatusInfo("FileSaver: closing");
       if (writer != null) {
         writer.close();
         writer = null;
@@ -76,19 +84,59 @@ import util.Utils;
       }
     }
     
+    /**
+     * returns the number of messages currently in the queue
+     * 
+     * @return number of messages in queue
+     */
+    public int getQueueSize() {
+      return QUEUE.size();
+    }
+  
+    /**
+     * erases the contents of the log queue
+     */
+    public void clear() {
+      QUEUE.clear();
+    }
+
+    /**
+     * place a message in the queue for output to the log display.
+     * 
+     * @param message - the message to display
+     */
+    public void saveMessage(String message) {
+      synchronized (QUEUE) {
+        try {
+          QUEUE.put(message);
+          QUEUE.notifyAll();
+        } catch (InterruptedException ex) {
+          // ignore
+        }
+      }
+    }
+    
+    /**
+     * get the next message from the queue to display.
+     * 
+     * @return - the message to display
+     */
     public String getNextMessage() {
       String message = null;
       if (reader != null) {
         try {
           message = reader.readLine();
         } catch (IOException ex) {
-          System.out.println("getNextMessage: " + ex.getMessage());
+          Utils.printStatusError("FileSaver.getNextMessage: " + ex.getMessage());
         }
       }
 
       return message;
     }
     
+    /**
+     * initializes the log file messages
+     */
     public void resetInput() {
       String message = "# Logfile started: " + LocalDateTime.now();
       message = message.replace('T', ' ');
@@ -108,6 +156,11 @@ import util.Utils;
       }
     }
     
+    /**
+     * change the location of the file to use for caching the log information
+     * 
+     * @param fname - path and name of the logfile to use
+     */
     public void setStorageFile(String fname) {
       // ignore if name was not changed
       if (fname == null || fname.isEmpty()) {
@@ -117,19 +170,19 @@ import util.Utils;
       try {
         // close any current storage writer
         if (storageWriter != null) {
-          System.out.println("FileSaver: closing storage writer");
+          Utils.printStatusInfo("FileSaver: closing storage writer");
           storageWriter.close();
         }
 
         // remove any existing file
         File file = new File(fname);
         if (file.isFile()) {
-          System.out.println("FileSaver: deleting file");
+          Utils.printStatusInfo("FileSaver: deleting old file");
           file.delete();
         }
 
         // set the buffer file to use for saving to project
-        System.out.println("FileSaver: writing to " + fname);
+        Utils.printStatusInfo("FileSaver: writing to " + fname);
         storageWriter = new PrintWriter(new FileWriter(fname, true));
 
 //        // output time log started
@@ -138,7 +191,7 @@ import util.Utils;
 //        storageWriter.write(message + Utils.NEWLINE);
 //        storageWriter.flush();
       } catch (IOException ex) {  // includes FileNotFoundException
-        System.out.println(ex.getMessage());
+        Utils.printStatusError("FileSaver: " + ex.getMessage());
       }
     }
 
@@ -147,6 +200,7 @@ import util.Utils;
       String bufferPath = System.getProperty("user.home") + "/.danlauncher/";
       File file = new File(bufferPath);
       if (!file.isDirectory()) {
+        Utils.printStatusInfo("FileSaver: creating path: " + bufferPath);
         file.mkdirs();
       }
       
@@ -154,21 +208,21 @@ import util.Utils;
       String fname = bufferPath + "debug.log";
       file = new File(fname);
       if (file.isFile()) {
-        System.out.println("FileSaver: deleting buffer file");
+        Utils.printStatusInfo("FileSaver: deleting buffer file");
         file.delete();
       }
 
       try {
         // set the buffer file to use for using in launcher
-        System.out.println("FileSaver: buffer at: " + fname);
+        Utils.printStatusInfo("FileSaver: buffer at: " + fname);
         writer = new PrintWriter(new FileWriter(fname, true));
 
         // attach new file reader for output to gui
         reader = new BufferedReader(new FileReader(new File(fname)));
-        System.out.println("FileSaver: reader status: " + reader.ready());
+        Utils.printStatusInfo("FileSaver: reader status: " + reader.ready());
 
       } catch (IOException ex) {  // includes FileNotFoundException
-        System.out.println(ex.getMessage());
+        Utils.printStatusError("FileSaver: " + ex.getMessage());
       }
     }
 

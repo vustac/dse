@@ -48,23 +48,23 @@ public class RunnerThread extends Thread {
     @Override
     public void run() {
       try {
-        System.out.println("--------------------------------------------------------------------------------");
+        Utils.printStatusInfo("--------------------------------------------------------------------------------");
         if (workingdir == null) {
-          System.out.println("RunnerThread running from current directory");
+          Utils.printStatusInfo("RunnerThread running from current directory");
         } else {
-          System.out.println("RunnerThread running from path: " + workingdir);
+          Utils.printStatusInfo("RunnerThread running from path: " + workingdir);
         }
-        System.out.println(String.join(" ", command));
+        Utils.printStatusInfo(String.join(" ", command));
         
         running = true;
         exitcode = issueCommand(this.command);
         running = false;
       } catch (InterruptedException e){
-        System.err.println("--INTERRUPTED--");
+        Utils.printStatusWarning("--INTERRUPTED--");
         proc.destroyForcibly();
         running = false;
       } catch (Exception e) {
-        System.err.println("ERROR: Failure in issueCommand for: " + this.command[0]);
+        Utils.printStatusError("Failure in issueCommand for: " + this.command[0]);
       }
     }
     
@@ -168,13 +168,13 @@ public class RunnerThread extends Thread {
         System.setErr(printStream);
       }
         
-      System.out.println("--------------------------------------------------------------------------------");
+      Utils.printStatusInfo("--------------------------------------------------------------------------------");
       if (workingdir == null) {
-        System.out.println("RunnerThread running from current directory");
+        Utils.printStatusInfo("RunnerThread running from current directory");
       } else {
-        System.out.println("RunnerThread running from path: " + workingdir);
+        Utils.printStatusInfo("RunnerThread running from path: " + workingdir);
       }
-      System.out.println(String.join(" ", command));
+      Utils.printStatusInfo(String.join(" ", command));
       proc = builder.start();
       pid = getPidOfProcess(proc);
 
@@ -189,7 +189,7 @@ public class RunnerThread extends Thread {
           System.out.println(status);
         }
         if (killProcess) {
-          System.out.println("--KILLING--");
+          Utils.printStatusInfo("--KILLING--");
           proc.getInputStream().close();
           proc.getOutputStream().close();	
           proc.getErrorStream().close();
@@ -204,7 +204,7 @@ public class RunnerThread extends Thread {
       }
 
       retcode = proc.exitValue();
-      System.out.println("process " + pid + " exit code = " + retcode);
+      Utils.printStatusInfo("process " + pid + " exit code = " + retcode);
       proc.destroy();
       stdin = null;
 

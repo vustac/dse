@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
 import logging.Logger;
+import util.Utils;
 
 /**
  *
@@ -22,15 +23,13 @@ public class PropertiesFile {
   private String propertiesName;
   private String propPath;
   private String propFile;
-  private Logger logger;
   private Properties props;
 
-  PropertiesFile (String path, String name, Logger log) {
+  PropertiesFile (String path, String name) {
 
     propertiesName = name;
     propPath = path.endsWith("/") ? path : path + "/";
     propFile = propPath + "site.properties";
-    logger = log;
     props = null;
 
     FileInputStream in = null;
@@ -43,15 +42,15 @@ public class PropertiesFile {
         props.load(in);
         return; // success!
       } catch (FileNotFoundException ex) {
-        logError("ERROR: FileNotFoundException - " + propFile);
+        Utils.printStatusError("PropertiesFile: FileNotFoundException - " + propFile);
       } catch (IOException ex) {
-        logError("ERROR: IOException on FileInputStream - " + propFile);
+        Utils.printStatusError("PropertiesFile: IOException on FileInputStream - " + propFile);
       } finally {
         if (in != null) {
           try {
             in.close();
           } catch (IOException ex) {
-            logError("ERROR: IOException on close - " + propFile);
+            Utils.printStatusError("PropertiesFile: IOException on close - " + propFile);
           }
         }
       }
@@ -67,37 +66,17 @@ public class PropertiesFile {
       }
 
       // now save properties file
-      logMessage("Creating new site.properties file for " + propertiesName);
+      Utils.printStatusInfo("Creating new site.properties file for " + propertiesName);
       File file = new File(propFile);
       try (FileOutputStream fileOut = new FileOutputStream(file)) {
         props.store(fileOut, "Initialization");
       }
     } catch (IOException ex) {
-      logError("ERROR: IOException on FileOutputStream - " + propFile);
+      Utils.printStatusError("PropertiesFile: IOException on FileOutputStream - " + propFile);
       props = null;
     }
   }
     
-  PropertiesFile (String path, String name) {
-    this(path, name, null);
-  }
-
-  private void logMessage(String message) {
-    if(logger == null) {
-      System.out.println(message);
-    } else {
-      logger.printLine(message);
-    }
-  }
-  
-  private void logError(String message) {
-    if(logger == null) {
-      System.err.println(message);
-    } else {
-      logger.printLine(message);
-    }
-  }
-
   public boolean isPropertiesDefined (String tag) {
     if (props != null && tag != null && !tag.isEmpty()) {
       String value = props.getProperty(tag);
@@ -115,12 +94,12 @@ public class PropertiesFile {
 
     String value = props.getProperty(tag);
     if (value == null || value.isEmpty()) {
-      //logError(propertiesName + " site.properties <" + tag + "> : not found, setting to " + dflt);
+      //Utils.printStatusWarning(propertiesName + " site.properties <" + tag + "> : not found, setting to " + dflt);
       setPropertiesItem (tag, dflt);
       return dflt;
     }
 
-    //logMessage(propertiesName + " <" + tag + "> = " + value);
+    //Utils.printStatusInfo(propertiesName + " <" + tag + "> = " + value);
     return value;
   }
   
@@ -142,16 +121,16 @@ public class PropertiesFile {
           old_value = "";
         }
         if (!old_value.equals(value)) {
-          logMessage(propertiesName + " <" + tag + "> set to " + value);
+          Utils.printStatusInfo(propertiesName + " <" + tag + "> set to " + value);
         }
         props.setProperty(tag, value);
         FileOutputStream out = new FileOutputStream(propFile);
         props.store(out, "---No Comment---");
         out.close();
       } catch (FileNotFoundException ex) {
-        logError("ERROR: FileNotFoundException - " + propFile);
+        Utils.printStatusError("PropertiesFile: FileNotFoundException - " + propFile);
       } catch (IOException ex) {
-        logError("ERROR: IOException on FileOutputStream - " + propFile);
+        Utils.printStatusError("PropertiesFile: IOException on FileOutputStream - " + propFile);
       }
     }
   }  
@@ -166,7 +145,7 @@ public class PropertiesFile {
       }
     } catch (NumberFormatException ex) { }
 
-    logError("ERROR: invalid value for SystemProperties " + tag + ": " + value);
+    Utils.printStatusError("PropertiesFile: invalid value for SystemProperties " + tag + ": " + value);
     setPropertiesItem(tag, "" + dflt);
     return dflt;
   }

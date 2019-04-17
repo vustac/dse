@@ -8,6 +8,7 @@ package main;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import util.Utils;
 
 /**
  *
@@ -29,10 +30,10 @@ public class SolverInterface {
     try {
       tcpDataSocket = new Socket(serverAddress, serverPort);
       tcpDataOut = new BufferedOutputStream(tcpDataSocket.getOutputStream());
-      System.out.println("Started SolverInterface to " + serverAddress + " port " + serverPort);
+      Utils.printStatusInfo("SolverInterface started on " + serverAddress + " port " + serverPort);
       valid = true;
     } catch (SecurityException | IOException ex) {
-      System.err.println("ERROR: <SolverInterface.initSocket>" + ex.getMessage());
+      Utils.printStatusError("SolverInterface: " + ex.getMessage());
       valid = false;
 //      System.exit(1);
     }
@@ -47,7 +48,7 @@ public class SolverInterface {
         tcpDataOut.close();
       }
     } catch (IOException ex) {
-      System.err.println(ex.getMessage());
+      Utils.printStatusError("SolverInterface: " + ex.getMessage());
     }
   }
   
@@ -69,12 +70,12 @@ public class SolverInterface {
   
   public void sendMessage(String msg) {
     if (!valid) {
-      System.err.println("ERROR: <SolverInterface.sendMessage> - port failure");
+      Utils.printStatusError("SolverInterface.sendMessage: port failure");
       return;
     }
     
     // format the message to send (the ids MUST be 4 chars in length)
-    //System.out.println("Sending msg to Solver: " + msg);
+    Utils.msgLogger(Utils.LogType.INFO, "Sending msg to Solver: " + msg);
     msg += NEWLINE;
 
     // now send the message
@@ -82,7 +83,7 @@ public class SolverInterface {
       tcpDataOut.write(msg.getBytes());
       tcpDataOut.flush();
     } catch (IOException | NullPointerException ex) {
-      System.err.println("ERROR: <SolverInterface.sendMessage>" + ex.getMessage());
+      Utils.printStatusError("SolverInterface.sendMessage: " + ex.getMessage());
     }
   }
 }

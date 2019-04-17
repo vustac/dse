@@ -14,7 +14,10 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.Date;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import main.LauncherMain;
@@ -29,9 +32,16 @@ public class Utils {
 
   public enum LogType { ERROR, WARNING, INFO }
   
-  private static final Logger LOGGER = Logger.getLogger("MyLog");
+  private static Logger LOGGER = null;
   private static FileHandler fh;
   
+  // modify the formatting of the logger
+  static {
+      System.setProperty("java.util.logging.SimpleFormatter.format",
+              "[%1$tF %1$tT.%1$tL] [%4$-7s] %5$s %n");
+      LOGGER = Logger.getLogger(Utils.class.getName());
+  }
+
   public static void msgLoggerInit(String fname) {
     try {
       fh = new FileHandler(fname);  
@@ -94,17 +104,20 @@ public class Utils {
     String content = "";
     File file = new File(filename);
     if (!file.isFile()) {
-      printStatusError("file not found: " + filename);
+      printStatusError("Utils.readTextFile: file not found: " + filename);
     } else {
       try {
         FileReader fileReader = new FileReader(file);
         BufferedReader bufferedReader = new BufferedReader(fileReader);
         String line;
+        int count = 0;
         while ((line = bufferedReader.readLine()) != null) {
           content += line + NEWLINE;
+          ++count;
         }
+        printStatusInfo("Text file `" + filename + "' read: " + count + " lines");
       } catch (IOException ex) {
-        printStatusError(ex.getMessage());
+        printStatusError("Utils.readTextFile: " + ex.getMessage());
       }
     }
 
@@ -118,6 +131,7 @@ public class Utils {
       String newpathname = filename.substring(0, offset);
       File newpath = new File(newpathname);
       if (!newpath.isDirectory()) {
+        printStatusInfo("Created new path: " + newpathname);
         newpath.mkdirs();
       }
     }
@@ -125,8 +139,13 @@ public class Utils {
     // delete file if it already exists
     File file = new File(filename);
     if (file.isFile()) {
+      printStatusInfo("Old text file deleted: " + filename);
       file.delete();
     }
+    
+    // determine number of lines in content
+    String[] array = content.split(NEWLINE);
+    int count = array.length;
     
     // create a new file and copy text contents to it
     BufferedWriter bw = null;
@@ -134,14 +153,15 @@ public class Utils {
       FileWriter fw = new FileWriter(file);
       bw = new BufferedWriter(fw);
       bw.write(content);
+      printStatusInfo("Text file `" + filename + "' written: " + count + " lines, " + content.length() + " chars");
     } catch (IOException ex) {
-      printStatusError(ex.getMessage());
+      printStatusError("Utils.saveTextFile: " + ex.getMessage());
     } finally {
       if (bw != null) {
         try {
           bw.close();
         } catch (IOException ex) {
-          printStatusError(ex.getMessage());
+          printStatusError("Utils.saveTextFile: " + ex.getMessage());
         }
       }
     }
@@ -169,11 +189,12 @@ public class Utils {
     //builder.excludeFieldsWithoutExposeAnnotation().create();
     Gson gson = builder.create();
     gson.toJson(object, bw);
+    printStatusInfo("JSON file written: " + file.getAbsolutePath());
 
     try {
       bw.close();
     } catch (IOException ex) {
-      printStatusError(ex.getMessage());
+      printStatusError("Utils.saveAsJSONFile: " + ex.getMessage());
     }
   }
   

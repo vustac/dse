@@ -84,7 +84,7 @@ public class HelpLogger {
     panel = (JTextPane) logger.getTextPanel();
     scrollPanel = logger.getScrollPanel();
     if (scrollPanel == null) {
-      System.err.println("ERROR: HelpLogger failed to create a Scroll Pane");
+      Utils.printStatusError("HelpLogger failed to create a Scroll Pane");
       System.exit(1);
     }
 
@@ -844,20 +844,20 @@ public class HelpLogger {
     @Override
     public void keyPressed(KeyEvent ke) {
       // when the key is initially pressed
-      //System.out.println("DebugKeyListener: keyPressed: " + ke.getKeyCode());
+      //Utils.printStatusInfo("HelpKeyListener: keyPressed: " + ke.getKeyCode());
     }
 
     @Override
     public void keyTyped(KeyEvent ke) {
       // follows keyPressed and preceeds keyReleased when entered key is character type
-      //System.out.println("DebugKeyListener: keyTyped: " + ke.getKeyCode() + " = '" + ke.getKeyChar() + "'");
+      //Utils.printStatusInfo("HelpKeyListener: keyTyped: " + ke.getKeyCode() + " = '" + ke.getKeyChar() + "'");
     }
 
     @Override
     public void keyReleased(KeyEvent ke) {
       if (tabSelected) {
         // when the key has been released
-        //System.out.println("DebugKeyListener: keyReleased: " + ke.getKeyCode());
+        //Utils.printStatusInfo("HelpKeyListener: keyReleased: " + ke.getKeyCode());
         //int curpos = panel.getCaretPosition();
         switch (ke.getKeyCode()) {
           case KeyEvent.VK_ESCAPE:

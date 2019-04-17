@@ -244,7 +244,7 @@ public class Recorder {
     try {
       br = new BufferedReader(new FileReader(file));
     } catch (FileNotFoundException ex) {
-      System.err.println(ex.getMessage());
+      Utils.printStatusError("Recorder: JSON file not found: " + file.getAbsolutePath());
       return;
     }
     

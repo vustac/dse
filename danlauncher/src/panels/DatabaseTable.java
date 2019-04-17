@@ -723,7 +723,7 @@ public class DatabaseTable {
 
     @Override
     public void actionPerformed (ActionEvent evt) {
-//System.out.println("UpArrowAction: old row = " + rowSelection);
+      //Utils.printStatusInfo("DatabaseTable.UpArrowAction: old row = " + rowSelection);
       JTable table = (JTable) evt.getSource();
 
       // if selection is not at the min, decrement the row selection
@@ -747,7 +747,7 @@ public class DatabaseTable {
 
     @Override
     public void actionPerformed (ActionEvent evt) {
-//System.out.println("DnArrowAction: old row = " + rowSelectionrowSelection);
+      //Utils.printStatusError("DatabaseTable.DnArrowAction: old row = " + rowSelectionrowSelection);
       JTable table = (JTable) evt.getSource();
       int maxrow = table.getRowCount();
 
@@ -782,8 +782,8 @@ public class DatabaseTable {
         }
                     
         colSortSelection = newSelection;
-//System.out.println("HeaderMouseListener: (" + evt.getX() + "," + evt.getY() + ") -> col "
-//+ newSelection + " = " + getColumnName(newSelection));
+        //Utils.printStatusInfo("HeaderMouseListener: (" + evt.getX() + "," + evt.getY() + ") -> col "
+        //+ newSelection + " = " + getColumnName(newSelection));
 
         // sort the table entries based on current selections
         tableSortAndDisplay(colSortSelection, bSortOrder);

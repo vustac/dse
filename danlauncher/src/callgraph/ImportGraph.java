@@ -141,7 +141,7 @@ public class ImportGraph {
       // ignore the <clinit>methods - they are not included in the methods provided by Janalyzer.
       // Also some <init> methods are excluded if they are only initializing parameters.
       if (!methcall.contains("<clinit>") && !methcall.contains("<init>")) {
-        System.err.println("ImportGraph: Method not found: " + methcall);
+        Utils.printStatusWarning("ImportGraph: Method not found: " + methcall);
       }
     }
     return false;

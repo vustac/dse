@@ -38,6 +38,7 @@ import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.WindowConstants;
+import util.Utils;
 
 /**
  *
@@ -322,11 +323,11 @@ public class GuiControls {
   }
 
   private void printError(String message) {
-    System.err.println(message);
+    Utils.printStatusWarning(message);
   }
   
   private void printFatal(String message) {
-    printError("FATAL " + message);
+    Utils.printStatusError(message);
     System.exit(1);
   }
   
@@ -1519,7 +1520,7 @@ public class GuiControls {
 
     // determine if we want to fill container's width or height
     Dimension dim = getPanelSize(panelname);
-    //System.out.println("Panel size = { " + dim.width + ", " + dim.height + " }");
+    //Utils.printStatusInfo("Panel size = { " + dim.width + ", " + dim.height + " }");
     width  = (width == 0) ? dim.width : width;
     height = (height == 0) ? dim.height : height;
 

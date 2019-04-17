@@ -698,7 +698,7 @@ public class CallGraph {
     graphMethList = gson.fromJson(br, methodListType);
     Utils.printStatusInfo("loaded CallGraph: " + graphMethList.size() + " methods from file " + file.getName());
     if (graphMethList != null && !graphMethList.isEmpty() && graphMethList.get(0).getMethodName() == null) {
-      System.out.println("converting from methods-only list");
+      Utils.printStatusInfo("converting from methods-only list");
       // must be a methods only list, let's fix the invalid entries
       for (int ix = 0; ix < graphMethList.size(); ix++) {
         graphMethList.get(ix).convert();
@@ -740,7 +740,7 @@ public class CallGraph {
     
 //    // ignore invalid method name - the data read was invalid!
 //    if (!method.contains(".") || !method.contains("(") || !method.contains(")")) {
-//      System.err.println("ERROR: method invalid: " + method);
+//      Utils.printStatusError("method invalid: " + method);
 //      return;
 //    }
 
