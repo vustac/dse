@@ -532,6 +532,8 @@ public class GuiControls {
   }
   
   public void setInputControl(String name, InputControl type, String value) {
+    Utils.printStatusInfo("setInputControl " + name + " (" + type.toString() + ") set to: '" + value + "'");
+    
     // get the selected device
     Component control = getInputDevice(name, type);
     if (control == null) {

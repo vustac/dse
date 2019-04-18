@@ -242,6 +242,7 @@ public class DatabaseTable {
         
     // create a timer for updating the cloud job information
     databaseTimer = new Timer(4000, new DatabaseUpdateListener());
+    Utils.printStatusInfo("START - Database Timer (4 sec)");
     databaseTimer.start();
 
     // create up & down key handlers for cloud row selection
@@ -270,6 +271,7 @@ public class DatabaseTable {
   }
   
   public void exit() {
+    Utils.printStatusInfo("STOP - Database Timer");
     databaseTimer.stop();
   }
   

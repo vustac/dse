@@ -11,7 +11,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
-import logging.Logger;
 import util.Utils;
 
 /**
@@ -40,11 +39,13 @@ public class PropertiesFile {
         in = new FileInputStream(propFile);
         props = new Properties();
         props.load(in);
+        Utils.printStatusInfo(propertiesName + " found at: " + propPath);
         return; // success!
       } catch (FileNotFoundException ex) {
-        Utils.printStatusError("PropertiesFile: FileNotFoundException - " + propFile);
+        Utils.printStatusError(propertiesName + " not found for: " + propPath);
       } catch (IOException ex) {
         Utils.printStatusError("PropertiesFile: IOException on FileInputStream - " + propFile);
+        return;
       } finally {
         if (in != null) {
           try {
@@ -66,7 +67,7 @@ public class PropertiesFile {
       }
 
       // now save properties file
-      Utils.printStatusInfo("Creating new site.properties file for " + propertiesName);
+      Utils.printStatusInfo(propertiesName + " - created new site.properties file");
       File file = new File(propFile);
       try (FileOutputStream fileOut = new FileOutputStream(file)) {
         props.store(fileOut, "Initialization");
@@ -94,12 +95,12 @@ public class PropertiesFile {
 
     String value = props.getProperty(tag);
     if (value == null || value.isEmpty()) {
-      //Utils.printStatusWarning(propertiesName + " site.properties <" + tag + "> : not found, setting to " + dflt);
+      //Utils.printStatusWarning(propertiesName + " site.properties <" + tag + "> : not found, setting to '" + dflt + "'");
       setPropertiesItem (tag, dflt);
       return dflt;
     }
 
-    //Utils.printStatusInfo(propertiesName + " <" + tag + "> = " + value);
+    //Utils.printStatusInfo(propertiesName + " <" + tag + "> = '" + value + "'");
     return value;
   }
   
@@ -117,11 +118,8 @@ public class PropertiesFile {
           value = "";
         }
         String old_value = props.getProperty(tag);
-        if (old_value == null) {
-          old_value = "";
-        }
-        if (!old_value.equals(value)) {
-          Utils.printStatusInfo(propertiesName + " <" + tag + "> set to " + value);
+        if (old_value == null || !old_value.equals(value)) {
+          Utils.printStatusInfo(propertiesName + " <" + tag + "> set to '" + value + "'");
         }
         props.setProperty(tag, value);
         FileOutputStream out = new FileOutputStream(propFile);
