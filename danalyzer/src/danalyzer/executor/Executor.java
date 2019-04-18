@@ -932,6 +932,48 @@ public class Executor {
   }
 
   /**
+   * converts an array returned from an un-instrumented method into a combo value placed in
+   * the array map and returns a reference Value for it.
+   * 
+   * @param val  - the array (primitives or Objects)
+   * @param type - the data type for the array
+   * 
+   * @return a reference Value for the array that was placed in the map
+   */
+  private Value makeReturnArray(Object val, int type) {
+    // simple array: create a Value-array from the array of primitives or Objects
+    Value[] combo = Util.cvtValueArray(threadId, val, type);
+    
+    // save the combo entry in the map and get its assigned ref index
+    int arrCnt = ExecWrapper.putComboValue(combo);
+
+    /* ----------debug head--------- *@*/
+    debugPrintArrayMap(threadId, arrCnt, combo);
+    // ----------debug tail---------- */
+    
+    // return the array reference value
+    return new Value(arrCnt, Value.INT32 | Value.ARY);
+  }
+  
+  /**
+   * This will replace a combo that is composed of an array of primitives or Objects into the
+   * 'normal' Value-wrapped array type.
+   * Arrays that are returned from uninstrumented methods are the unwrapped types, and are denoted
+   * by having a null value for the size entry in the combo.
+   * 
+   * @param combo - the current combo value
+   * @param type  - the data type for the array
+   */
+  private void repackCombo(Value[] combo, int type) {
+    // make sure it is not already a Value array
+    if (combo[1] == null) {
+      Value[] newarr = Util.cvtValueArray(threadId, combo[0].getValue(), type);
+      combo[0] = newarr[0];
+      combo[1] = newarr[1];
+    }
+  }
+
+  /**
    * creates the base combo array data for a mulit-dimensional array of the specified type.
    * 
    * @param dim  - an array of the size of each dimension of the array
@@ -1183,16 +1225,12 @@ public class Executor {
         exitError("setMultiArrayElement: element specified is an array of dimension " + info.dim);
         return;
       }
-      int dim = info.dim - 1;
-      if (dim < 1 || dim > dimensions.size()) {
-        dim = 0;
-      }
 
       // return the array element value
       Value arrayRef = new Value(info.arrayRef, Value.ARY | Value.INT32);
       Value[] combo = getArrayCombo(arrayRef, type);
       if (combo == null) {
-        exitError("setMultiArrayElement: combo is null at ARRAY[" + arrayRef + "]");
+        exitError("setMultiArrayElement: combo is null at ARRAY[" + info.arrayRef + "]");
         return;
       }
 
@@ -1204,7 +1242,7 @@ public class Executor {
 
       /* ----------debug head--------- *@*/
       DebugUtil.debugPrintArrays(threadId, "  setMultiArrayElement: MULTI[" + key + "][" + index +
-          "] = ARRAY[" + arrayRef + "][" + offset + "] = " + element.getValue());
+          "] = ARRAY[" + info.arrayRef + "][" + offset + "] = " + element.getValue());
       // ----------debug tail---------- */
     }
   }
@@ -1228,119 +1266,6 @@ public class Executor {
     Value arrayVal = makeNewArrayCombo(dimArray, type);
     Value multiArray = makeNewMultiArray(arrayVal, dimArray, type);
     return multiArray;
-  }
-  
-  private Value makeReturnArray(Object val, int type) {
-    Value[] combo = new Value[2];    
-    Value[] core = null;
-    Value size = null;
-
-    switch(type) {
-      case Value.CHR:
-        char[] charArr = (char[])val;
-        core = new Value[charArr.length];
-        size = new Value(charArr.length, Value.INT32);
-        for (int i = 0; i < charArr.length; i++) {
-          core[i] = new Value(charArr[i], Value.CHR);
-        }
-        break;
-      case Value.BLN:
-        boolean[] blnArr = (boolean[])val;
-        core = new Value[blnArr.length];
-        size = new Value(blnArr.length, Value.INT32);
-        for (int i = 0; i < blnArr.length; i++) {
-          core[i] = new Value(blnArr[i], Value.BLN);
-        }
-        break;
-      case Value.INT8:
-        byte[] byteArr = (byte[])val;
-        core = new Value[byteArr.length];
-        size = new Value(byteArr.length, Value.INT32);
-        for (int i = 0; i < byteArr.length; i++) {
-          core[i] = new Value(byteArr[i], Value.INT8);
-        }
-        break;
-      case Value.INT16:
-        short[] shortArr = (short[])val;
-        core = new Value[shortArr.length];
-        size = new Value(shortArr.length, Value.INT32);
-        for (int i = 0; i < shortArr.length; i++) {
-          core[i] = new Value(shortArr[i], Value.INT16);
-        }
-        break;
-      case Value.INT32:
-        int[] intArr = (int[])val;
-        core = new Value[intArr.length];
-        size = new Value(intArr.length, Value.INT32);
-        for (int i = 0; i < intArr.length; i++) {
-          core[i] = new Value(intArr[i], Value.INT32);
-        }
-        break;
-      case Value.INT64:
-        long[] longArr = (long[])val;
-        core = new Value[longArr.length];
-        size = new Value(longArr.length, Value.INT32);
-        for (int i = 0; i < longArr.length; i++) {
-          core[i] = new Value(longArr[i], Value.INT64);
-        }
-        break;
-      case Value.DBL:
-        double[] doubleArr = (double[])val;
-        core = new Value[doubleArr.length];
-        size = new Value(doubleArr.length, Value.INT32);
-        for (int i = 0; i < doubleArr.length; i++) {
-          core[i] = new Value(doubleArr[i], Value.DBL);
-        }
-        break;
-      case Value.FLT:
-        float[] floatArr = (float[])val;
-        core = new Value[floatArr.length];
-        size = new Value(floatArr.length, Value.INT32);
-        for (int i = 0; i < floatArr.length; i++) {
-          core[i] = new Value(floatArr[i], Value.FLT);
-        }
-        break;
-      case Value.STR: // treat concrete STR as REF type
-      case Value.REF:
-        Object[] objectArr = (Object[])val;
-        core = new Value[objectArr.length];
-        size = new Value(objectArr.length, Value.INT32);
-        
-        for (int i = 0; i < objectArr.length; i++) {
-          Object currObj = objectArr[i];
-          Integer objectID = ExecWrapper.getConcreteObject(currObj);
-          if (objectID != null) {
-            core[i] = new Value(objectID, Value.REF);
-          } else {
-            Map<String, Value> newMap = new HashMap<>();
-            int objCnt = ExecWrapper.putReferenceObject(newMap);
-
-            /* ----------debug head--------- *@*/
-            debugPrintObjectMap(threadId, objCnt, newMap);
-            // ----------debug tail---------- */
-
-            core[i] = new Value(objCnt, Value.REF);
-          }
-        }
-        break;
-      default:
-        break;
-    }
-    
-    /* ----------debug head--------- *@*/
-    debugPrintInfo(threadId, DebugUtil.ARRAYS, "makeReturnArray: type " + DataConvert.showValueDataType(type));
-    // ----------debug tail---------- */
-    
-    combo[0] = new Value(core, type);
-    combo[1] = size;
-    
-    int arrCnt = ExecWrapper.putComboValue(combo);
-
-    /* ----------debug head--------- *@*/
-    debugPrintArrayMap(threadId, arrCnt, combo);
-    // ----------debug tail---------- */
-    
-    return new Value(arrCnt, Value.INT32 | Value.ARY);
   }
   
   private void putSymbolicExpression(String symbolicParam, Expr ex) {
@@ -2276,11 +2201,9 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
     
     int conLength = conArray == null ? 0 : conArray.length;
 
@@ -2331,11 +2254,9 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
     
     int conLength = conArray == null ? 0 : conArray.length;
 
@@ -2386,11 +2307,9 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
     
     int conLength = conArray == null ? 0 : conArray.length;
 
@@ -2441,11 +2360,9 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
     
     int conLength = conArray == null ? 0 : conArray.length;
 
@@ -2498,11 +2415,9 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
     
     int conLength = conArray == null ? 0 : conArray.length;
 
@@ -2564,12 +2479,10 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     int type = Value.FLT;
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
     
     boolean arrsymb = combo[0].isType(Value.SYM);
     if (arrsymb) {
@@ -2628,12 +2541,10 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     int type = Value.DBL;
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
 
     boolean arrsymb = combo[0].isType(Value.SYM);
     if (arrsymb) {
@@ -2694,11 +2605,9 @@ public class Executor {
     }
     
     // get the array combo entry (and verify)
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     Value[] combo = getArrayCombo(arr, type);
-    if (combo[1] == null) {
-      // if it was returned from an uninstrumented method, we need to repack the whole stuff
-      Util.repackCombo(threadId, combo, type);
-    }
+    repackCombo(combo, type);
     
     if (arr.isType(Value.SYM)) {
       Expr valExpr = Util.getExpression(val, z3Context);
@@ -2762,10 +2671,10 @@ public class Executor {
     
     // TODO: do we need to handle symbolics here as we do for writePrimitivaArray ?
     
+    // (in case it was returned from an uninstrumented method, we need to repack info Value[])
     Value[] combo = getArrayCombo(array, DataConvert.getValueDataType(classType));
-    if (combo[1] == null) {
-      Util.repackCombo(threadId, combo, combo[0].getType());
-    }
+    repackCombo(combo, combo[0].getType());
+
     Value[] elements = (Value[]) combo[0].getValue();
     elements[conIndex] = value;
   }
@@ -4935,9 +4844,14 @@ public class Executor {
       return;
     }
     
-    // check for multi-dimensional array type
-    if (depth > 1) {
-      // extract the size of each dimension from the concrete object
+    Value newarr;
+    
+    // check the number of dimensions of the array
+    if (depth == 1) {
+      // simple array: create a Value-array from the array of primitives or Objects
+      newarr = makeReturnArray(arr, type);
+    } else {
+      // multi-dimensional: extract the size of each dimension from the concrete object
       ArrayList<Integer> dimArray = new ArrayList<>();
       Object[] marray = (Object[]) arr; // first time thru, convert object to array of level 1
       for (int ix = 0; ix < depth; ix++) {
@@ -4954,118 +4868,10 @@ public class Executor {
 
       // now create the multi-dim array
       Value arrayVal = makeNewArrayCombo(dimArray, type);
-      Value multiArray = makeNewMultiArray(arrayVal, dimArray, type);
-    
-      currentStackFrame.storeLocalVariable(slot, multiArray);
-      return;
+      newarr = makeNewMultiArray(arrayVal, dimArray, type);
     }
 
-    Value[] combo = new Value[2];    
-    Value[] core = null;
-    Value size = null;
-
-    switch(type) {
-      case Value.CHR:
-        char[] charArr = (char[])arr;
-        core = new Value[charArr.length];
-        size = new Value(charArr.length, Value.INT32);
-        for (int i = 0; i < charArr.length; i++) {
-          core[i] = new Value(charArr[i], Value.CHR);
-        }
-        break;
-      case Value.BLN:
-        boolean[] blnArr = (boolean[])arr;
-        core = new Value[blnArr.length];
-        size = new Value(blnArr.length, Value.INT32);
-        for (int i = 0; i < blnArr.length; i++) {
-          core[i] = new Value(blnArr[i], Value.BLN);
-        }
-        break;
-      case Value.INT8:
-        byte[] byteArr = (byte[])arr;
-        core = new Value[byteArr.length];
-        size = new Value(byteArr.length, Value.INT32);
-        for (int i = 0; i < byteArr.length; i++) {
-          core[i] = new Value(byteArr[i], Value.INT8);
-        }
-        break;
-      case Value.INT16:
-        short[] shortArr = (short[])arr;
-        core = new Value[shortArr.length];
-        size = new Value(shortArr.length, Value.INT32);
-        for (int i = 0; i < shortArr.length; i++) {
-          core[i] = new Value(shortArr[i], Value.INT16);
-        }
-        break;
-      case Value.INT32:
-        int[] intArr = (int[])arr;
-        core = new Value[intArr.length];
-        size = new Value(intArr.length, Value.INT32);
-        for (int i = 0; i < intArr.length; i++) {
-          core[i] = new Value(intArr[i], Value.INT32);
-        }
-        break;
-      case Value.INT64:
-        long[] longArr = (long[])arr;
-        core = new Value[longArr.length];
-        size = new Value(longArr.length, Value.INT32);
-        for (int i = 0; i < longArr.length; i++) {
-          core[i] = new Value(longArr[i], Value.INT64);
-        }
-        break;
-      case Value.DBL:
-        double[] doubleArr = (double[])arr;
-        core = new Value[doubleArr.length];
-        size = new Value(doubleArr.length, Value.INT32);
-        for (int i = 0; i < doubleArr.length; i++) {
-          core[i] = new Value(doubleArr[i], Value.DBL);
-        }
-        break;
-      case Value.FLT:
-        float[] floatArr = (float[])arr;
-        core = new Value[floatArr.length];
-        size = new Value(floatArr.length, Value.INT32);
-        for (int i = 0; i < floatArr.length; i++) {
-          core[i] = new Value(floatArr[i], Value.FLT);
-        }
-        break;
-      case Value.STR: // treat concrete STR as REF type
-      case Value.REF:
-        Object[] objectArr = (Object[])arr;
-        core = new Value[objectArr.length];
-        size = new Value(objectArr.length, Value.INT32);
-        
-        for (int i = 0; i < objectArr.length; i++) {
-          Object currObj = objectArr[i];
-          Integer objectID = ExecWrapper.getConcreteObject(currObj);
-          if (objectID != null) {
-            core[i] = new Value(objectID, Value.REF);
-          } else {
-            Map<String, Value> newMap = new HashMap<>();
-            int objCnt = ExecWrapper.putReferenceObject(newMap);
-
-            /* ----------debug head--------- *@*/
-            debugPrintObjectMap(threadId, objCnt, newMap);
-            // ----------debug tail---------- */
-
-            core[i] = new Value(objCnt, Value.REF);
-          }
-        }
-        break;
-      default:
-        break;
-    }
-    
-    combo[0] = new Value(core, type);
-    combo[1] = size;
-    
-    int arrCnt = ExecWrapper.putComboValue(combo);
-
-    /* ----------debug head--------- *@*/
-    debugPrintArrayMap(threadId, arrCnt, combo);
-    // ----------debug tail---------- */
-
-    currentStackFrame.storeLocalVariable(slot, new Value(arrCnt, type | Value.ARY));
+    currentStackFrame.storeLocalVariable(slot, newarr);
   }
 
   public void beginFrame(int maxLocals) {

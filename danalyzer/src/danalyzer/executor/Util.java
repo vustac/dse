@@ -7,7 +7,9 @@ import com.microsoft.z3.Context;
 import com.microsoft.z3.Expr;
 import com.microsoft.z3.SeqExpr;
 import danalyzer.gui.DataConvert;
+import danalyzer.gui.DebugUtil;
 import static danalyzer.gui.DebugUtil.debugPrintError;
+import static danalyzer.gui.DebugUtil.debugPrintInfo;
 import static danalyzer.gui.DebugUtil.debugPrintObjects;
 import static danalyzer.gui.DebugUtil.debugPrintObjectMap;
 import java.util.Arrays;
@@ -250,113 +252,136 @@ public class Util {
     
     return arraynew;
   }
-  
+
+  /**
+   * This will convert an array of primitives or Objects into a Value-wrapped combo array type.
+   * 
+   * @param threadId - the thread id running
+   * @param val - the current array of primitives or Objects
+   * @param type  - the data type for the array
+   */
   // who is to blame: dmcd2356
-  public static void repackCombo(int threadId, Value[] combo, int type) {
-    // make sure it is not already a Value array
-    if (combo[1] != null) {
-      return;
-    }
-    
+  public static Value[] cvtValueArray(int threadId, Object val, int type) {
+    Value[] combo = new Value[2];    
     Value[] core;
+    int size;
+
     switch (type) {
       case Value.CHR:
         {
-          char[] raw = (char[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          char[] raw = (char[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.BLN:
         {
-          boolean[] raw = (boolean[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          boolean[] raw = (boolean[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.INT8:
         {
-          byte[] raw = (byte[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          byte[] raw = (byte[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.INT16:
         {
-          short[] raw = (short[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          short[] raw = (short[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.INT32:
         {
-          int[] raw = (int[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          int[] raw = (int[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.INT64:
         {
-          long[] raw = (long[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          long[] raw = (long[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.FLT:
         {
-          float[] raw = (float[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          float[] raw = (float[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.DBL:
         {
-          double[] raw = (double[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          double[] raw = (double[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.STR:
         {
-          String[] raw = (String[]) combo[0].getValue();
-          core = new Value[raw.length];
-          for (int i = 0; i < raw.length; i++) {
+          String[] raw = (String[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
             core[i] = new Value(raw[i], type);
           }
           break;
         }
       case Value.REF:
         {
-          Object[] raw = (Object[]) combo[0].getValue();
-          core = Util.makeValueArray(threadId, Value.REF, raw.length, null);
+          Object[] raw = (Object[])val;
+          size = raw.length;
+          core = new Value[size];
+          for (int i = 0; i < size; i++) {
+            core[i] = makeNewRefValue(threadId, null);
+          }
           break;
         }
       default:
         /* ----------debug head--------- *@*/
-        debugPrintError(threadId, "repackValueArray: Invalid data type " + DataConvert.showValueDataType(type));
+        debugPrintError(threadId, "cvtValueArray: Invalid data type " + DataConvert.showValueDataType(type));
         // ----------debug tail---------- */
-        return;
+        return null;
     }
+
+    /* ----------debug head--------- *@*/
+    debugPrintInfo(threadId, DebugUtil.ARRAYS, "cvtValueArray: type " + DataConvert.showValueDataType(type));
+    // ----------debug tail---------- */
     
     // zzk makes some changes to the original one (1) we don't put ARY in combo[0] (2) len is 32-bit
     combo[0] = new Value(core, type);
-    combo[1] = new Value(core.length, Value.INT32);
+    combo[1] = new Value(size, Value.INT32);
+    return combo;
   }
   
 //  public static int convertClassType(String typstr) {
