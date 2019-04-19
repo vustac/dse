@@ -392,56 +392,59 @@ public class Instrumenter {
             
             // --- load/store from/to array section ---
             case Opcodes.AALOAD:
-              // we need to know things 
-              fore.add(new InsnNode(Opcodes.DUP2));
-              fore.add(execute("loadReferenceFromArray", "(Ljava/lang/Object;I)V"));  
+              // prior to the command, stack contains: arrayref, index
+              fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("loadReferenceFromArray", "(Ljava/lang/Object;II)V"));  
               break;
             case Opcodes.CALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
               fore.add(execute("readCharArray", "([CI)V"));
               break;            
             case Opcodes.BALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
               fore.add(execute("readByteArray", "([BI)V"));
               break;
             case Opcodes.SALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
               fore.add(execute("readShortArray", "([SI)V"));
               break;            
             case Opcodes.IALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
               fore.add(execute("readIntegerArray", "([II)V"));
               break;            
             case Opcodes.LALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
               fore.add(execute("readLongArray", "([JI)V"));
               break;            
             case Opcodes.DALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(execute("readDoubleArray", "([D)V"));
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("readDoubleArray", "([DI)V"));
               break;
             case Opcodes.FALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(execute("readFloatArray", "([F)V"));
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("readFloatArray", "([FI)V"));
               break;
             case Opcodes.AASTORE:
               // prior to the command, stack contains: arrayref, index, value
@@ -450,35 +453,43 @@ public class Instrumenter {
               fore.add(new InsnNode(Opcodes.DUP_X2));   // -> value, arrayref, index, value
               fore.add(new InsnNode(Opcodes.POP));      // -> value, arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2_X1));  // -> arrayref, index, value, arrayref, index
-              fore.add(execute("arrayStore", "([Ljava/lang/Object;I)V"));  // so this simply tacks on: arrayref, index
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("arrayStore", "([Ljava/lang/Object;II)V"));  // so this simply tacks on: arrayref, index
               break;
             case Opcodes.CASTORE:
-              fore.add(new LdcInsnNode(Value.CHR));
-              fore.add(execute("writePrimitiveArray", "(I)V"));
+              fore.add(new LdcInsnNode(Value.CHR));     // specify data type
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("writePrimitiveArray", "(II)V"));
               break;
             case Opcodes.BASTORE:
-              fore.add(new LdcInsnNode(Value.INT8));
-              fore.add(execute("writePrimitiveArray", "(I)V"));
+              fore.add(new LdcInsnNode(Value.INT8));    // specify data type
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("writePrimitiveArray", "(II)V"));
               break;
             case Opcodes.SASTORE:
-              fore.add(new LdcInsnNode(Value.INT16));
-              fore.add(execute("writePrimitiveArray", "(I)V"));
+              fore.add(new LdcInsnNode(Value.INT16));   // specify data type
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("writePrimitiveArray", "(II)V"));
               break;
             case Opcodes.IASTORE:
-              fore.add(new LdcInsnNode(Value.INT32));
-              fore.add(execute("writePrimitiveArray", "(I)V"));
+              fore.add(new LdcInsnNode(Value.INT32));   // specify data type
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("writePrimitiveArray", "(II)V"));
               break;
             case Opcodes.LASTORE:
-              fore.add(new LdcInsnNode(Value.INT64));
-              fore.add(execute("writePrimitiveArray", "(I)V"));
+              fore.add(new LdcInsnNode(Value.INT64));   // specify data type
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("writePrimitiveArray", "(II)V"));
               break;
             case Opcodes.DASTORE:
-              fore.add(new LdcInsnNode(Value.DBL));
-              fore.add(execute("writePrimitiveArray", "(I)V"));
+              fore.add(new LdcInsnNode(Value.DBL));     // specify data type
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("writePrimitiveArray", "(II)V"));
               break;
             case Opcodes.FASTORE:
-              fore.add(new LdcInsnNode(Value.FLT));
-              fore.add(execute("writePrimitiveArray", "(I)V"));
+              fore.add(new LdcInsnNode(Value.FLT));     // specify data type
+              fore.add(new LdcInsnNode(byteOffset));    // add the byte offset for the opcode
+              fore.add(execute("writePrimitiveArray", "(II)V"));
               break;
               
             // --- stack section ---

@@ -426,9 +426,9 @@ public class ExecWrapper {
     if (exec != null) exec.storeLong(index, opline);
   }
 
-  public static void loadReferenceFromArray(Object conObj, int index) {
+  public static void loadReferenceFromArray(Object conObj, int index, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.loadReferenceFromArray(conObj, index);
+    if (exec != null) exec.loadReferenceFromArray(conObj, index, opline);
   }
   
   public static void readCharArray(char[] conArray, int opline) {
@@ -456,24 +456,24 @@ public class ExecWrapper {
     if (exec != null) exec.readLongArray(conArray, opline);
   }
   
-  public static void readFloatArray(float[] conArray) {
+  public static void readFloatArray(float[] conArray, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.readFloatArray(conArray);
+    if (exec != null) exec.readFloatArray(conArray, opline);
   }
   
-  public static void readDoubleArray(double[] conArray) {
+  public static void readDoubleArray(double[] conArray, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.readDoubleArray(conArray);
+    if (exec != null) exec.readDoubleArray(conArray, opline);
   }
   
-  public static void writePrimitiveArray(int type) {
+  public static void writePrimitiveArray(int type, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.writePrimitiveArray(type);
+    if (exec != null) exec.writePrimitiveArray(type, opline);
   }
 
-  public static void arrayStore(Object[] conObj, int conIndex) {
+  public static void arrayStore(Object[] conObj, int conIndex, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.arrayStore(conObj, conIndex);
+    if (exec != null) exec.arrayStore(conObj, conIndex, opline);
   }
 
   public static void executePop() {

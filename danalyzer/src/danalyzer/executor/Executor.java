@@ -2030,7 +2030,7 @@ public class Executor {
     currentStackFrame.storeLocalVariable(index, value);
   }
 
-  public void loadReferenceFromArray(Object conObj, int index) {
+  public void loadReferenceFromArray(Object conObj, int index, int opline) {
     String opcode = "AALOAD";
     
     /* ----------debug head--------- *@*/
@@ -2444,7 +2444,7 @@ public class Executor {
     currentStackFrame.pushValue(val);
   }
   
-  public void readFloatArray(float[] conArray) {
+  public void readFloatArray(float[] conArray, int opline) {
     String opcode = "FALOAD";
     
     /* ----------debug head--------- *@*/
@@ -2506,7 +2506,7 @@ public class Executor {
     }
   }
 
-  public void readDoubleArray(double[] conArray) {
+  public void readDoubleArray(double[] conArray, int opline) {
     String opcode = "DALOAD";
     
     /* ----------debug head--------- *@*/
@@ -2570,7 +2570,7 @@ public class Executor {
   
   // who is to blame: danielbala, dmcd2356
   // who blames him: zzk
-  public void writePrimitiveArray(int type) {
+  public void writePrimitiveArray(int type, int opline) {
     String opcode = getOpcodeDataType(type) + "ASTORE";
     
     /* ----------debug head--------- *@*/
@@ -2614,7 +2614,7 @@ public class Executor {
     }
   }
 
-  public void arrayStore(Object[] conObj, int conIndex) {
+  public void arrayStore(Object[] conObj, int conIndex, int opline) {
     String opcode = "AASTORE";
     
     /* ----------debug head--------- *@*/

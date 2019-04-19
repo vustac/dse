@@ -354,7 +354,7 @@ add_dir_to_classpath "libs"
 
 # run the instrumented code with the agent
 OPTIONS="-Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib"
-BOOTCLASSPATH="-Xbootclasspath/a:${DANALYZER_REPO}dist/danalyzer.jar:${DANALYZER_REPO}lib/com.microsoft.z3.jar"
+BOOTCLASSPATH="-Xbootclasspath/a:${DANALYZER_REPO}dist/danalyzer.jar:${DANALYZER_REPO}lib/com.microsoft.z3.jar:${DANALYZER_REPO}lib/guava-27.1-jre.jar"
 AGENTPATH="-agentpath:${DANHELPER_REPO}libdanhelper.so"
 MONGO_JARS=${DANALYZER_REPO}lib/mongodb-driver-core-3.8.2.jar:${DANALYZER_REPO}lib/mongodb-driver-sync-3.8.2.jar:${DANALYZER_REPO}lib/bson-3.8.2.jar
 
