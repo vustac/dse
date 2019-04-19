@@ -431,29 +431,29 @@ public class ExecWrapper {
     if (exec != null) exec.loadReferenceFromArray(conObj, index);
   }
   
-  public static void readCharArray(char[] conArray) {
+  public static void readCharArray(char[] conArray, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.readCharArray(conArray);
+    if (exec != null) exec.readCharArray(conArray, opline);
   }
   
-  public static void readByteArray(byte[] conArray) {
+  public static void readByteArray(byte[] conArray, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.readByteArray(conArray);
+    if (exec != null) exec.readByteArray(conArray, opline);
   }
   
-  public static void readShortArray(short[] conArray) {
+  public static void readShortArray(short[] conArray, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.readShortArray(conArray);
+    if (exec != null) exec.readShortArray(conArray, opline);
   }
   
-  public static void readIntegerArray(int[] conArray) {
+  public static void readIntegerArray(int[] conArray, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.readIntegerArray(conArray);
+    if (exec != null) exec.readIntegerArray(conArray, opline);
   }
   
-  public static void readLongArray(long[] conArray) {
+  public static void readLongArray(long[] conArray, int opline) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.readLongArray(conArray);
+    if (exec != null) exec.readLongArray(conArray, opline);
   }
   
   public static void readFloatArray(float[] conArray) {
@@ -786,69 +786,69 @@ public class ExecWrapper {
     if (exec != null) exec.executeLongCompare();
   }
     
-  public static void compareIntegerEQ(int con1, int con2, int line, String method) {
+  public static void compareIntegerEQ(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerEquality("IFEQ", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerEquality("IFEQ", con1, con2, opline, method);
   }
   
-  public static void compareIntegerNE(int con1, int con2, int line, String method) {
+  public static void compareIntegerNE(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerEquality("IFNE", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerEquality("IFNE", con1, con2, opline, method);
   }
   
-  public static void compareIntegerGT(int con1, int con2, int line, String method) {
+  public static void compareIntegerGT(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerGreaterThan("IFGT", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerGreaterThan("IFGT", con1, con2, opline, method);
   }
   
-  public static void compareIntegerLE(int con1, int con2, int line, String method) {
+  public static void compareIntegerLE(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerGreaterThan("IFLE", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerGreaterThan("IFLE", con1, con2, opline, method);
   }
   
-  public static void compareIntegerLT(int con1, int con2, int line, String method) {
+  public static void compareIntegerLT(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerLessThan("IFLT", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerLessThan("IFLT", con1, con2, opline, method);
   }
   
-  public static void compareIntegerGE(int con1, int con2, int line, String method) {
+  public static void compareIntegerGE(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerLessThan("IFGE", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerLessThan("IFGE", con1, con2, opline, method);
   }
   
-  public static void compareIntegerICMPEQ(int con1, int con2, int line, String method) {
+  public static void compareIntegerICMPEQ(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerEquality("IF_ICMPEQ", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerEquality("IF_ICMPEQ", con1, con2, opline, method);
   }
   
-  public static void compareIntegerICMPNE(int con1, int con2, int line, String method) {
+  public static void compareIntegerICMPNE(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerEquality("IF_ICMPNE", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerEquality("IF_ICMPNE", con1, con2, opline, method);
   }
   
-  public static void compareIntegerICMPGT(int con1, int con2, int line, String method) {
+  public static void compareIntegerICMPGT(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerGreaterThan("IF_ICMPGT", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerGreaterThan("IF_ICMPGT", con1, con2, opline, method);
   }
   
-  public static void compareIntegerICMPLE(int con1, int con2, int line, String method) {
+  public static void compareIntegerICMPLE(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerGreaterThan("IF_ICMPLE", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerGreaterThan("IF_ICMPLE", con1, con2, opline, method);
   }
   
-  public static void compareIntegerICMPLT(int con1, int con2, int line, String method) {
+  public static void compareIntegerICMPLT(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerLessThan("IF_ICMPLT", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerLessThan("IF_ICMPLT", con1, con2, opline, method);
   }
   
-  public static void compareIntegerICMPGE(int con1, int con2, int line, String method) {
+  public static void compareIntegerICMPGE(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.compareIntegerLessThan("IF_ICMPGE", con1, con2, line, method);
+    if (exec != null) exec.compareIntegerLessThan("IF_ICMPGE", con1, con2, opline, method);
   }
   
-  public static void maxCompareIntegerICMPGE(int con1, int con2, int line, String method) {
+  public static void maxCompareIntegerICMPGE(int con1, int con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.maxCompareIntegerLessThan("IF_ICMPGE", con1, con2, line, method);
+    if (exec != null) exec.maxCompareIntegerLessThan("IF_ICMPGE", con1, con2, opline, method);
   }
   
   public static void compareFloatGreater() {
@@ -871,14 +871,14 @@ public class ExecWrapper {
     if (exec != null) exec.compareDoubleGreater("DCMPL");
   }
   
-  public static void executeIfReferenceEqual(Object con1, Object con2, int line, String method) {
+  public static void executeIfReferenceEqual(Object con1, Object con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.executeIfReferenceEqual(con1, con2, line, method);
+    if (exec != null) exec.executeIfReferenceEqual(con1, con2, opline, method);
   }
   
-  public static void executeIfReferenceNotEqual(Object con1, Object con2, int line, String method) {
+  public static void executeIfReferenceNotEqual(Object con1, Object con2, int opline, String method) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.executeIfReferenceNotEqual(con1, con2, line, method);
+    if (exec != null) exec.executeIfReferenceNotEqual(con1, con2, opline, method);
   }
 
   public static void executeIfReferenceNull(Object con1) {
@@ -1046,9 +1046,9 @@ public class ExecWrapper {
     if (exec != null) exec.invokeDynamicExit(conObj);
   }
 
-  public static void catchException(Throwable except, int line, String fullName) {
+  public static void catchException(Throwable except, int opline, String fullName) {
     Executor exec = getExecSelect();
-    if (exec != null) exec.catchException(except, line, fullName);
+    if (exec != null) exec.catchException(except, opline, fullName);
   }
 
   //================================================================

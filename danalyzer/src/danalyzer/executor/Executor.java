@@ -635,10 +635,10 @@ public class Executor {
           }
           constraintVal = new Value(Double.parseDouble(constraint.value), type);
           break;
-//        case Value.STR:
-//          // TODO: this could be used for constraining the length of a string value
-//          constraintVal = new Value(Long.parseLong(constraint.value), type);
-//          break;
+        case Value.STR:
+          // the constraint value is used for limiting the length of the string
+          constraintVal = new Value(Long.parseLong(constraint.value), type);
+          break;
         default:
           return;
       }
@@ -1645,6 +1645,7 @@ public class Executor {
     // use the concrete value if the entry on the stack is null
     Value val = currentStackFrame.getLocalVariable(index); 
     if (val == null) { // TODO: should this ever happen?
+      debugPrintWarning(threadId, "loadLocalReference: null entry on stack");
       val = new Value(conObj, type);
       currentStackFrame.storeLocalVariable(index, val);
     }
@@ -2141,13 +2142,11 @@ public class Executor {
     }
   }
   
-  private Value readSymbolicArray(int type, int conLength, Value idx, Value[] combo) {
+  private Value readSymbolicArray(int type, int conLength, Value idx, Value[] combo, int opline) {
     Value val = null;
     boolean arrSymb = combo[0].isType(Value.SYM);
     boolean idxSymb = idx.isType(Value.SYM);
         
-    int opcodeOffset = 0; // TODO: pass this in
-    
     if (arrSymb) {
       ArrayExpr core = (ArrayExpr) combo[0].getValue();
       BitVecExpr idxExpr = Util.getBitVector(idx, z3Context);
@@ -2155,9 +2154,7 @@ public class Executor {
       z3Optimize.MkMaximize(element);
       val = new Value(element, type | Value.SYM);
     } else if (idxSymb) {
-      if (!arrSymb) {
-        Util.convertCombo(combo, type, z3Context);
-      }
+      Util.convertCombo(combo, type, z3Context);
       ArrayExpr core = (com.microsoft.z3.ArrayExpr) combo[0].getValue();            
       Expr element = z3Context.mkSelect(core, (BitVecExpr) idx.getValue());
       z3Optimize.MkMaximize(element);
@@ -2176,18 +2173,18 @@ public class Executor {
     
     // only add index constraints if index is symbolic
     if (idxSymb) {
-      addArrayIndexConstraints((BitVecExpr)idx.getValue(), conLength, opcodeOffset);
+      addArrayIndexConstraints((BitVecExpr)idx.getValue(), conLength, opline);
     }
     
     return val;
   }
   
-  public void readCharArray(char[] conArray) {
+  public void readCharArray(char[] conArray, int opline) {
     String opcode = "CALOAD";
     int type = Value.CHR;
     
     /* ----------debug head--------- *@*/
-    debugPrintCommand(threadId, opcode + " - readCharArray");
+    debugPrintCommand(threadId, opcode + " - readCharArray", opline);
     // ----------debug tail---------- */
     
     Value idx = currentStackFrame.popValue();
@@ -2208,7 +2205,7 @@ public class Executor {
     int conLength = conArray == null ? 0 : conArray.length;
 
     // determine if this is a symbolic array
-    Value val = readSymbolicArray(type, conLength, idx, combo);
+    Value val = readSymbolicArray(type, conLength, idx, combo, opline);
     if (val == null) {
       // concrete array...
       // verify the index is an Integer type
@@ -2235,12 +2232,12 @@ public class Executor {
     currentStackFrame.pushValue(val);
   }
   
-  public void readByteArray(byte[] conArray) {
+  public void readByteArray(byte[] conArray, int opline) {
     String opcode = "BALOAD";
     int type = Value.INT8;
     
     /* ----------debug head--------- *@*/
-    debugPrintCommand(threadId, opcode + " - readByteArray");
+    debugPrintCommand(threadId, opcode + " - readByteArray", opline);
     // ----------debug tail---------- */
     
     Value idx = currentStackFrame.popValue();
@@ -2261,7 +2258,7 @@ public class Executor {
     int conLength = conArray == null ? 0 : conArray.length;
 
     // determine if this is a symbolic array
-    Value val = readSymbolicArray(type, conLength, idx, combo);
+    Value val = readSymbolicArray(type, conLength, idx, combo, opline);
     if (val == null) {
       // concrete array...
       // verify the index is an Integer type
@@ -2288,12 +2285,12 @@ public class Executor {
     currentStackFrame.pushValue(val);
   }
   
-  public void readShortArray(short[] conArray) {
+  public void readShortArray(short[] conArray, int opline) {
     String opcode = "SALOAD";
     int type = Value.INT16;
     
     /* ----------debug head--------- *@*/
-    debugPrintCommand(threadId, opcode + " - readShortArray");
+    debugPrintCommand(threadId, opcode + " - readShortArray", opline);
     // ----------debug tail---------- */
     
     Value idx = currentStackFrame.popValue();
@@ -2314,7 +2311,7 @@ public class Executor {
     int conLength = conArray == null ? 0 : conArray.length;
 
     // determine if this is a symbolic array
-    Value val = readSymbolicArray(type, conLength, idx, combo);
+    Value val = readSymbolicArray(type, conLength, idx, combo, opline);
     if (val == null) {
       // concrete array...
       // verify the index is an Integer type
@@ -2341,12 +2338,12 @@ public class Executor {
     currentStackFrame.pushValue(val);
   }
   
-  public void readIntegerArray(int[] conArray) {
+  public void readIntegerArray(int[] conArray, int opline) {
     String opcode = "IALOAD";
     int type = Value.INT32;
     
     /* ----------debug head--------- *@*/
-    debugPrintCommand(threadId, opcode + " - readIntegerArray");
+    debugPrintCommand(threadId, opcode + " - readIntegerArray", opline);
     // ----------debug tail---------- */
     
     Value idx = currentStackFrame.popValue();
@@ -2367,7 +2364,7 @@ public class Executor {
     int conLength = conArray == null ? 0 : conArray.length;
 
     // determine if this is a symbolic array
-    Value val = readSymbolicArray(type, conLength, idx, combo);
+    Value val = readSymbolicArray(type, conLength, idx, combo, opline);
     if (val == null) {
       // concrete array...
       // verify the index is an Integer type
@@ -2394,14 +2391,12 @@ public class Executor {
     currentStackFrame.pushValue(val);
   }
   
-  public void readLongArray(long[] conArray) {
+  public void readLongArray(long[] conArray, int opline) {
     String opcode = "LALOAD";
     int type = Value.INT64;
     
-    int opcodeOffset = 0; // TODO: pass this in
-    
     /* ----------debug head--------- *@*/
-    debugPrintCommand(threadId, opcode + " - readLongArray");
+    debugPrintCommand(threadId, opcode + " - readLongArray", opline);
     // ----------debug tail---------- */
     
     Value idx = currentStackFrame.popValue();
@@ -2421,23 +2416,11 @@ public class Executor {
     
     int conLength = conArray == null ? 0 : conArray.length;
 
-    boolean arrsymb = combo[0].isType(Value.SYM);
-    if (arrsymb) {
-      ArrayExpr core = (ArrayExpr) combo[0].getValue();
-      BitVecExpr idxExpr = Util.getBitVector(idx, z3Context);
-      Expr element = z3Context.mkSelect(core, idxExpr);
-      currentStackFrame.pushValue(new Value(element, type | Value.SYM));
-      addArrayIndexConstraints(idxExpr, conLength, opcodeOffset);
-    } else if (idx.isType(Value.SYM)) {
-      addArrayIndexConstraints((BitVecExpr)idx.getValue(), conLength, opcodeOffset);
-      if (!arrsymb) {
-        Util.convertCombo(combo, type, z3Context);
-      }
-      ArrayExpr core = (com.microsoft.z3.ArrayExpr) combo[0].getValue();            
-      Expr element = z3Context.mkSelect(core, (BitVecExpr) idx.getValue());
-      currentStackFrame.pushValue(new Value(element, type | Value.SYM));
-    } else {
-      // verify the entry is an Integer type
+    // determine if this is a symbolic array
+    Value val = readSymbolicArray(type, conLength, idx, combo, opline);
+    if (val == null) {
+      // concrete array...
+      // verify the index is an Integer type
       assertUnsignedIntValue(idx, opcode, "array index");
 
       // update the array length from the length of the concrete value if length is incorrect
@@ -2446,7 +2429,7 @@ public class Executor {
       // get the selected array entry and return it
       int index = (Integer) idx.getValue();
       Value[] core = (Value[]) combo[0].getValue();
-      Value val = core[index];
+      val = core[index];
 
       // check if we need to translate the z3 context (if sym value was generated in another thread)
       if (val != null && val.isType(Value.SYM)) {
@@ -2456,9 +2439,9 @@ public class Executor {
         val = new Value(conArray[index], type);
         core[index] = val;
       }
-
-      currentStackFrame.pushValue(val);
     }
+
+    currentStackFrame.pushValue(val);
   }
   
   public void readFloatArray(float[] conArray) {

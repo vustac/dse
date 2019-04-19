@@ -3,15 +3,11 @@ package danalyzer.instrumenter;
 //import com.sun.xml.internal.ws.org.objectweb.asm.Type;
 import danalyzer.executor.Value;
 import danalyzer.gui.DataConvert;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -404,31 +400,36 @@ public class Instrumenter {
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(execute("readCharArray", "([C)V"));
+              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(execute("readCharArray", "([CI)V"));
               break;            
             case Opcodes.BALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(execute("readByteArray", "([B)V"));
+              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(execute("readByteArray", "([BI)V"));
               break;
             case Opcodes.SALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(execute("readShortArray", "([S)V"));
+              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(execute("readShortArray", "([SI)V"));
               break;            
             case Opcodes.IALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(execute("readIntegerArray", "([I)V"));
+              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(execute("readIntegerArray", "([II)V"));
               break;            
             case Opcodes.LALOAD:
               // prior to the command, stack contains: arrayref, index
               fore.add(new InsnNode(Opcodes.DUP2));     // duplicate both params
               fore.add(new InsnNode(Opcodes.POP));      // remove index entry, so we just have arrayref
-              fore.add(execute("readLongArray", "([J)V"));
+              fore.add(new LdcInsnNode(byteOffset)); // add the byte offset for the opcode
+              fore.add(execute("readLongArray", "([JI)V"));
               break;            
             case Opcodes.DALOAD:
               // prior to the command, stack contains: arrayref, index
