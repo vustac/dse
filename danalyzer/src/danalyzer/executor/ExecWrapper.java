@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import com.google.common.collect.MapMaker;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  *
@@ -39,7 +41,8 @@ public class ExecWrapper {
   // concreteObjectLookup - concrete values for objects: K = Object value, V = refCnt
   private static int                              objectCount = 1;
   private static Map<Integer, Map<String, Value>> objectMap = new HashMap<>();
-  private static Map<Object, Integer>             concreteObjectLookup = new IdentityHashMap<>();
+  //private static Map<Object, Integer>             concreteObjectLookup = new IdentityHashMap<>();
+  private static ConcurrentMap<Object, Integer>     concreteObjectLookup = new MapMaker().weakKeys().makeMap();
   
   // ARRAYS:
   // arrayCount - key value for looking up in arrayMap
@@ -48,7 +51,8 @@ public class ExecWrapper {
   // multiSizes - multi-dim array sizes: K = ref to full array, V = size of each dimension for the array
   // multiMap   - multi-dim array references: K = refCnt, V = multi-dimensional array info
   private static int                              arrayCount = 1;
-  private static Map<Integer, Value[]>            arrayMap = new HashMap<>();
+  //private static Map<Integer, Value[]>            arrayMap = new HashMap<>();
+  private static ConcurrentMap<Integer, Value[]>  arrayMap = new MapMaker().weakKeys().makeMap();
   private static int                              multiCount = 1;
   private static Map<Integer, ArrayList<Integer>> multiSizes = new HashMap<>();
   private static Map<Integer, MultiArrayInfo>     multiMap = new HashMap<>();
@@ -164,6 +168,7 @@ public class ExecWrapper {
     return objCnt;
   }
 
+  // TODO: should be able to make this non-synchronized now that a ConcurrentMap is used
   public static synchronized boolean putConcreteObject(Object conObject, int objRef) {
     if (conObject == null || concreteObjectLookup.get(conObject) != null) {
       return false;

@@ -2723,7 +2723,8 @@ public final class LauncherMain {
     String bootlpath = "-Dsun.boot.library.path=" + javaHome + "/bin:/usr/lib:/usr/local/lib";
     String bootcpath ="-Xbootclasspath/a"
               + ":" + dsePath + "/danalyzer/dist/danalyzer.jar"
-              + ":" + dsePath + "/danalyzer/lib/com.microsoft.z3.jar";
+              + ":" + dsePath + "/danalyzer/lib/com.microsoft.z3.jar"
+              + ":" + dsePath + "/danalyzer/lib/guava-27.1-jre.jar";
     String agentpath ="-agentpath:" + dsePath + "/danhelper/" + System.mapLibraryName("danhelper");
     String classpath = instrJarFile
               + ":" + dsePath + "/danalyzer/lib/commons-io-2.5.jar"

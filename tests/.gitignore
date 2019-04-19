@@ -2,3 +2,4 @@ results/**
 .danalyzer/**
 .danlauncher/**
 *.log
+*.class
