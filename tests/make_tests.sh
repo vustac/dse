@@ -14,6 +14,7 @@ set -e
 DSE_DIR=../
 DANALYZER_DIR=`realpath ${DSE_DIR}danalyzer`
 DANHELPER_DIR=`realpath ${DSE_DIR}danhelper`
+DANPATCH_DIR=`realpath ${DSE_DIR}danpatch/build`
 
 if [[ ! -f $DANHELPER_DIR/libdanhelper.so ]]; then
   DANHELPER_DIR="${DANHELPER_DIR}/build/src"
@@ -165,7 +166,7 @@ function run_test
   fi
 
   # setup the library path for running the test
-  LIBPATH=$JAVA_HOME/bin:/usr/lib:/usr/local/lib
+  LIBPATH=$JAVA_HOME/bin:/usr/lib:/usr/local/lib:${DANPATCH_DIR}
     
   # setup the boot classpath for running the test
   classpath_init /a

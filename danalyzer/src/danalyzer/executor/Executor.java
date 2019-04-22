@@ -4486,10 +4486,12 @@ public class Executor {
       
       // make a Value array with the concrete size and fill in each entry with default values
       Value[] core = new Value[(Integer) size.getValue()];
-      for (int ix = 0; ix < (Integer)size.getValue(); ix++) {
-        core[ix] = new Value (null, type);
-      }
-      
+      NativeCode.newArrayNative(core, (Integer) size.getValue(), type);
+//      Value[] core = new Value[(Integer) size.getValue()];
+//      for (int ix = 0; ix < (Integer)size.getValue(); ix++) {
+//        core[ix] = new Value (null, type);
+//      }
+
       // create the array object entry in arrayMap and return reference to it
       Value arrayVal = putArrayCombo(core, size, type, false);
       currentStackFrame.pushValue(arrayVal);
