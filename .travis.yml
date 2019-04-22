@@ -28,7 +28,12 @@ script:
   - cd build
   - cmake ..
   - make
-  - cd ../../danalyzer
+  - cd ../danpatch
+  - mkdir build
+  - cmake .
+  - make
+  - cp src/libdanpatch.so build
+  - cd ../danalyzer
   - ant
   - cd ../dansolver
   - ant
