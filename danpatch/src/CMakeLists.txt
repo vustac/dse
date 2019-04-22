@@ -11,7 +11,6 @@ elseif(UNIX)
 endif()
 
 add_library(${PROJECT_NAME} SHARED 
-  value.cpp
   danalyzer_executor_NativeCode.cpp
 )
 

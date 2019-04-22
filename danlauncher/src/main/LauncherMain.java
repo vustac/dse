@@ -2720,7 +2720,8 @@ public final class LauncherMain {
       localpath += ":libs/*";
     }
     String options = "-Xverify:none";
-    String bootlpath = "-Dsun.boot.library.path=" + javaHome + "/bin:/usr/lib:/usr/local/lib";
+    String bootlpath = "-Dsun.boot.library.path=" + javaHome + "/bin:/usr/lib:/usr/local/lib"
+              + ":" + dsePath + "/danpatch/build";
     String bootcpath ="-Xbootclasspath/a"
               + ":" + dsePath + "/danalyzer/dist/danalyzer.jar"
               + ":" + dsePath + "/danalyzer/lib/com.microsoft.z3.jar"

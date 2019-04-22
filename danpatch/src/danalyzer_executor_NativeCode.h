@@ -12,8 +12,8 @@ extern "C" {
  * Method:    newArrayNative
  * Signature: ([Ldanalyzer/executor/Value;II)V
  */
-JNIEXPORT void JNICALL Java_danalyzer_executor_NativeCode_newArrayNative
-  (JNIEnv *, jclass, jobjectArray, jint, jint);
+JNIEXPORT jobjectArray JNICALL Java_danalyzer_executor_NativeCode_newArrayNative
+  (JNIEnv *, jclass, jint, jint);
 
 #ifdef __cplusplus
 }

@@ -8,9 +8,14 @@ set -o errexit
 set -o pipefail
 set -e
 
+# this allows you to build a single test or build them all. It will create the test build
+# directories wherever this script file is run from. A seperate directory is created for each
+# test object so they can each have independent danfig files for them.
+
 DSE_DIR=../
 DANALYZER_DIR=`realpath ${DSE_DIR}danalyzer`
 DANHELPER_DIR=`realpath ${DSE_DIR}danhelper`
+DANPATCH_DIR=`realpath ${DSE_DIR}danpatch/build`
 
 if [[ ! -f $DANHELPER_DIR/libdanhelper.so ]]; then
   DANHELPER_DIR="${DANHELPER_DIR}/build/src"
@@ -20,6 +25,16 @@ DANHELPER_FILE=libdanhelper.so
 if [[ "`uname`" == "Darwin" ]]; then
   DANHELPER_FILE=libdanhelper.dylib
 fi
+
+function classpath_init
+{
+  CLASSPATH=$1
+}
+
+function classpath_add
+{
+  CLASSPATH=${CLASSPATH}:$1
+}
 
 # create the instrumented jar file
 # NOTE: this is performed from the subdirectory created for the specified test within the "results" dir.
@@ -36,29 +51,35 @@ function instrument_test
     return
   fi
   
+  # strip debug info from jar file
+  echo "==> Stripping debug info from jar file"
   if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "Stripping debug info from jar file"
     echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
     echo
-    echo "Instrumenting jar file"
-    echo "java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
-    echo
-    echo "Rename instrumented file"
-    echo "mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar"
-    echo
   else
-    # strip debug info from jar file
-    echo "==> Stripping debug info from jar file"
     pack200 -r -G ${test}-strip.jar ${test}.jar
+
     if [[ ! -f ${test}-strip.jar ]]; then
       echo "FAILURE: stripped file not produced!"
       FAILURE=1
       return
     fi
+  fi
 
-    # instrument jar file
-    echo "==> Building instrumented jar file for '${test}'"
-    java -cp $DANALYZER_DIR/lib/asm-tree-7.2.jar:$DANALYZER_DIR/lib/asm-7.2.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/commons-io-2.5.jar:$DANALYZER_DIR/dist/danalyzer.jar danalyzer.instrumenter.Instrumenter ${test}-strip.jar
+  # setup the classpath for instrumenting the test
+  classpath_init $DANALYZER_DIR/lib/asm-tree-7.2.jar
+  classpath_add $DANALYZER_DIR/lib/asm-7.2.jar
+  classpath_add $DANALYZER_DIR/lib/com.microsoft.z3.jar
+  classpath_add $DANALYZER_DIR/lib/commons-io-2.5.jar
+  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
+
+  # instrument jar file
+  echo "==> Building instrumented jar file for '${test}'"
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
+    echo
+  else
+    java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar
 
     if [[ -f ${test}-strip-dan-ed.jar ]]; then
       mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
@@ -86,10 +107,21 @@ function run_test
     fi
   fi
   
-  # setup the classpath for the test
-  CLASSPATH=${test}-dan-ed.jar:$DANALYZER_DIR/dist/danalyzer.jar
+  # setup the library path for running the test
+  LIBPATH=$JAVA_HOME/bin:/usr/lib:/usr/local/lib:${DANPATCH_DIR}
+    
+  # setup the boot classpath for running the test
+  classpath_init /a
+  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
+  classpath_add $DANALYZER_DIR/lib/com.microsoft.z3.jar
+  classpath_add $DANALYZER_DIR/lib/guava-27.1-jre.jar
+  BOOTCPATH=${CLASSPATH}
+
+  # setup the classpath for running the test
+  classpath_init ${test}-dan-ed.jar
+  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then
-    CLASSPATH=${CLASSPATH}:lib/*
+    classpath_add lib/*
   fi
 
   # if verification requested & the danfig or check_results.sh script files are missing, skip the verification
@@ -105,14 +137,14 @@ function run_test
 
   # now run the test
   if [[ ${TESTMODE} -eq 1 ]]; then
-    echo "java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/guava-27.1-jre.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}"
+    echo "java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}"
     return
   fi
   
   # no verification - run test in foreground and wait for it to finish
   if [[ ${VERIFY} -eq 0 ]]; then
     echo "==> Running instrumented jar file"
-    java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/guava-27.1-jre.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}
+    java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}
     return
   fi
     
@@ -122,7 +154,7 @@ function run_test
   if [ ! -p inpipe ]; then
     mkfifo inpipe
   fi
-  tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib:/usr/local/lib -Xbootclasspath/a:$DANALYZER_DIR/dist/danalyzer.jar:$DANALYZER_DIR/lib/com.microsoft.z3.jar:$DANALYZER_DIR/lib/guava-27.1-jre.jar -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs} &
+  tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs} &
   pid=$!
 
   # delay just a bit to make sure app is running before starting checker

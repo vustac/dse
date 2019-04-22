@@ -13,7 +13,7 @@ import danalyzer.gui.GuiPanel;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
+//import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.google.common.collect.MapMaker;
