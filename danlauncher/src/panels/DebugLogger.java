@@ -42,7 +42,6 @@ public class DebugLogger {
   private static int             curLine;
   private static int             endLine;
   private static int             linesRead;
-  private static int             threadCount;
   private static int             errorCount;
   private static boolean         paused;
   private static boolean         tabSelected;
@@ -57,7 +56,6 @@ public class DebugLogger {
     endLine = 0;
     linesRead = 0;
     errorCount = 0;
-    threadCount = 0;
     paused = false;
     tabSelected = false;
     lineError = false;
@@ -121,7 +119,7 @@ public class DebugLogger {
   }
   
   public int getThreadCount() {
-    return threadCount;
+    return threadList.size();
   }
   
   public int getLinesRead() {
@@ -142,10 +140,10 @@ public class DebugLogger {
     endLine = 0;
     linesRead = 0;
     errorCount = 0;
-    threadCount = 0;
     paused = false;
     lineError = false;
     lastMessage = "";
+    threadList.clear();
     pauseQueue.clear();
   }
 
@@ -235,7 +233,7 @@ public class DebugLogger {
       // save it in case the next read returns the rest of the line. If the previous line was also
       // invalid, concatenate this line to the previous one and see if we have a valid line now.
       // If not, let's assume we can't correct it.
-      Utils.printStatusError(msgInfo.error + ": processMessage: invalid input: " + message);
+//      Utils.printStatusError(msgInfo.error + ": processMessage: invalid input: " + message);
       if (!lineError) {
         // no previous line error - save current data for concatenation to next line read
         lastMessage = message;
@@ -250,7 +248,7 @@ public class DebugLogger {
           Utils.printStatusError("processMessage: invalid input syntax: " + lastMessage + message);
           return null;
         }
-        Utils.printStatusError("processMessage: FIXED !");
+//        Utils.printStatusError("processMessage: FIXED !");
       }
     }
 
@@ -268,7 +266,6 @@ public class DebugLogger {
     // check if we have thread id value embedded in message contents
     if (!threadList.contains(msgInfo.tid)) {
       threadList.add(msgInfo.tid);
-      threadCount = threadList.size();
     }
 
     // get the current method that is being executed

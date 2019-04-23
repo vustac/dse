@@ -163,7 +163,7 @@ public final class LauncherMain {
   private static Timer           debugMsgTimer;
   private static Timer           graphTimer;
   private static Timer           killTimer;
-  private static Timer           timeTimer;
+  private static Timer           elapsedTimer;
   private static CallGraph.GraphHighlight  graphMode;
   private static String          projectPathName;
   private static String          projectName;
@@ -342,7 +342,7 @@ public final class LauncherMain {
     debugMsgTimer = new Timer(1, new DebugInputListener()); // reads debug msgs from instrumented code
     graphTimer = new Timer(1000, new GraphUpdateListener());  // updates the call graph
     killTimer = new Timer(2000, new KillTimerListener());  // issues kill to instrumented code
-    timeTimer = new Timer(1000, new ElapsedUpdateListener());  // updates the elapsed time display
+    elapsedTimer = new Timer(1000, new ElapsedUpdateListener());  // updates the elapsed time display
     Utils.printStatusInfo("INITIALIZATION COMPLETED!");
 }
 
@@ -599,13 +599,15 @@ public final class LauncherMain {
     gui.makeTextField  (panel, "TXT_MESSAGES" , LEFT, true , "", 138, false);
     gui.makeLabel      (panel, "LBL_0"        , LEFT, false, "Elapsed");
     gui.makeTextField  (panel, "TXT_ELAPSED"  , LEFT, false, "00:00", 8, false);
-    gui.makeLabel      (panel, "LBL_1"        , LEFT, false, "Classes");
+    gui.makeLabel      (panel, "LBL_1"        , LEFT, false, "Threads");
+    gui.makeTextField  (panel, "TXT_THREADS"  , LEFT, false, "0", 6, false);
+    gui.makeLabel      (panel, "LBL_2"        , LEFT, false, "Classes");
     gui.makeTextField  (panel, "TXT_CLASSES"  , LEFT, false, "0", 6, false);
-    gui.makeLabel      (panel, "LBL_2"        , LEFT, false, "Methods");
+    gui.makeLabel      (panel, "LBL_3"        , LEFT, false, "Methods");
     gui.makeTextField  (panel, "TXT_METHODS"  , LEFT, false, "0", 6, false);
-    gui.makeLabel      (panel, "LBL_3"        , LEFT, false, "Formulas");
+    gui.makeLabel      (panel, "LBL_4"        , LEFT, false, "Formulas");
     gui.makeTextField  (panel, "TXT_FORMULAS" , LEFT, false, "0", 6, false);
-    gui.makeLabel      (panel, "LBL_4"        , LEFT, false, "Solutions");
+    gui.makeLabel      (panel, "LBL_5"        , LEFT, false, "Solutions");
     gui.makeTextField  (panel, "TXT_SOLUTIONS", LEFT, false, "0", 6, false);
     gui.makeLabel      (panel, "LBL_RECORDING", RIGHT, true, "-- RECORDING --");
 
@@ -783,6 +785,9 @@ public final class LauncherMain {
       
       // close up services
       enableUpdateTimers(false);
+      if (elapsedTimer != null) {
+        elapsedTimer.stop();
+      }
       if (networkListener != null) {
         networkListener.exit();
       }
@@ -1363,8 +1368,6 @@ public final class LauncherMain {
     gui.makePanel  (panel, "PNL_ADJUST"   , LEFT, true , "");
     
     panel = "PNL_ADJUST";
-    gui.makeLabel  (panel, "LBL_THREADS"  , CENTER, true, "Threads: 0");
-    gui.makeLineGap(panel, 20);
     gui.makePanel  (panel, "PNL_THREAD"   , LEFT, true , "Thread Select");
     gui.makeLineGap(panel, 58);
     gui.makePanel  (panel, "PNL_RANGE"    , LEFT, true , "Highlight Range");
@@ -2140,7 +2143,8 @@ public final class LauncherMain {
     // reset thread selection to 0
     graphSetupFrame.getLabel("TXT_TH_SEL").setText("0");
     
-    // reset the class and method counts
+    // reset the thread, class and method counts
+    mainFrame.getTextField("TXT_THREADS").setText("0");
     mainFrame.getTextField("TXT_CLASSES").setText("0");
     mainFrame.getTextField("TXT_METHODS").setText("0");
 
@@ -3137,6 +3141,11 @@ public final class LauncherMain {
     @Override
     public void jobstarted(ThreadLauncher.ThreadInfo threadInfo) {
       Utils.printStatusInfo("jobstart - " + threadInfo.jobname + ": pid " + threadInfo.pid);
+
+      // start elapsed timer
+      if (elapsedTimer != null) {
+        elapsedTimer.start();
+      }
     }
         
     @Override
@@ -3148,6 +3157,11 @@ public final class LauncherMain {
         Utils.printStatusMessage(threadInfo.jobname + " command terminated with " + threadInfo.signal);
       } else {
         Utils.printStatusError("Failure executing command: " + threadInfo.jobname);
+      }
+
+      // stop elapsed timer
+      if (elapsedTimer != null) {
+        elapsedTimer.stop();
       }
 
       // set run mode to IDLE since we have completed, unless we are exiting program
@@ -3200,6 +3214,11 @@ public final class LauncherMain {
           runMode = RunMode.IDLE;
           Utils.printStatusInfo("STOP - Kill Timer");
           killTimer.stop();
+          
+          // stop elapsed timer
+          if (elapsedTimer != null) {
+            elapsedTimer.stop();
+          }
           break;
           
         case EXITING:
@@ -3255,20 +3274,23 @@ public final class LauncherMain {
           }
         }
 
-        // enable/disable Call Graph save buttons based on whether there is anything to save
+        // get running stats and update display
+        int threads = debugLogger.getThreadCount();
         int methodCount = callGraph.getMethodCount();
+        int classCount = callGraph.getClassCount();
+
+        mainFrame.getTextField("TXT_THREADS").setText("" + threads);
+        mainFrame.getTextField("TXT_CLASSES").setText("" + classCount);
+        mainFrame.getTextField("TXT_METHODS").setText("" + methodCount);
+          
+        // enable/disable Call Graph save buttons based on whether there is anything to save
         getMenuItem("MENU_SAVE_CGRAPH").setEnabled(methodCount > 0);
         getMenuItem("MENU_SAVE_JSON").setEnabled(methodCount > 0);
 
-        mainFrame.getTextField("TXT_CLASSES").setText("" + callGraph.getClassCount());
-        mainFrame.getTextField("TXT_METHODS").setText("" + methodCount);
-          
         // update the thread count display
-        int threads = debugLogger.getThreadCount();
         if (threads > 1) {
           setThreadEnabled(true);
         }
-        graphSetupFrame.getLabel("LBL_THREADS").setText("Threads: " + threads);
       }
     }
   }
