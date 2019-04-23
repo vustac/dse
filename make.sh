@@ -6,6 +6,20 @@
 set -o nounset
 #set -o errexit
 
+# this cleans up the path to remove all the '../' entries
+function cleanup_path
+{
+  REPO=$1
+  local NAME=$2
+  if [ ! -d ${REPO} ]; then
+    echo "$NAME not found at: ${REPO}"
+    REPO=""
+  else
+    REPO=`realpath ${REPO}/`
+    REPO="${REPO}/"
+  fi
+}
+
 # verifies the specified command is present
 #
 # inputs: $1 = the list of commands to verify
@@ -214,6 +228,10 @@ fi
 # setup the paths to use
 source setpaths.sh
 
+# cleanup the paths for test files
+cleanup_path ${TESTPATH} "TESTPATH"
+TESTPATH=${REPO}
+
 TESTMODE=0
 NEWREF=0
 NONVULNERABLE=0
@@ -272,10 +290,10 @@ if [[ ${TESTMODE} -eq 0 ]]; then
     fi
 fi
 
-cd "${DANALYZER_REPO}"
+cd "${DANALYZER_DIR}"
 if [[ ${TESTMODE} -ne 0 ]]; then
     echo
-    echo "  (from: ${DANALYZER_REPO})"
+    echo "  (from: ${DANALYZER_DIR})"
 fi
 
 echo "- building danalyzer"
@@ -331,9 +349,9 @@ fi
 
 # setup classpath and mainclass for running danalyzer
 CLASSPATH=""
-add_file_to_classpath "${DANALYZER_REPO}dist/danalyzer.jar"
-add_file_to_classpath "${DANALYZER_REPO}lib/commons-io-2.5.jar"
-add_file_to_classpath "${DANALYZER_REPO}lib/asm-all-5.2.jar"
+add_file_to_classpath "${DANALYZER_DIR}/dist/danalyzer.jar"
+add_file_to_classpath "${DANALYZER_DIR}/lib/commons-io-2.5.jar"
+add_file_to_classpath "${DANALYZER_DIR}/lib/asm-all-5.2.jar"
 add_curdir_to_classpath
 add_dir_to_classpath "lib"
 add_dir_to_classpath "libs"

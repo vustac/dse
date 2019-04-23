@@ -18,6 +18,20 @@ fi
 set -o nounset
 #set -o errexit
 
+# this cleans up the path to remove all the '../' entries
+function cleanup_path
+{
+  REPO=$1
+  local NAME=$2
+  if [ ! -d ${REPO} ]; then
+    echo "$NAME not found at: ${REPO}"
+    exit 1
+  else
+    REPO=`realpath ${REPO}/`
+    REPO="${REPO}/"
+  fi
+}
+
 # verifies the specified command is present
 #
 # inputs: $1 = the list of commands to verify
@@ -257,6 +271,10 @@ fi
 # setup the paths to use
 source setpaths.sh
 
+# cleanup the paths for test files
+cleanup_path ${TESTPATH} "TESTPATH"
+TESTPATH=${REPO}
+
 FORCE=0
 TESTMODE=0
 NEWREF=0
@@ -302,25 +320,25 @@ get_project_info
 # make sure agent lib has been built
 if [[ ${FORCE} -ne 0 ]]; then
     # to force a rebuild of danhelper, simply remove the executable that we use to detect it
-    rm -f ${DANHELPER_REPO}src/libdanhelper.so
-    rm -f ${DANHELPER_REPO}libdanhelper.so
-elif [ -f "${DANHELPER_REPO}src/libdanhelper.so" ]; then
-    mv ${DANHELPER_REPO}src/libdanhelper.so ${DANHELPER_REPO}libdanhelper.so
-elif [ ! -f "${DANHELPER_REPO}libdanhelper.so" ]; then
+    rm -f ${DANHELPER_DIR}/src/libdanhelper.so
+    rm -f ${DANHELPER_DIR}/libdanhelper.so
+elif [ -f "${DANHELPER_DIR}/src/libdanhelper.so" ]; then
+    mv ${DANHELPER_DIR}/src/libdanhelper.so ${DANHELPER_DIR}/libdanhelper.so
+elif [ ! -f "${DANHELPER_DIR}/libdanhelper.so" ]; then
     FORCE=1
 fi
 
-# (this is run from DANHELPER_REPO)
-cd ${DANHELPER_REPO}
+# (this is run from DANHELPER_DIR)
+cd ${DANHELPER_DIR}
 if [[ ${FORCE} -ne 0 ]]; then
     echo "- building danhelper agent"
     if [[ ${TESTMODE} -eq 0 ]]; then
         cmake .
         make
-        if [ -f "${DANHELPER_REPO}src/libdanhelper.so" ]; then
-            mv ${DANHELPER_REPO}src/libdanhelper.so ${DANHELPER_REPO}libdanhelper.so
+        if [ -f "${DANHELPER_DIR}/src/libdanhelper.so" ]; then
+            mv ${DANHELPER_DIR}/src/libdanhelper.so ${DANHELPER_DIR}/libdanhelper.so
         fi
-        if [ ! -f "${DANHELPER_REPO}libdanhelper.so" ]; then
+        if [ ! -f "${DANHELPER_DIR}/libdanhelper.so" ]; then
             echo "ERROR: danhelper build failure. No agent produced."
             exit 1
         fi
@@ -343,24 +361,35 @@ if [[ ${TESTMODE} -eq 0 && ! -f classlist.txt ]]; then
     exit 1
 fi
 
-# setup classpath
+# setup the library path for running the test
+LIBPATH=$JAVA_HOME/bin:/usr/lib:/usr/local/lib:${DANPATCH_DIR}
+
+# setup the boot classpath for running the test
+CLASSPATH=""
+add_file_to_classpath "/a"
+add_file_to_classpath "${DANALYZER_DIR}/dist/danalyzer.jar"
+add_file_to_classpath "${DANALYZER_DIR}/lib/com.microsoft.z3.jar"
+add_file_to_classpath "${DANALYZER_DIR}/lib/guava-27.1-jre.jar"
+BOOTCLASSPATH=${CLASSPATH}
+
+# setup the classpath for running the test
 CLASSPATH=""
 add_file_to_classpath "${PROJECT}-dan-ed.jar"
-add_file_to_classpath "${DANALYZER_REPO}lib/commons-io-2.5.jar"
-add_file_to_classpath "${DANALYZER_REPO}lib/asm-all-5.2.jar"
+add_file_to_classpath "${DANALYZER_DIR}/dist/danalyzer.jar"
+#add_file_to_classpath "${DANALYZER_DIR}/lib/commons-io-2.5.jar"
+#add_file_to_classpath "${DANALYZER_DIR}/lib/asm-all-5.2.jar"
 add_curdir_to_classpath
-add_dir_to_classpath "lib"
-add_dir_to_classpath "libs"
+if [[ -d lib ]]; then
+  add_dir_to_classpath "lib"
+fi
+if [[ -d libs ]]; then
+  add_dir_to_classpath "libs"
+fi
 
 # run the instrumented code with the agent
-OPTIONS="-Xverify:none -Dsun.boot.library.path=$JAVA_HOME/bin:/usr/lib"
-BOOTCLASSPATH="-Xbootclasspath/a:${DANALYZER_REPO}dist/danalyzer.jar:${DANALYZER_REPO}lib/com.microsoft.z3.jar:${DANALYZER_REPO}lib/guava-27.1-jre.jar"
-AGENTPATH="-agentpath:${DANHELPER_REPO}libdanhelper.so"
-MONGO_JARS=${DANALYZER_REPO}lib/mongodb-driver-core-3.8.2.jar:${DANALYZER_REPO}lib/mongodb-driver-sync-3.8.2.jar:${DANALYZER_REPO}lib/bson-3.8.2.jar
-
-# append the Mongo files to the class paths
-CLASSPATH="${CLASSPATH}:${MONGO_JARS}"
-BOOTCLASSPATH=${BOOTCLASSPATH}:${MONGO_JARS}
+OPTIONS="-Xverify:none -Dsun.boot.library.path=${LIBPATH}"
+BOOTCLASSPATH="-Xbootclasspath${BOOTCLASSPATH}"
+AGENTPATH="-agentpath:${DANHELPER_DIR}/libdanhelper.so"
 
 if [[ ${TESTMODE} -eq 0 ]]; then
     java ${OPTIONS} ${BOOTCLASSPATH} ${AGENTPATH} -cp ${CLASSPATH} ${MAINCLASS} ${ARGLIST}

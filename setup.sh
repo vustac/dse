@@ -11,6 +11,20 @@ set -o nounset
 
 source setpaths.sh
 
+# this cleans up the path to remove all the '../' entries
+function cleanup_path
+{
+  REPO=$1
+  local NAME=$2
+  if [ ! -d ${REPO} ]; then
+    echo "$NAME not found at: ${REPO}"
+    REPO=""
+  else
+    REPO=`realpath ${REPO}`
+    REPO="${REPO}/"
+  fi
+}
+
 function copy_project
 {
     case "$1" in
@@ -161,6 +175,13 @@ function copy_project
 
 function setup_1
 {
+    cleanup_path ${ENGAGE_REPO} "ENGAGE_REPO"
+    ENGAGE_REPO=${REPO}
+    if [ ${ENGAGE_REPO} == "" ]; then
+        echo "Unable to copy project from source: can't locate engagement repo"
+        return
+    fi
+
     copy_project Blogger
     copy_project GabFeed1
     copy_project GabFeed2
@@ -177,6 +198,13 @@ function setup_1
 
 function setup_2
 {
+    cleanup_path ${ENGAGE_REPO} "ENGAGE_REPO"
+    ENGAGE_REPO=${REPO}
+    if [ ${ENGAGE_REPO} == "" ]; then
+        echo "Unable to copy project from source: can't locate engagement repo"
+        return
+    fi
+
     copy_project ImageProcessor
     copy_project Textcrunchr1
     copy_project Textcrunchr2
@@ -188,6 +216,13 @@ function setup_2
 
 function setup_4
 {
+    cleanup_path ${ENGAGE_REPO} "ENGAGE_REPO"
+    ENGAGE_REPO=${REPO}
+    if [ ${ENGAGE_REPO} == "" ]; then
+        echo "Unable to copy project from source: can't locate engagement repo"
+        return
+    fi
+
     copy_project Airplan1
     copy_project Airplan2
     copy_project Airplan3
@@ -217,6 +252,13 @@ function setup_4
 
 function setup_5
 {
+    cleanup_path ${ENGAGE_REPO} "ENGAGE_REPO"
+    ENGAGE_REPO=${REPO}
+    if [ ${ENGAGE_REPO} == "" ]; then
+        echo "Unable to copy project from source: can't locate engagement repo"
+        return
+    fi
+
     copy_project AccountingWizard
     copy_project Battleboats1
     copy_project Battleboats2
@@ -236,6 +278,13 @@ function setup_5
 
 function setup_6
 {
+    cleanup_path ${ENGAGE_REPO} "ENGAGE_REPO"
+    ENGAGE_REPO=${REPO}
+    if [ ${ENGAGE_REPO} == "" ]; then
+        echo "Unable to copy project from source: can't locate engagement repo"
+        return
+    fi
+
     copy_project Battleboats3
     copy_project Braidit3
     copy_project Braidit4
@@ -255,6 +304,13 @@ function setup_6
 
 function setup_canon
 {
+    cleanup_path ${CANON_REPO} "CANON_REPO"
+    CANON_REPO=${REPO}
+    if [ ${CANON_REPO} == "" ]; then
+        echo "Unable to copy project from source: can't locate Canonical repo"
+        exit 1
+    fi
+    
     if [ ! -d "${CANON_REPO}Source" ]; then
         echo "ERROR: Canonical source repo not found: ${CANON_REPO}Source"
         exit 1
@@ -284,6 +340,13 @@ function setup_canon
     cp ${CANON_REPO}Source/src/*.java ${TESTPATH}Canonical/Source/src
     cp ${CANON_REPO}Source/src_E1_E4/e1e4/*.java ${TESTPATH}Canonical/Source/src_E1_E4/e1e4
 }
+
+cleanup_path ${TESTPATH} "TESTPATH"
+TESTPATH=${REPO}
+if [ ${TESTPATH} == "" ]; then
+    echo "Unable to copy project from source: can't locate destination folder"
+    exit 1
+fi
 
 if [[ $# -eq 0 ]]; then
     echo "sets up the test path contents for running the make.sh and run.sh scripts"
