@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.google.common.collect.MapMaker;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -40,7 +41,8 @@ public class ExecWrapper {
   // objectMap    - Object references: K = refCnt, V = <field name, field Value>
   // concreteObjectLookup - concrete values for objects: K = Object value, V = refCnt
   private static int                              objectCount = 1;
-  private static Map<Integer, Map<String, Value>> objectMap = new HashMap<>();
+  private static Map<Integer, Map<String, Value>> objectMap = new WeakHashMap<>();
+  //private static Map<Integer, Map<String, Value>> objectMap = new HashMap<>();
   //private static Map<Object, Integer>             concreteObjectLookup = new IdentityHashMap<>();
   private static ConcurrentMap<Object, Integer>     concreteObjectLookup = new MapMaker().weakKeys().makeMap();
   
@@ -52,7 +54,7 @@ public class ExecWrapper {
   // multiMap   - multi-dim array references: K = refCnt, V = multi-dimensional array info
   private static int                              arrayCount = 1;
   //private static Map<Integer, Value[]>            arrayMap = new HashMap<>();
-  private static ConcurrentMap<Integer, Value[]>  arrayMap = new MapMaker().weakKeys().makeMap();
+  private static Map<Integer, Value[]>            arrayMap = new WeakHashMap<>();
   private static int                              multiCount = 1;
   private static Map<Integer, ArrayList<Integer>> multiSizes = new HashMap<>();
   private static Map<Integer, MultiArrayInfo>     multiMap = new HashMap<>();
@@ -133,8 +135,8 @@ public class ExecWrapper {
   // ACCESSOR METHODS FOR OBJECTS SHARED BETWEEN THREADS
   //================================================================
 
-  public static synchronized int putComboValue(Value[] combo) {
-    int key = arrayCount++;
+  public static synchronized Integer putComboValue(Value[] combo) {
+    Integer key = new Integer(arrayCount++);   
     arrayMap.put(key, combo);
     return key;
   }
@@ -162,9 +164,10 @@ public class ExecWrapper {
     return key;
   }
   
-  public static synchronized int putReferenceObject(Map<String, Value> mapval) {
-    int objCnt = objectCount++;
+  public static synchronized Integer putReferenceObject(Map<String, Value> mapval) {
+    Integer objCnt = new Integer(objectCount++);
     objectMap.put(objCnt, mapval);
+        
     return objCnt;
   }
 

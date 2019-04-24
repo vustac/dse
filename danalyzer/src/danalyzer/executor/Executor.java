@@ -865,7 +865,7 @@ public class Executor {
       combo[1] = size;
     }
     
-    int arrCnt = ExecWrapper.putComboValue(combo);
+    Integer arrCnt = ExecWrapper.putComboValue(combo);
 
     /* ----------debug head--------- *@*/
     debugPrintArrayMap(threadId, arrCnt, combo);
@@ -1534,7 +1534,7 @@ public class Executor {
     
     // add new entry to objectMap
     Map<String, Value> newMap = new HashMap<>();
-    int objCnt = ExecWrapper.putReferenceObject(newMap);
+    Integer objCnt = ExecWrapper.putReferenceObject(newMap);
 
     /* ----------debug head--------- *@*/
     debugPrintObjectMap(threadId, objCnt, newMap);
