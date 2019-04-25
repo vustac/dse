@@ -123,7 +123,7 @@ public class SolverInterface {
    * (note that is may not contain the full constraint, which can be added in piecemeal fashion)
    * 
    * @param count   - the number of full messages received so far
-   * @param message - the start of text that is to be parsed & placed in the constraint formula
+   * @param message - the start of text that is to be parsed and placed in the constraint formula
    */
   public void newMessage(int count, String message) {
     msgCount = count;
