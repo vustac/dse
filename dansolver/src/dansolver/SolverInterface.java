@@ -15,12 +15,12 @@ public class SolverInterface {
   // constants
   private static final String NEWLINE = System.getProperty("line.separator");
 
-  public static final String ENTRY_BEGIN = "@#";
-  public static final String ENTRY_END = "#@";
+  private static final String ENTRY_BEGIN = "@#";
+  private static final String ENTRY_END = "#@";
     
   // data to be saved in database
   // these are added upon receipt of the msg
-  private Integer connectionId;  // index of the solver connection
+  private final Integer connectionId;  // index of the solver connection
   private Integer msgCount;      // message count for the specified connection
   // the following are values contained in the msg received
   private Integer threadId;      // thread id that was running
@@ -35,58 +35,71 @@ public class SolverInterface {
   // these are flags to communicate status to caller
   private boolean complete;     // true if data in this class is complete (constrainnt sent in pieces)
   private boolean invalid;      // true if the current msg is incomplete & new one arrived
-  private boolean reset;        // true if clear command received
-  private int     except;       // for reset: -1 for all, else indicates which connection data to save
+  private SolverCommandInfo commandInfo;
   
-  public SolverInterface() {
+  public SolverInterface(int id) {
+    connectionId = id;
+
     complete = true;
     invalid = false;
-    reset = false;
+    constraint = "";
+    commandInfo = null;
   }
-    
-  public SolverInterface(int id, int count, String message) {
-    connectionId = id;
-    msgCount = count;
-    complete = true;
-    reset = false;
 
-    // read the entries from the received message and places in SolverInterface parameters
-    while (!message.isEmpty()) {
-      int off = getNextEntry(message);
-      if (off > 0) {
-        message = message.substring(off).trim();
-      } else {
-        break;
-      }
+  // this defines the commands that can be sent to dansolver while it is parsing data from danalyzer.
+  public enum SolverCommand { CLEAR_ALL, CLEAR_OLD }
+  
+  public class SolverCommandInfo {
+    public SolverCommand command;   // the command value
+    public int argument;            // the argument associated with the command (if any)
+    
+    SolverCommandInfo(SolverCommand cmd) {
+      command = cmd;
+      argument = -1; // use -1 to indicate no arg
+    }
+    
+    SolverCommandInfo(SolverCommand cmd, int arg) {
+      command = cmd;
+      argument = arg;
     }
   }
-
+  
+  /**
+   * clear the collected solver information
+   */
   public void clear() {
     complete = true;
     invalid = false;
-    reset = false;
-    constraint = null;
+    constraint = "";
+    commandInfo = null;
   }
   
+  /**
+   * test if solver information is valid (if it was interrupted by a command or another constraint)
+   * @return true if data is not valid
+   */
   public boolean isValid() {
     return !invalid;
   }
-    
+  
+  /**
+   * test if solver information is complete (constraint may be contained in multiple lines)
+   * @return true if complete
+   */
   public boolean isComplete() {
     return complete;
   }
-    
-  public boolean isReset() {
-    return reset;
-  }
   
-  public int getResetException() {
-    return except;
+  /**
+   * return command if one was received
+   * @return command received (null if none)
+   */
+  public SolverCommandInfo getCommand() {
+    return commandInfo;
   }
   
   /**
    * creates a mongodb document from the solver data received
-   * 
    * @return - the document created
    */
   public Document makeDocument() {
@@ -103,6 +116,29 @@ public class SolverInterface {
     mongoDoc = mongoDoc.append("lastpath", pathsel);
     mongoDoc = mongoDoc.append("cost", cost);
     return mongoDoc;
+  }
+  
+  /**
+   * this is called to enter the start of a new message.
+   * (note that is may not contain the full constraint, which can be added in piecemeal fashion)
+   * 
+   * @param count   - the number of full messages received so far
+   * @param message - the start of text that is to be parsed & placed in the constraint formula
+   */
+  public void newMessage(int count, String message) {
+    msgCount = count;
+    complete = true;
+    commandInfo = null;
+
+    // read the entries from the received message and places in SolverInterface parameters
+    while (!message.isEmpty()) {
+      int off = getNextEntry(message);
+      if (off > 0) {
+        message = message.substring(off).trim();
+      } else {
+        break;
+      }
+    }
   }
   
   /**
@@ -146,8 +182,7 @@ public class SolverInterface {
 
     // check for clear commands
     if (message.equals("!CLEAR_ALL")) {
-      reset = true;
-      except = -1;
+      commandInfo = new SolverCommandInfo(SolverCommand.CLEAR_ALL);
     } else if (message.startsWith("!CLEAR_EXCEPT")) {
       String index = message.substring("!CLEAR_EXCEPT".length()).trim();
       int select = -1;
@@ -156,8 +191,9 @@ public class SolverInterface {
       } catch (NumberFormatException ex) {
         // ignore - this will result in clearing all
       }
-      reset = true;
-      except = select;
+      commandInfo = new SolverCommandInfo(SolverCommand.CLEAR_OLD, select);
+    } else {
+      System.err.println("SolverInterface: received UNKNOWN command: " + message);
     }
     return true;
   }

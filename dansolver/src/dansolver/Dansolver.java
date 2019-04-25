@@ -26,12 +26,13 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.sun.org.apache.bcel.internal.generic.AALOAD;
+//import com.sun.org.apache.bcel.internal.generic.AALOAD;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -40,6 +41,7 @@ public class Dansolver {
   private static Context                     z3Context;
   private static Optimize                    z3Optimize;
   
+  private static SolverCallback              solverCallback;
   private static NetworkServer               server;
   private static SolverThread                solver;
   private static long                        solvedCount;
@@ -47,6 +49,12 @@ public class Dansolver {
   private static MongoDatabase               database;
   public  static MongoCollection<Document>   collection;
   
+  public interface SolverCallback {
+    void documentClear(int conn);
+    void documentInsert(Document mongoDoc);
+    long documentWaitForNew(long processed);
+  }
+    
   public Dansolver(int port) {
     mongoClient = MongoClients.create();
     database = mongoClient.getDatabase("mydb");
@@ -57,13 +65,62 @@ public class Dansolver {
     z3Context = new Context(map);
     z3Optimize = z3Context.mkOptimize();
 
+    // create the callback methods for the network server
+    solverCallback = new SolverCallback() {
+      @Override
+      public synchronized void documentInsert(Document mongoDoc) {
+        Dansolver.collection.insertOne(mongoDoc);
+        notifyAll();
+      }
+  
+      @Override
+      public synchronized void documentClear(int conn) {
+        if (conn < 0) {
+          System.out.println("Received CLEAR_ALL command");
+        } else {
+          System.out.println("Received CLEAR_EXCEPT command");
+        }
+        solver.clear(conn);
+        solvedCount = 0; // even though it's not 0, run() will determine correctly on next pass
+        notifyAll();
+      }
+
+      @Override
+      public synchronized long documentWaitForNew(long processed) {
+        long count = collection.countDocuments(); // get current total number of docs
+
+        // subtract the number already processed and determine if there are any new
+        long newitems = count - processed;
+        if (newitems <= 0) {
+          System.out.println("All " + count + " documents solved, waiting for new");
+          try {
+            wait();
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            System.err.println(ex.getMessage());
+          }
+        }
+
+        // subtract off the number of entries processed and determine if there are any new
+        if (newitems > 0) {
+          System.out.println(newitems + " new documents, restarting database search...");
+        }
+        return newitems;
+      }
+    };
+
+    // now start the server and the solver threads
     try {
-      server = new NetworkServer(port);
       solver = new SolverThread();
+      server = new NetworkServer(port, solverCallback);
     } catch (IOException ex) {
       System.err.println("ERROR: creating network server: " + ex.getMessage());
       System.exit(1);
     }
+  }
+  
+  private static void documentAmend(Document mongoDoc) {
+    collection.replaceOne((Bson) new BasicDBObject("_id", (ObjectId)mongoDoc.get("_id")), mongoDoc);
   }
   
   private void start() {
@@ -72,51 +129,64 @@ public class Dansolver {
     server.start();
   }
 
-  public static long documentCount() {
-    return collection.countDocuments();
-  }
-  
-  public static void documentInsert(Document mongoDoc) {
-    Dansolver.collection.insertOne(mongoDoc);
-  }
-  
-  private static void documentAmend(Document mongoDoc) {
-    collection.replaceOne((Bson) new BasicDBObject("_id", (ObjectId)mongoDoc.get("_id")), mongoDoc);
-  }
-  
-  public static void documentClearAll() {
-    collection.deleteMany(new Document());
-    System.out.println("Cleared all documents from database");
-    solvedCount = 0;
-  }
-  
-  public static void documentClearExcept(int conn) {
-    List<Document> list = collection.find().noCursorTimeout(true).sort((Bson) new BasicDBObject("_id", 1))
-          .into(new ArrayList<Document>());
-    for (Document mongoDoc : list) {
-      Integer connection = mongoDoc.getInteger("connection");
-      if (connection != conn) {
-        collection.deleteOne(new BasicDBObject("connection", connection));
+  private class SolverThread extends Thread {
+    private AtomicBoolean clear = new AtomicBoolean(false);
+    private int     clearConn;
+
+    public void clear(int conn) {
+      if(clear.compareAndSet(false, true)) {
+        clearConn = conn;
       }
     }
-    System.out.println("Cleared all documents except connection " + conn);
-    solvedCount = 0; // even though it's not 0, run() will determine correctly on next pass
-  }
-  
-  private class SolverThread extends Thread {
+    
+    private void clearCommand() {
+      if (clearConn < 0) {
+        // delete all entries from the database
+        collection.deleteMany(new Document());
+        System.out.println("Cleared all documents from database");
+      } else {
+        // delete all entries except the specified connection entry from the database
+        List<Document> list = collection.find().noCursorTimeout(true).sort((Bson) new BasicDBObject("_id", 1))
+              .into(new ArrayList<Document>());
+        for (Document mongoDoc : list) {
+          Integer connection = mongoDoc.getInteger("connection");
+          if (connection != clearConn) {
+            collection.deleteOne(new BasicDBObject("connection", connection));
+          }
+        }
+        System.out.println("Cleared all documents except connection " + clearConn);
+      }
+    }
+    
     /**
      * the run process for solving the constraints in the database
      */
     @Override
     public void run() {
-      // get the iterator for the database (sort based on _id, which will place entries in order)
-      System.out.println("Starting solver thread");
-      FindIterable<Document> iterdocs = collection.find().noCursorTimeout(true).sort((Bson) new BasicDBObject("_id", 1));
-
+      FindIterable<Document> iterdocs = null;
+      
       // have to iterate because the database may be constantly added to
       while (true) {
+        // if we are clearing database entries...
+        if(clear.compareAndSet(true, false)) {
+          clearCommand();
+          iterdocs = null;
+        }
+        
+        // get the iterator for the database (sort based on _id, which will place entries in order)
+        if (iterdocs == null) {
+          System.out.println("Starting solver thread");
+          iterdocs = collection.find().noCursorTimeout(true).sort((Bson) new BasicDBObject("_id", 1));
+        }
+        
         solvedCount = 0;
         for(Document mongoDoc : iterdocs) {
+          // exit loop if we are in the process of clearing
+          if (clear.get()) {
+            System.out.println("CLEAR detected, exiting solve loop for current docs");
+            break;
+          }
+            
           // skip if entry has already been solved
           if (mongoDoc.getBoolean("solvable") != null) {
             ++solvedCount;
@@ -148,12 +218,8 @@ public class Dansolver {
         }
         
         // this will check if any new docs were added. if not, just wait on NetworkServer for more.
-        long newEntries;
-        try {
-          newEntries = server.getDocumentCount(solvedCount) - solvedCount;
-          System.out.println(newEntries + " new documents, restarting database search...");
-        } catch (InterruptedException ex) {
-          System.err.println(ex.getMessage());
+        if (!clear.get()) {
+          solverCallback.documentWaitForNew(solvedCount);
         }
       }
     }
