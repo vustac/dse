@@ -367,7 +367,7 @@ public class DataConvert {
       // first, get the combo[] value, which can also be a reference to the combo value
       if (clz.equals("java.lang.Integer")) {
         // Integer means this is a reference to a combo array
-        int refCnt = (Integer) obj;
+        Integer refCnt = (Integer) obj;
         combo = (Value[]) ExecWrapper.getComboValue(refCnt);
         valstr = "(combo-ref) ";
         refstr = ", refCnt=" + refCnt;
@@ -434,7 +434,7 @@ public class DataConvert {
         }
       }
     } else if (val.isType(Value.MARY)) {
-      int refCnt = (Integer) obj;
+      Integer refCnt = (Integer) obj;
       ExecWrapper.MultiArrayInfo info = ExecWrapper.getMultiArrayInfo(refCnt);
       ArrayList<Integer> dimensions = ExecWrapper.getMultiArraySizes(refCnt);
       valstr = "(multi-dim array)";
@@ -448,7 +448,7 @@ public class DataConvert {
     } else if (type == Value.REF && clz.equals("java.lang.Integer")) {
       // reference object entry
       clz = "Map";
-      int refCnt = (int) obj;
+      Integer refCnt = (Integer) obj;
       refstr = ", refCnt=" + refCnt;
       Map<String, Value> ref = ExecWrapper.getReferenceObject(refCnt);
       valstr = "value=" + (ref == null ? "null" : ref.toString());

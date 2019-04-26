@@ -44,7 +44,7 @@ public class ExecWrapper {
   private static Map<Integer, Map<String, Value>> objectMap = new WeakHashMap<>();
   //private static Map<Integer, Map<String, Value>> objectMap = new HashMap<>();
   //private static Map<Object, Integer>             concreteObjectLookup = new IdentityHashMap<>();
-  private static ConcurrentMap<Object, Integer>     concreteObjectLookup = new MapMaker().weakKeys().makeMap();
+  private static ConcurrentMap<Object, Integer>   concreteObjectLookup = new MapMaker().weakKeys().makeMap();
   
   // ARRAYS:
   // arrayCount - key value for looking up in arrayMap
@@ -56,8 +56,8 @@ public class ExecWrapper {
   //private static Map<Integer, Value[]>            arrayMap = new HashMap<>();
   private static Map<Integer, Value[]>            arrayMap = new WeakHashMap<>();
   private static int                              multiCount = 1;
-  private static Map<Integer, ArrayList<Integer>> multiSizes = new HashMap<>();
-  private static Map<Integer, MultiArrayInfo>     multiMap = new HashMap<>();
+  private static Map<Integer, ArrayList<Integer>> multiSizes = new WeakHashMap<>();
+  private static Map<Integer, MultiArrayInfo>     multiMap = new WeakHashMap<>();
   
   private static class ThreadId {
     // Atomic integer containing the next thread ID to be assigned
@@ -78,13 +78,13 @@ public class ExecWrapper {
   }
 
   public static class MultiArrayInfo {
-    public final int initRef;  // key value into multiMap to initial multi-dim allocation
-    public final int arrayRef; // key value into arrayMap to full multi-dim array
+    public final Integer initRef;  // key value into multiMap to initial multi-dim allocation
+    public final Integer arrayRef; // key value into arrayMap to full multi-dim array
     public final int type;     // type of elements in full array
     public final int dim;      // number of dimensions for this portion
     public final int offset;   // offset into full array to start of this portion
     
-    public MultiArrayInfo(int initKey, int arrayKey, int elementType, int dimNum, int off) {
+    public MultiArrayInfo(Integer initKey, Integer arrayKey, int elementType, int dimNum, int off) {
       initRef = initKey;
       arrayRef = arrayKey;
       type = elementType;
@@ -100,7 +100,7 @@ public class ExecWrapper {
    * @return the Executor to run.
    */
   private static Executor getExecSelect() {
-    int tid = ThreadId.get(); // long tid = Thread.currentThread().getId();
+    Integer tid = ThreadId.get(); // long tid = Thread.currentThread().getId();
     Executor exec = executorMap.get(tid);
     if (exec == null) {
       exec = new Executor(tid, symbolicList);
@@ -141,24 +141,24 @@ public class ExecWrapper {
     return key;
   }
   
-  public static synchronized void updateComboValue(int key, Value[] combo) {
+  public static synchronized void updateComboValue(Integer key, Value[] combo) {
     arrayMap.put(key, combo);
   }
   
-  public static synchronized void putMultiArraySizes(int key, ArrayList<Integer> dimensions) {
+  public static synchronized void putMultiArraySizes(Integer key, ArrayList<Integer> dimensions) {
     multiSizes.put(key, dimensions);
   }
   
-  public static synchronized int putMultiArrayInfo(int arrayRef, int type, int size, int offset) {
-    int key = multiCount++;
+  public static synchronized Integer putMultiArrayInfo(Integer arrayRef, int type, int size, int offset) {
+    Integer key = multiCount++;
     MultiArrayInfo info = new MultiArrayInfo(key, arrayRef, type, size, offset);
     multiMap.put(key, info);
     return key;
   }
   
-  public static synchronized int addMultiArrayInfo(int arrayRef, int type, int size, int offset,
-                                                   int initKey) {
-    int key = multiCount++;
+  public static synchronized Integer addMultiArrayInfo(Integer arrayRef, int type, int size, int offset,
+                                                       Integer initKey) {
+    Integer key = multiCount++;
     MultiArrayInfo info = new MultiArrayInfo(initKey, arrayRef, type, size, offset);
     multiMap.put(key, info);
     return key;
@@ -172,7 +172,7 @@ public class ExecWrapper {
   }
 
   // TODO: should be able to make this non-synchronized now that a ConcurrentMap is used
-  public static synchronized boolean putConcreteObject(Object conObject, int objRef) {
+  public static synchronized boolean putConcreteObject(Object conObject, Integer objRef) {
     if (conObject == null || concreteObjectLookup.get(conObject) != null) {
       return false;
     }
@@ -184,19 +184,19 @@ public class ExecWrapper {
     staticFieldMap.put(fieldName, obj);
   }
   
-  public static Value[] getComboValue(int key) {
+  public static Value[] getComboValue(Integer key) {
     return (Value[]) arrayMap.get(key);
   }
   
-  public static ArrayList<Integer> getMultiArraySizes(int key) {
+  public static ArrayList<Integer> getMultiArraySizes(Integer key) {
     return multiSizes.get(key);
   }
   
-  public static MultiArrayInfo getMultiArrayInfo(int key) {
+  public static MultiArrayInfo getMultiArrayInfo(Integer key) {
     return multiMap.get(key);
   }
   
-  public static Map<String, Value> getReferenceObject(int key) {
+  public static Map<String, Value> getReferenceObject(Integer key) {
     return objectMap.get(key);
   }
   

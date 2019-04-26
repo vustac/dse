@@ -787,11 +787,10 @@ public class Executor {
 
       // if reference exists for array, update it as well
       if (DataConvert.getClassType(arrObj).equals("java.lang.Integer")) { // NOTE: THIS USES REFLECTION
-        int arrCnt = (Integer) arrObj;
-        ExecWrapper.updateComboValue(arrCnt, combo);
+        ExecWrapper.updateComboValue((Integer) arrObj, combo);
 
         /* ----------debug head--------- *@*/
-        debugPrintArrayMap(threadId, arrCnt, combo);
+        debugPrintArrayMap(threadId, (Integer) arrObj, combo);
         // ----------debug tail---------- */
       }
     }
@@ -945,7 +944,7 @@ public class Executor {
     Value[] combo = Util.cvtValueArray(threadId, val, type);
     
     // save the combo entry in the map and get its assigned ref index
-    int arrCnt = ExecWrapper.putComboValue(combo);
+    Integer arrCnt = ExecWrapper.putComboValue(combo);
 
     /* ----------debug head--------- *@*/
     debugPrintArrayMap(threadId, arrCnt, combo);
@@ -1036,8 +1035,8 @@ public class Executor {
     }
     
     // create the MultiArrayInfo for the full array
-    int refCnt = (Integer)arrayVal.getValue();
-    int multiRef = ExecWrapper.putMultiArrayInfo(refCnt, type, dim.size(), 0);
+    Integer refCnt = (Integer)arrayVal.getValue();
+    Integer multiRef = ExecWrapper.putMultiArrayInfo(refCnt, type, dim.size(), 0);
 
     /* ----------debug head--------- *@*/
     DebugUtil.debugPrintArrays(threadId, "  Created new MultiArrayInfo[" + multiRef +
@@ -1058,7 +1057,7 @@ public class Executor {
       int curdim = dim.get(lev);
       stepsize = stepsize / curdim;
       for (int ix = 0; ix < mult * curdim; ix++) {
-        int index = ExecWrapper.addMultiArrayInfo(refCnt, type, lev, offset, multiRef);
+        Integer index = ExecWrapper.addMultiArrayInfo(refCnt, type, lev, offset, multiRef);
         
         /* ----------debug head--------- *@*/
         DebugUtil.debugPrintArrays(threadId, "  Added MultiArrayInfo[" + index +
@@ -1084,7 +1083,7 @@ public class Executor {
    * @param key - the multi-array reference value
    * @return the reference value to the multi-array entry created
    */
-  private Value cloneMultiArray(int key) {
+  private Value cloneMultiArray(Integer key) {
     // get the info for the current level of the multi-dimensional array
     ExecWrapper.MultiArrayInfo parentinfo = ExecWrapper.getMultiArrayInfo(key);
     if (parentinfo == null) {
@@ -1123,7 +1122,7 @@ public class Executor {
    * @return the entry of the multi-array, which can be either a reference to a multi-array 1 dimension
    *         less than the previous one if the entry array has a dimension greater than 1.
    */
-  private Value getMultiArrayElement(int key, int index) {
+  private Value getMultiArrayElement(Integer key, int index) {
     Value element = null;
 
     // get the info for the current level of the multi-dimensional array
@@ -1147,7 +1146,7 @@ public class Executor {
       } else if (dim > 0) {
         // return another sub-level of the multi-array. need to determine the reference value for it
         // that is based on the reference of the initial entry
-        int refix = key + 1 + index;
+        Integer refix = key + 1 + index;
         int level = dimensions.size() - dim;
         if (level >= 2) {
           int mult = 1;
@@ -1206,7 +1205,7 @@ public class Executor {
    * @param index - the index into the current dimension of the array
    * @param element - the entry to set the specified index value to
    */
-  private void setMultiArrayElement(int key, int index, Value element) {
+  private void setMultiArrayElement(Integer key, int index, Value element) {
     // get the info for the multi-dimensional array
     ExecWrapper.MultiArrayInfo info = ExecWrapper.getMultiArrayInfo(key);
     if (info == null) {
@@ -1839,7 +1838,7 @@ public class Executor {
       if (value.isType(Value.REF) && value.getValue() != null) {
         // verify the index entry is an Integer type
         assertUnsignedIntValue(value, opcode, "objectMap index");
-        int objCnt = (Integer)value.getValue();
+        Integer objCnt = (Integer)value.getValue();
         boolean added = ExecWrapper.putConcreteObject(conObject, objCnt);
 
         /* ----------debug head--------- *@*/
@@ -4343,12 +4342,12 @@ public class Executor {
     
     // verify the entry is an Integer type
     assertUnsignedIntValue(ref, opcode, "objectMap index");
-    int objCnt = (Integer) ref.getValue();
+    Integer objCnt = (Integer) ref.getValue();
     Map<String, Value> obj = ExecWrapper.getReferenceObject(objCnt);
-//    if (obj == null) {
-//      exitError("putField: field entry '" + fieldName + "' - object value is null");
-//      return;
-//    }
+    if (obj == null) {
+      exitError("putField: field entry '" + fieldName + "' - object value is null");
+      return;
+    }
 
     obj.put(fieldName, val);
 
@@ -4538,7 +4537,7 @@ public class Executor {
       // if symbolic, use size from symbolic stack
       if (array.isType(Value.MARY)) {
         // get the info for the multi-dimensional array
-        int key = (Integer) array.getValue();
+        Integer key = (Integer) array.getValue();
         ExecWrapper.MultiArrayInfo info = ExecWrapper.getMultiArrayInfo(key);
         if (info == null) {
           exitError("arrayLength: multi-array reference not found for: " + key);
