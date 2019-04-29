@@ -62,7 +62,7 @@ import org.bson.types.ObjectId;
 public class DatabaseTable {
   
   private static final String[] TABLE_COLUMNS = new String [] {
-    "Run", "Count", "Time", "Method", "Offset", "Path", "Cost", "Solvable", "Solution"
+    "Run", "Count", "Time", "Method", "Offset", "Path", "Cost", "Solvable", "Type", "Solution"
   };
 
   private static String   tabName;
@@ -90,6 +90,7 @@ public class DatabaseTable {
     String  time;           // time/date the branchpoint occurred
     String  method;         // the method for the symbolic parameter
     String  constraint;     // the constraints for the symbolic parameter
+    String  ctype;          // type of constraint
     String  solution;       // list of parameters & values that would lead to a different branch
     String  offset;         // (I) the opcode offset into the method for the symbolic parameter
     String  cost;           // (I) number of instructions executed at the branch point
@@ -118,6 +119,7 @@ public class DatabaseTable {
       time         = doc.getString ("time");      
       method       = doc.getString ("method");
       constraint   = doc.getString ("constraint");
+      ctype        = doc.getString ("ctype");
       iOpOffset    = doc.getInteger("offset");
       iCost        = doc.getInteger("cost");
       iConnect     = doc.getInteger("connection");
@@ -132,6 +134,7 @@ public class DatabaseTable {
       time       = time       == null ? "" : time;
       method     = method     == null ? "" : method;
       constraint = constraint == null ? "" : constraint;
+      ctype      = ctype      == null ? "" : ctype;
       lastpath   = bPath      == null ? "" : bPath.toString();
       solvable   = bSolvable  == null ? "" : bSolvable.toString();
       offset     = iOpOffset  == null ? "" : iOpOffset.toString();
@@ -194,12 +197,14 @@ public class DatabaseTable {
       Class[] types = new Class [] {
         java.lang.String.class, java.lang.String.class, java.lang.String.class,
         java.lang.String.class, java.lang.String.class, java.lang.String.class,
-        java.lang.String.class, java.lang.String.class, java.lang.String.class
+        java.lang.String.class, java.lang.String.class, java.lang.String.class,
+        java.lang.String.class
       };
       boolean[] canEdit = new boolean [] {
         false, false, false,
         false, false, false,
-        false, false, false
+        false, false, false,
+        false
       };
 
       @Override
@@ -452,6 +457,8 @@ public class DatabaseTable {
         return dbinfo.cost;
       case "Solvable":
         return dbinfo.solvable;
+      case "Type":
+        return dbinfo.ctype;
       case "Solution":
         return dbinfo.solution;
     }
@@ -468,6 +475,7 @@ public class DatabaseTable {
         tableEntry.lastpath,
         tableEntry.cost,
         tableEntry.solvable,
+        tableEntry.ctype,
         tableEntry.solution,
     };
   }
