@@ -300,6 +300,7 @@ public class Dansolver {
             // add the Integral solution
             Expr expr = model.getConstInterp(fd);
             String eval = model.eval(expr, false).toString();
+            eval = "" + (int)Long.parseLong(eval);
             System.out.println("Solution: " + fd.getName() + ", value = " + eval);
             solutions.add(new Document("type", "integral")
                                .append("name", paramName)

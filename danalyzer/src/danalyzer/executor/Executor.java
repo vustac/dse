@@ -1312,6 +1312,15 @@ public class Executor {
   }
   
   private void addArrayIndexConstraints(BitVecExpr index, int length, int opcodeOffset) {
+    BoolExpr expr = null;
+
+    if (z3Constraints.size() > 0) {
+      expr = z3Constraints.get(0);
+      for (int i = 1; i < z3Constraints.size(); i++) {
+        expr = z3Context.mkAnd(expr, z3Constraints.get(i)); 
+      }
+    }
+    
     BitVecExpr symLen = z3Context.mkBV(length, 32);
     BitVecExpr symZero = z3Context.mkBV(0, 32);
     
@@ -1319,9 +1328,16 @@ public class Executor {
     BoolExpr expr2 = z3Context.mkBVSLT(index, symZero);
     BoolExpr expr3 = z3Context.mkOr(expr1, expr2);
     
+    expr = expr == null ? expr3 : z3Context.mkAnd(expr3, expr);
+    
     int num = numArrayConstraints++;
-    BoolExpr assump[] = new BoolExpr[0]; // no assumptions here
-    String formula = z3Context.benchmarkToSMTString("benchmark_array_constraint_" + num, "", "unknown", "", assump, expr3);
+    //BoolExpr assump[] = new BoolExpr[0]; // no assumptions here
+    //String formula = z3Context.benchmarkToSMTString("benchmark_array_constraint_" + num, "", "unknown", "", assump, expr);
+    
+    z3Optimize.Push();
+    z3Optimize.Add(expr);
+    String formula = z3Optimize.toString();
+    z3Optimize.Pop();
     
     /* ----------debug head--------- *@*/
     debugPrintSolve(threadId, "Table entry[" + threadId + "][" + constraintCount++ + "]:");
@@ -2162,8 +2178,8 @@ public class Executor {
       // add constraints on index values
       BitVecExpr zero = z3Context.mkBV(0, 32);
       BitVecExpr bound = z3Context.mkBV(conLength, 32);
-      z3Constraints.add(z3Context.mkBVSGE((BitVecExpr) idx.getValue(), zero));
-      z3Constraints.add(z3Context.mkBVSLT((BitVecExpr) idx.getValue(), bound));
+      //z3Constraints.add(z3Context.mkBVSGE((BitVecExpr) idx.getValue(), zero));
+      //z3Constraints.add(z3Context.mkBVSLT((BitVecExpr) idx.getValue(), bound));
 
       /* ----------debug head--------- *@*/
       debugPrintConstraint(threadId, "added array bounds constraints: BVSGE to 0 & BVSLT to" + bound);
