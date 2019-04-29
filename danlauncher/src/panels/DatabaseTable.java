@@ -702,27 +702,26 @@ public class DatabaseTable {
   @Override
     public void actionPerformed(ActionEvent e) {
       // request the database list and save as list entries
-      boolean changed = readDatabase();
-      if (changed) {
-        // sort the table entries based on current selections
-        tableSortAndDisplay(colSortSelection, bSortOrder);
+      readDatabase();
 
-        // count the solved equations
-        int solved = 0;
-        for (int ix = 0; ix < dbList.size(); ix++) {
-          if (!dbList.get(ix).solution.isEmpty()) {
-            ++solved;
-          }
+      // sort the table entries based on current selections
+      tableSortAndDisplay(colSortSelection, bSortOrder);
+
+      // count the solved equations
+      int solved = 0;
+      for (int ix = 0; ix < dbList.size(); ix++) {
+        if (!dbList.get(ix).solution.isEmpty()) {
+          ++solved;
         }
-      
-        // update front panel counter
-        LauncherMain.setSolutionsReceived(dbList.size(), solved);
-          
-        // re-mark the selected row (if any)
-//        if (rowSelection >= 0) {
-//          dbTable.setRowSelectionInterval(rowSelection, rowSelection);
-//        }
       }
+      
+      // update front panel counter
+      LauncherMain.setSolutionsReceived(dbList.size(), solved);
+          
+      // re-mark the selected row (if any)
+//      if (rowSelection >= 0) {
+//        dbTable.setRowSelectionInterval(rowSelection, rowSelection);
+//      }
     }
   }    
 
