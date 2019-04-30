@@ -137,6 +137,7 @@ function run_test
 
   # now run the test
   if [[ ${TESTMODE} -eq 1 ]]; then
+    echo "==> Running instrumented jar file"
     echo "java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}"
     return
   fi
@@ -161,9 +162,7 @@ function run_test
   sleep 2
 
   # run the script to check correctness
-  # (NOTE: a failure in this call will perform an exit, which will terminate the script)
-  echo "==> Checking test results"
-  ./check_result.sh ${pid}
+  verify_test
 
   # delete the pipe we created
   if [ -p inpipe ]; then
@@ -172,6 +171,15 @@ function run_test
 
   # kill the tail process
   pkill tail > /dev/null 2>&1
+}
+
+function verify_test
+{
+  if [[ ${VERIFY} -eq 1 && ${TESTMODE} -eq 0 ]]; then
+    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
+    echo "==> Checking test results"
+    ./check_result.sh ${pid}
+  fi
 }
 
 function clear_database
@@ -184,6 +192,56 @@ function clear_database
     # clear the database
     mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
   fi
+}
+
+# this checks if the required source files are present, and if so:
+# 1. clear the database of solutions
+# 2. run the instrumented jar file as background process
+# 3. verify that expected solution (parameter name and value) are found in the solution set.
+#
+function build_chain
+{
+  builddir="results/${test}"
+
+  # make sure we have a directory for the specified test
+  if [[ ! -d ${builddir} ]]; then
+    echo "FAILURE: results directory ${test} not found!"
+    exit 1
+  fi
+
+  # now get the mainclass definition file (exit if not found)
+  if [[ ! -f "${builddir}/mainclass.txt" ]]; then
+    echo "FAILURE: mainclass.txt file not found in results directory!"
+    exit 1
+  fi
+
+  MAINCLASS=`cat ${builddir}/mainclass.txt`
+
+  # check for the optional JSON config file
+  # (required if we are going to perform a check of the test results)
+  runargs=""
+  RUNCHECK=0
+  jsonfile="${builddir}/testcfg.json"
+  if [[ -f ${jsonfile} ]]; then
+    # get the args from the JSON config file (if it exists)
+    runargs=`cat ${jsonfile} | jq -r '.runargs'`
+    if [[ ${VERIFY} -eq 1 ]]; then
+      RUNCHECK=1
+    fi
+  fi
+
+  cd ${builddir}
+
+  # if instrumented file is not found, create it
+  if [ ! -f ${test}-dan-ed.jar ]; then
+    instrument_test
+  fi
+  
+  # clear the database before we run
+  clear_database
+
+  # run instrumented jar and and verify results
+  run_test
 }
 
 #========================================= START HERE ============================================
@@ -224,44 +282,4 @@ if [[ ${ALLTESTS} -eq 1 ]]; then
 fi
 test=${COMMAND}
 
-# find the source file for the specified test and get the corresponding Main Class for it
-#file=`find edu -name "${test}.java"`
-#if [[ ${file} == "" ]]; then
-#  echo "FAILURE: source path not found for: ${test}"
-#  exit 0
-#fi
-#extract_test ${file}
-
-# make sure we have a directory for the specified test
-if [[ ! -d "results/${test}" ]]; then
-  echo "FAILURE: results directory ${test} not found!"
-  exit 1
-fi
-cd results/${test}
-
-# now get the mainclass definition file (exit if not found)
-if [[ ! -f mainclass.txt ]]; then
-  echo "FAILURE: mainclass.txt file not found in results directory!"
-  exit 1
-else
-  MAINCLASS=`cat mainclass.txt`
-fi
-
-# check for the optional JSON config file
-# (required if we are going to perform a check of the test results)
-runargs=""
-if [[ -f testcfg.json ]]; then
-  # get the args from the JSON config file (if it exists)
-  runargs=`cat testcfg.json | jq -r '.runargs'`
-fi
-
-# if instrumented file is not found, create it
-if [ ! -f ${test}-dan-ed.jar ]; then
-  instrument_test
-fi
-  
-# clear the database before we run
-clear_database
-
-# run instrumented jar and and verify results
-run_test
+build_chain

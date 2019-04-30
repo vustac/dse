@@ -5,6 +5,7 @@
 # 'errexit' causes any error condition to terminate the script, so it doesn't continue running.
 set -o nounset
 set -o errexit
+set -o pipefail
 set -e
 
 # this allows you to build a single test or build them all. It will create the test build
@@ -33,65 +34,6 @@ function classpath_init
 function classpath_add
 {
   CLASSPATH=${CLASSPATH}:$1
-}
-
-# build the jar file with debug info enabled (so danlauncher can access local parameters)
-function build_test
-{
-  libs=""
-
-  # handle special cases (such as if a library file or other files are necessary)
-  LIBPATH="results/${test}/lib"
-  case ${test} in
-    SimpleNano)
-      ;&   # fall through...
-    SimpleServer)
-      if [ ! -d ${LIBPATH} ]; then
-        mkdir -p ${LIBPATH}
-      fi
-      cp lib/nanohttpd-2.2.0.jar ${LIBPATH}
-      libs="-cp .:lib/nanohttpd-2.2.0.jar"
-      ;;
-    RefReturnArray)
-      ;&   # fall through...
-    RefReturnMultiArray)
-      ;&   # fall through...
-    RefReturnDouble)
-      # build the library (uninstrumented code) jar file
-      # (need to use $path instead of $class/.. because the latter will not keep path structure
-      # of lib within jar file)
-      path="edu/vanderbilt/isis/uninstrumented_return"
-      LIBFILE="LibReturnObject"
-      if [ ! -d ${LIBPATH} ]; then
-        mkdir -p ${LIBPATH}
-      fi
-      echo "==> Building ${LIBFILE} lib file for ${test}..."
-      if [[ ${TESTMODE} -ne 0 ]]; then
-        echo "javac ${path}/lib/${LIBFILE}.java"
-        echo "jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java"
-      else
-        javac ${path}/lib/${LIBFILE}.java
-        jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java
-      fi
-      libs="-cp .:lib/LibArrayObject.jar"
-      ;;
-    *)
-      ;;
-  esac
-
-  # now build the file(s) and jar them up (include source and class files in jar)
-  echo "==> Building initial un-instrumented '${test}'"
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "javac -g ${libs} ${class}/${test}.java"
-    echo "jar cvf results/${test}/${test}.jar ${class}/*.class ${class}/${test}.java"
-  else
-    javac -g ${libs} ${class}/${test}.java
-    jar cvf results/${test}/${test}.jar ${class}/*.class ${class}/${test}.java
-    if [[ ! -f results/${test}/${test}.jar ]]; then
-      echo "FAILURE: instrumented file not produced!"
-      FAILURE=1
-    fi
-  fi
 }
 
 # create the instrumented jar file
@@ -164,7 +106,7 @@ function run_test
       return
     fi
   fi
-
+  
   # setup the library path for running the test
   LIBPATH=$JAVA_HOME/bin:/usr/lib:/usr/local/lib:${DANPATCH_DIR}
     
@@ -182,37 +124,58 @@ function run_test
     classpath_add lib/*
   fi
 
-  # now run the test in background mode in case verification process needs to issue message to it
-  echo "==> Running instrumented jar file (in background)"
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs}"
-  else
-    # use a pipe to handle redirecting stdin to the application, since it runs as background process
-    if [ ! -p inpipe ]; then
-      mkfifo inpipe
-    fi
-    tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${class}/${test} ${runargs} &
-    pid=$!
-
-    # delay just a bit to make sure app is running before starting checker
-    sleep 2
-
-    # run the script to check correctness
-    verify_test
-
-    # kill the tail process
-    pkill tail > /dev/null 2>&1
-
-    # delete the pipe we created
-    if [ -p inpipe ]; then
-      rm -f inpipe
+  # if verification requested & the danfig or check_results.sh script files are missing, skip the verification
+  if [[ ${VERIFY} -eq 1 ]]; then
+    if [[ ! -f danfig ]]; then
+      echo "==> SKIPPING verify of ${test}: MISSING: danfig"
+      VERIFY=0
+    elif [[ ! -f check_result.sh ]]; then
+      echo "==> SKIPPING verify of ${test}: MISSING: check_result.sh"
+      VERIFY=0
     fi
   fi
+
+  # now run the test
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    echo "==> Running instrumented jar file"
+    echo "java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}"
+    return
+  fi
+  
+  # no verification - run test in foreground and wait for it to finish
+  if [[ ${VERIFY} -eq 0 ]]; then
+    echo "==> Running instrumented jar file"
+    java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}
+    return
+  fi
+    
+  # else run the test in background mode so verification process can issue message to it
+  # use a pipe to handle redirecting stdin to the application, since it runs as background process
+  echo "==> Running instrumented jar file (in background)"
+  if [ ! -p inpipe ]; then
+    mkfifo inpipe
+  fi
+  tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs} &
+  pid=$!
+
+  # delay just a bit to make sure app is running before starting checker
+  sleep 2
+
+  # run the script to check correctness
+  verify_test
+
+  # delete the pipe we created
+  if [ -p inpipe ]; then
+    rm -f inpipe > /dev/null 2>&1
+  fi
+
+  # kill the tail process
+  pkill tail > /dev/null 2>&1
 }
 
 function verify_test
 {
-  if [[ ${TESTMODE} -eq 0 ]]; then
+  if [[ ${VERIFY} -eq 1 && ${TESTMODE} -eq 0 ]]; then
     # (NOTE: a failure in this call will perform an exit, which will terminate the script)
     echo "==> Checking test results"
     ./check_result.sh ${pid}
@@ -222,7 +185,7 @@ function verify_test
 function clear_database
 {
   echo "==> Clearing the database"
-  if [[ ${TESTMODE} -ne 0 ]]; then
+  if [[ ${TESTMODE} -eq 1 ]]; then
     echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
     echo
   else
@@ -283,6 +246,65 @@ function create_danfig
   fi
 }
 
+# build the jar file with debug info enabled (so danlauncher can access local parameters)
+function build_test
+{
+  libs=""
+
+  # handle special cases (such as if a library file or other files are necessary)
+  LIBPATH="results/${test}/lib"
+  case ${test} in
+    SimpleNano)
+      ;&   # fall through...
+    SimpleServer)
+      if [ ! -d ${LIBPATH} ]; then
+        mkdir -p ${LIBPATH}
+      fi
+      cp lib/nanohttpd-2.2.0.jar ${LIBPATH}
+      libs="-cp .:lib/nanohttpd-2.2.0.jar"
+      ;;
+    RefReturnArray)
+      ;&   # fall through...
+    RefReturnMultiArray)
+      ;&   # fall through...
+    RefReturnDouble)
+      # build the library (uninstrumented code) jar file
+      # (need to use $path instead of $class/.. because the latter will not keep path structure
+      # of lib within jar file)
+      path="edu/vanderbilt/isis/uninstrumented_return"
+      LIBFILE="LibReturnObject"
+      if [ ! -d ${LIBPATH} ]; then
+        mkdir -p ${LIBPATH}
+      fi
+      echo "==> Building ${LIBFILE} lib file for ${test}..."
+      if [[ ${TESTMODE} -ne 0 ]]; then
+        echo "javac ${path}/lib/${LIBFILE}.java"
+        echo "jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java"
+      else
+        javac ${path}/lib/${LIBFILE}.java
+        jar cvf ${LIBPATH}/${LIBFILE}.jar ${path}/lib/${LIBFILE}.class ${path}/lib/${LIBFILE}.java
+      fi
+      libs="-cp .:lib/LibArrayObject.jar"
+      ;;
+    *)
+      ;;
+  esac
+
+  # now build the file(s) and jar them up (include source and class files in jar)
+  echo "==> Building initial un-instrumented '${test}'"
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "javac -g ${libs} ${MAINCLASS}.java"
+    echo "jar cvf results/${test}/${test}.jar ${class}/*.class ${MAINCLASS}.java"
+  else
+    javac -g ${libs} ${MAINCLASS}.java
+    jar cvf results/${test}/${test}.jar ${class}/*.class ${MAINCLASS}.java
+    if [[ ! -f results/${test}/${test}.jar ]]; then
+      echo "FAILURE: instrumented file not produced!"
+      FAILURE=1
+    fi
+  fi
+}
+
 # this takes the full pathname of the source file and converts it into a 'test' name (the name
 # of the source file without the path or the ".java" extension) and a 'class' name (the path).
 function extract_test
@@ -311,20 +333,21 @@ function extract_test
   test=${test:0:${namelen}}
 }
 
-# NOTE: 'file' is assumed to be defined on entry as the name of the source (java) file in the
-#       edu subdirectory structure. It is also assumed that there is only 1 java file for each
-#       test (excluding libraries) and they are all unique names. This base name (excluding path
-#       and '.java' extension) will be used as the 'test' name.
-#
 # this checks if the required source files are present, and if so:
 # 1. builds the jar file with full debugging info (for extracting info with danlauncher)
 # 2. create a results/<testname> directory to perform all builds in
 # 3. creates a debug-stripped jar from the original and instruments this jar file
 #
 # if the run option specified (ie. 'RUNTEST' is set to 1), then also do:
-#    4. clear the database of solutions
-#    5. run the instrumented jar file as background process
-#    6. verify that expected solution (parameter name and value) are found in the solution set.
+#
+# 4. clear the database of solutions
+# 5. run the instrumented jar file as background process
+# 6. verify that expected solution (parameter name and value) are found in the solution set.
+#
+# NOTE: 'file' is assumed to be defined on entry as the name of the source (java) file in the
+#       edu subdirectory structure. It is also assumed that there is only 1 java file for each
+#       test (excluding libraries) and they are all unique names. This base name (excluding path
+#       and '.java' extension) will be used as the 'test' name.
 #
 function build_chain
 {
@@ -346,19 +369,22 @@ function build_chain
   fi
   
   # create a mainclass.txt file that contains the main class for the test (for the run_tests.sh)
-  echo "${class}/${test}" > ${builddir}/mainclass.txt
+  MAINCLASS=${class}/${test}
+  echo "${MAINCLASS}" > ${builddir}/mainclass.txt
   
   # check for the required JSON config file
   # (required if we are going to perform a check of the test results)
   runargs=""
   RUNCHECK=0
-  if [[ -f ${class}/testcfg.json ]]; then
+  jsonfile="${builddir}/testcfg.json"
+  if [[ -f "${class}/testcfg.json" ]]; then
     # copy the file to the build directory
-    cp ${class}/testcfg.json ${builddir}/testcfg.json
-    jsonfile="${builddir}/testcfg.json"
+    cp ${class}/testcfg.json ${jsonfile}
     # get the args from the JSON config file (if it exists)
     runargs=`cat ${jsonfile} | jq -r '.runargs'`
-    RUNCHECK=1
+    if [[ ${VERIFY} -eq 1 ]]; then
+      RUNCHECK=1
+    fi
   fi
 
   # if we are running the test and we have a valid JSON file deined for it,
@@ -373,7 +399,7 @@ function build_chain
   build_test
 
   # the rest of the commands must be executed from the build directory of the specified test
-  cd results/${test}
+  cd ${builddir}
 
   # create instrumented jar (from debug-stripped version of jar)
   instrument_test
@@ -388,6 +414,7 @@ function build_chain
   
   # clear the database before we run
   clear_database
+
   # run instrumented jar and and verify results
   run_test
 
@@ -400,6 +427,7 @@ function build_chain
 FAILURE=0
 TESTMODE=0
 RUNTEST=0
+VERIFY=0
 COMMAND=()
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -410,6 +438,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -r|--run)
       RUNTEST=1
+      VERIFY=1
       shift
       ;;
     *)
