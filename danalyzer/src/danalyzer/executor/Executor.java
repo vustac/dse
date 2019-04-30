@@ -64,7 +64,8 @@ public class Executor {
   private Map<String, ArrayList<UserSymbolic>> symbolicMap = new HashMap<>();
   
   private Context               z3Context;
-  private List<BoolExpr>        z3Constraints;
+  private List<BoolExpr>        pathConstraints;
+  private List<BoolExpr>        arrayConstraints;
   private Map<String, Expr>     exprMap;
   private Optimize              z3Optimize;
   
@@ -127,7 +128,8 @@ public class Executor {
 
     exprMap = new HashMap<>();
     z3Context = new Context();
-    z3Constraints = new ArrayList<>();
+    pathConstraints = new ArrayList<>();
+    arrayConstraints = new ArrayList<>();
     z3Optimize = z3Context.mkOptimize();
 
     /* ----------debug head--------- *@*/
@@ -691,7 +693,7 @@ public class Executor {
     debugPrintConstraint(threadId, "added user constraint: " + conType + " " + constraintVal);
     // ----------debug tail---------- */
 
-    z3Constraints.add(exprBool);
+    pathConstraints.add(exprBool);
   }
 
   /**
@@ -736,9 +738,9 @@ public class Executor {
     }
 
     // apply constraints
-    z3Constraints.add(z3Context.mkBVSGE(Util.getBitVector(val, z3Context),
+    pathConstraints.add(z3Context.mkBVSGE(Util.getBitVector(val, z3Context),
                                         Util.getBitVector(minVal, z3Context)));
-    z3Constraints.add(z3Context.mkBVSLE(Util.getBitVector(val, z3Context),
+    pathConstraints.add(z3Context.mkBVSLE(Util.getBitVector(val, z3Context),
                                         Util.getBitVector(maxVal, z3Context)));
     
     /* ----------debug head--------- *@*/
@@ -1314,10 +1316,10 @@ public class Executor {
   private void addArrayIndexConstraints(BitVecExpr index, int length, int opcodeOffset) {
     BoolExpr expr = null;
 
-    if (z3Constraints.size() > 0) {
-      expr = z3Constraints.get(0);
-      for (int i = 1; i < z3Constraints.size(); i++) {
-        expr = z3Context.mkAnd(expr, z3Constraints.get(i)); 
+    if (pathConstraints.size() > 0) {
+      expr = pathConstraints.get(0);
+      for (int i = 1; i < pathConstraints.size(); i++) {
+        expr = z3Context.mkAnd(expr, pathConstraints.get(i)); 
       }
     }
     
@@ -1354,17 +1356,21 @@ public class Executor {
   private void solvePC(int threadId, int opcodeOffset, boolean pathsel, ConstraintType ctype) {
     // add up the constraints and invert the last one to find a new path
     // first, start with the last constraint negated (in case there is only 1 constraint)
-    int lastix = z3Constraints.size() - 1;
-    BoolExpr lastExpr = z3Constraints.get(lastix);
+    int lastix = pathConstraints.size() - 1;
+    BoolExpr lastExpr = pathConstraints.get(lastix);
     BoolExpr expr = z3Context.mkNot(lastExpr);
 
     // if more than 1, 'and' all the prior constraints plus the last negated one
     if (lastix > 0) {
-      BoolExpr initexpr = z3Constraints.get(0);
+      BoolExpr initexpr = pathConstraints.get(0);
       for (int i = 1; i < lastix; i++) {
-        initexpr = z3Context.mkAnd(initexpr, z3Constraints.get(i));
+        initexpr = z3Context.mkAnd(initexpr, pathConstraints.get(i));
       }
       expr = z3Context.mkAnd(initexpr, expr);
+    }
+    
+    for (BoolExpr arrayExpr : arrayConstraints) {
+      expr = z3Context.mkAnd(arrayExpr, expr);
     }
 
     // add optimization
@@ -2178,8 +2184,11 @@ public class Executor {
       // add constraints on index values
       BitVecExpr zero = z3Context.mkBV(0, 32);
       BitVecExpr bound = z3Context.mkBV(conLength, 32);
-      //z3Constraints.add(z3Context.mkBVSGE((BitVecExpr) idx.getValue(), zero));
-      //z3Constraints.add(z3Context.mkBVSLT((BitVecExpr) idx.getValue(), bound));
+      
+      // these are separate from the path constraints because otherwise array
+      // index out of bound constraints will never be satisfiable
+      arrayConstraints.add(z3Context.mkBVSGE((BitVecExpr) idx.getValue(), zero));
+      arrayConstraints.add(z3Context.mkBVSLT((BitVecExpr) idx.getValue(), bound));
 
       /* ----------debug head--------- *@*/
       debugPrintConstraint(threadId, "added array bounds constraints: BVSGE to 0 & BVSLT to" + bound);
@@ -3843,7 +3852,7 @@ public class Executor {
     
     BoolExpr expr3 = z3Context.mkEq(expr2, expr1);
     expr3 = pathsel ? expr3 : z3Context.mkNot(expr3);
-    z3Constraints.add(expr3);
+    pathConstraints.add(expr3);
     
     /* ----------debug head--------- *@*/
     debugPrintConstraint(threadId, "added " + opcode + " constraint: " + (pathsel ? "Eq" : "Eq + Not")
@@ -3883,7 +3892,7 @@ public class Executor {
     BitVecExpr expr1 = Util.getBitVector(Value.INT32, val1, z3Context);
     BoolExpr expr3 = null;
     expr3 = pathsel ? z3Context.mkBVSGT(expr1, expr2) : z3Context.mkBVSLE(expr1, expr2);
-    z3Constraints.add(expr3);
+    pathConstraints.add(expr3);
 
     /* ----------debug head--------- *@*/
     debugPrintConstraint(threadId, "added " + opcode + " constraint: " + (pathsel ? "BVSGT" : "BVSLE")
@@ -3922,7 +3931,7 @@ public class Executor {
     BitVecExpr expr2 = Util.getBitVector(Value.INT32, val2, z3Context);
     BitVecExpr expr1 = Util.getBitVector(Value.INT32, val1, z3Context);
     BoolExpr expr3 = pathsel ? z3Context.mkBVSLT(expr1, expr2) : z3Context.mkBVSGE(expr1, expr2);
-    z3Constraints.add(expr3);
+    pathConstraints.add(expr3);
 
     /* ----------debug head--------- *@*/
     debugPrintConstraint(threadId, "added " + opcode + " constraint: " + (pathsel ? "BVSLT" : "BVSGE")
@@ -3961,7 +3970,7 @@ public class Executor {
     BitVecExpr expr2 = Util.getBitVector(Value.INT32, val2, z3Context);
     BitVecExpr expr1 = Util.getBitVector(Value.INT32, val1, z3Context);
     BoolExpr expr3 = pathsel ? z3Context.mkBVSLT(expr1, expr2) : z3Context.mkBVSGE(expr1, expr2);
-    z3Constraints.add(expr3);
+    pathConstraints.add(expr3);
 
     /* ----------debug head--------- *@*/
     debugPrintConstraint(threadId, "added " + opcode + " constraint: " + (pathsel ? "BVSLT" : "BVSGE")
@@ -4081,7 +4090,7 @@ public class Executor {
     com.microsoft.z3.BoolExpr expr = z3Context.mkEq((com.microsoft.z3.Expr) rawVal2,
             (com.microsoft.z3.Expr) rawVal1);
     expr = isEqual ? expr : z3Context.mkNot(expr);
-    z3Constraints.add(expr);
+    pathConstraints.add(expr);
 
     /* ----------debug head--------- *@*/
     debugPrintConstraint(threadId, "added IF_ACMPEQ constraint: " + (isEqual ? "Eq" : "Eq + Not"));
@@ -4129,7 +4138,7 @@ public class Executor {
       com.microsoft.z3.BoolExpr expr = z3Context.mkEq((com.microsoft.z3.Expr) rawVal2,
               (com.microsoft.z3.Expr) rawVal1);
       expr = isNotEqual ? expr : z3Context.mkNot(expr);
-      z3Constraints.add(expr);
+      pathConstraints.add(expr);
 
       /* ----------debug head--------- *@*/
       debugPrintConstraint(threadId, "added IF_ACMPNE constraint: " + (isNotEqual ? "Eq" : "Eq + Not"));
