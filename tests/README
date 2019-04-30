@@ -38,7 +38,7 @@ make_tests.sh [options] [Name]
     
     If no test name is specified it will build and run all tests found in the edu subdirectory.
 
-run_tests.sh [options] Name
+run_tests.sh [options] [Name]
 
   where [options] are:
     -t or --test   - don't run the test, dut display the commands that would be used to build it.
@@ -47,6 +47,8 @@ run_tests.sh [options] Name
     This script will build the instrumented jar file (only if it was not found) and will then run it.
     If the -v option is specified and both a danfig and check_results.sh file were found, it will
     then use the check_results.sh script to validate the dansolver solution found.
+    
+    If no test name is specified it will run all tests found in the results subdirectory.
 
 CREATING A TEST MANUALLY:
 -------------------------
@@ -104,12 +106,14 @@ A test is created by defining a new entry in the edu/vanderbilt/isis directory s
         "command": "EXPECTED_PARAM"
         "name": parameter name (same as the value defined in SymbolicList)
         "value" : the expected value in the solution
+        "ctype" : the type of constraint { PATH, ARRAY, LOOPBOUND }
     
     expected solution (multiple parameters)
         "command": "EXPECTED_PARAM"
         "paramlist": an array of parameters that are expected for a single solution, each containing:
             "name": parameter name (same as the value defined in SymbolicList)
             "value" : the expected value in the solution
+            "ctype" : the type of constraint { PATH, ARRAY, LOOPBOUND }
     
 CREATING A TEST WITH DANLAUNCHER:
 --------------------------------
