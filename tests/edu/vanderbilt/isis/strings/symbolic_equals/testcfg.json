@@ -24,7 +24,8 @@
     {
       "command": "EXPECTED_PARAM",
       "name": "str",
-      "value": "\"abc123\""
+      "value": "\"abc123\"",
+      "ctype": "PATH"
     },
     {
       "command": "SHOW_RESULTS",

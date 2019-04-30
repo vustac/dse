@@ -24,7 +24,8 @@
     {
       "command": "EXPECTED_PARAM",
       "name": "arr_1",
-      "value": "7"
+      "value": "7",
+      "ctype": "PATH"
     },
     {
       "command": "SHOW_RESULTS",

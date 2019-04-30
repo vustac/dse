@@ -22,7 +22,20 @@
     {
       "command": "EXPECTED_PARAM",
       "name": "parsedInt",
-      "value": "1"
+      "value": "0",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "parsedInt",
+      "value": "1",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "parsedInt",
+      "value": "3",
+      "ctype": "PATH"
     },
     {
       "command": "SHOW_RESULTS",

@@ -24,7 +24,8 @@
     {
       "command": "EXPECTED_PARAM",
       "name": "value",
-      "value": "\"c\""
+      "value": "\"c\"",
+      "ctype": "PATH"
     },
     {
       "command": "SHOW_RESULTS",

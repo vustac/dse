@@ -24,7 +24,14 @@
     {
       "command": "EXPECTED_PARAM",
       "name": "index",
-      "value": "4"
+      "value": "4",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "index",
+      "value": "-2147483648",
+      "ctype": "ARRAY"
     },
     {
       "command": "SHOW_RESULTS",
