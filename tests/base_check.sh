@@ -76,9 +76,11 @@ function wait_for_server
 }
 
 # extracts the solutions from the database and saves them as 3 arrays:
-# 't_array' will contain the type for each solution,
+# 't_array' will contain the data type for each solution,
 # 'n_array' will contain the parameter names,
 # 'v_array' will contain the values
+# 'c_array' will contain the constraint type
+#
 # $SOLUTIONS will contain the number of solutions found
 #
 function extract_solutions
@@ -89,12 +91,14 @@ function extract_solutions
   type=`echo ${solution} | jq -r '.solution[0].type'`
   name=`echo ${solution} | jq -r '.solution[0].name'`
   value=`echo ${solution} | jq -r '.solution[0].value'`
+  ctype=`echo ${solution} | jq -r '.ctype'`
 
   # if there are multiple solutions, just verify the one we are expecting
   IFS=$'\n'
   read -r -d '' -a t_array <<< "${type}"
   read -r -d '' -a n_array <<< "${name}"
   read -r -d '' -a v_array <<< "${value}"
+  read -r -d '' -a c_array <<< "${ctype}"
 
   SOLUTIONS=${#v_array[@]}
   echo "${SOLUTIONS} solutions received"
@@ -115,6 +119,10 @@ function check_solution
 {
   local expname=$1
   local expvalue=$2
+  local expctype=
+  if [ $# -gt 2 ] && [ "$3" != "null" ]; then
+    expctype=$3
+  fi
   
   for ((ix=0; ix<${SOLUTIONS}; ix++)); do
     # when a string is returned, the result includes the enclosing quotes, so include them in the
@@ -125,12 +133,20 @@ function check_solution
 
     #echo "${ix}: name: '${n_array[ix]}' value: '${v_array[ix]}'"
     if [ "${n_array[ix]}" == "${expname}" ] && [ "${v_array[ix]}" == "${expvalue}" ]; then
-      echo "Result found: ${expname} = ${expvalue}"
-      return 0
+      if [ "${expctype}" == "" ] || [ "${expctype}" == "${c_array[ix]}" ]; then
+        echo "Result found: type ${c_array[ix]} - ${expname} = ${expvalue}"
+        echo
+        return 0
+      fi
     fi
   done
 
-  echo "Expected result not found: ${expname} = ${expvalue}"
+  if [[ ${expctype} == "" ]]; then
+    echo "Expected result not found: ${expname} = ${expvalue}"
+  else
+    echo "Expected result not found: type ${expctype} - ${expname} = ${expvalue}"
+  fi
+  echo
   STATUS=1
 }
 
@@ -144,9 +160,9 @@ function show_results
   if [ ${STATUS} -ne 0 ]; then
     echo "----- $1 FAILED -----"
     echo
-    echo "Results : ${n_array[0]} = ${v_array[0]}";
+    echo "Results : type ${c_array[0]} - ${n_array[0]} = ${v_array[0]}";
     for ((ix=1; ix<${SOLUTIONS}; ix++)); do
-      echo "        : ${n_array[ix]} = ${v_array[ix]}"
+      echo "        : type ${c_array[ix]} - ${n_array[ix]} = ${v_array[ix]}"
     done
     echo
     exit 1

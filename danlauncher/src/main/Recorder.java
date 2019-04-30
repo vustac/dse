@@ -159,24 +159,6 @@ public class Recorder {
   /**
    * add the specified expected parameter command specifying the name and value of the parameter.
    * 
-   * @param name  - the name of the parameter
-   * @param value - the value of the parameter
-   */
-  public void addExpectedParam(String name, String value) {
-    if (recordState && recordStartTime != 0) {
-      // if EXPECTED_PARAM not in record list (this is the first), preceed it with EXTRACT command
-      if (!recordCommandList.contains(RecordID.EXPECTED_PARAM)) {
-        addCommand(RecordID.EXTRACT_SOLUTIONS, null);
-      }
-    
-      // add the command
-      recording.addCommand(RecordID.EXPECTED_PARAM, new RecordExpectedSingle(name, value));
-    }
-  }
-  
-  /**
-   * add the specified expected parameter command specifying the name and value of the parameter.
-   * 
    * @param paramlist  - list of the parameters defined for a solution
    */
   public void addExpectedParams(ArrayList<ParameterInfo> paramlist) {
@@ -186,7 +168,12 @@ public class Recorder {
         addCommand(RecordID.EXTRACT_SOLUTIONS, null);
       }
     
-      recording.addCommand(RecordID.EXPECTED_PARAM, new RecordExpectedMulti(paramlist));
+      if (paramlist.size() == 1) {
+        ParameterInfo entry = paramlist.get(0);
+        recording.addCommand(RecordID.EXPECTED_PARAM, new RecordExpectedSingle(entry.name, entry.value, entry.ctype));
+      } else {
+        recording.addCommand(RecordID.EXPECTED_PARAM, new RecordExpectedMulti(paramlist));
+      }
     }
   }
   
@@ -271,14 +258,19 @@ public class Recorder {
     content += Utils.NEWLINE;
 
     for (Object objitem : recording.commandlist) {
+      ArrayList<String> args = new ArrayList<>();
       if (objitem instanceof RecordCommand) {
         // this is a normal command (0 or 1 arguments)
         RecordCommand entry = (RecordCommand) objitem;
-        content += getCommandOutput(entry.command.toString(), entry.argument, "");
+        args.add(entry.argument);
+        content += getCommandOutput(entry.command.toString(), args);
       } else if (objitem instanceof RecordExpectedSingle) {
         // this is for single param in a solution
-        RecordExpectedSingle param = (RecordExpectedSingle) objitem;
-        content += getCommandOutput(param.command.toString(), param.name, param.value);
+        RecordExpectedSingle expected = (RecordExpectedSingle) objitem;
+        args.add(expected.name);
+        args.add(expected.value);
+        args.add(expected.ctype);
+        content += getCommandOutput(expected.command.toString(), args);
       } else if (objitem instanceof RecordExpectedMulti) {
         // this is for multiple params in a solution
         RecordExpectedMulti param = (RecordExpectedMulti) objitem;
@@ -291,28 +283,38 @@ public class Recorder {
           continue;
         }
         String cmd = (String) map.get("command");
-        String arg1 = "";
-        String arg2 = "";
         if (map.containsKey("argument")) {
           // the "normal" commands (1 argument)
-          arg1 = (String) map.get("argument");
-          content += getCommandOutput(cmd, arg1, arg2);
+          args.add((String) map.get("argument"));
+          content += getCommandOutput(cmd, args);
         } else if (map.containsKey("name")) {
           // the EXPECTED_PARAM command - single value
-          arg1 = (String) map.get("name");
-          arg2 = (String) map.get("value");
-          content += getCommandOutput(cmd, arg1, arg2);
+          args.add((String) map.get("name"));
+          args.add((String) map.get("value"));
+          args.add((String) map.get("ctype"));
+          content += getCommandOutput(cmd, args);
         } else if (map.containsKey("paramlist")) {
           // the EXPECTED_PARAM command - multi value
           ArrayList<ParameterInfo> paramlist = new ArrayList<>();
           ArrayList<LinkedTreeMap> list = (ArrayList<LinkedTreeMap>) map.get("paramlist");
-          for (LinkedTreeMap entry : list) {
-            paramlist.add(new ParameterInfo((String)entry.get("name"), (String)entry.get("value")));
+          if (list.size() == 1) {
+            LinkedTreeMap entry = list.get(0);
+            args.add((String)entry.get("name"));
+            args.add((String)entry.get("value"));
+            args.add((String)entry.get("ctype"));
+            content += getCommandOutput(cmd, args);
+          } else {
+            for (LinkedTreeMap entry : list) {
+              ParameterInfo exparam = new ParameterInfo((String)entry.get("name"),
+                                                        (String)entry.get("value"),
+                                                        (String)entry.get("ctype"));
+              paramlist.add(exparam);
+            }
           }
           content += getExpectedParamList(paramlist);
         } else {
           // if no arguments...
-          content += getCommandOutput(cmd, arg1, arg2);
+          content += getCommandOutput(cmd, args);
         }
       } else {
         Utils.printStatusError("Unhandled command class type: " + objitem.getClass().getName());
@@ -322,7 +324,7 @@ public class Recorder {
     return content;
   }
 
-  private static String getCommandOutput(String id, String arg1, String arg2) {
+  private static String getCommandOutput(String id, ArrayList<String> args) {
     String content = "";
     switch(id) {
       case "STOP":
@@ -331,8 +333,12 @@ public class Recorder {
         content += Utils.NEWLINE;
         break;
       case "DELAY":
+        if (args == null || args.size() != 1) {
+          Utils.printStatusError("Invalid args for : " + id);
+          return content;
+        }
         content += "# wait a short period" + Utils.NEWLINE;
-        content += "sleep " + arg1 + Utils.NEWLINE;
+        content += "sleep " + args.get(0) + Utils.NEWLINE;
         content += Utils.NEWLINE;
         break;
       case "WAIT_FOR_TERM":
@@ -346,14 +352,22 @@ public class Recorder {
         content += Utils.NEWLINE;
         break;
       case "SET_HTTP":
+        if (args == null || args.size() != 1) {
+          Utils.printStatusError("Invalid args for : " + id);
+          return content;
+        }
         content += "# http port and message to send" + Utils.NEWLINE;
-        content += "SERVERPORT=\"" + arg1 + "\"" + Utils.NEWLINE;
+        content += "SERVERPORT=\"" + args.get(0) + "\"" + Utils.NEWLINE;
         content += Utils.NEWLINE;
         break;
       case "SEND_HTTP_POST":
+        if (args == null || args.size() != 1) {
+          Utils.printStatusError("Invalid args for : " + id);
+          return content;
+        }
         content += "# send the HTTP POST" + Utils.NEWLINE;
         content += "echo \"Sending message to application\"" + Utils.NEWLINE;
-        content += "curl -d \"" + arg1 + "\" http://localhost:${SERVERPORT}" + Utils.NEWLINE;
+        content += "curl -d \"" + args.get(0) + "\" http://localhost:${SERVERPORT}" + Utils.NEWLINE;
         content += Utils.NEWLINE;
         break;
       case "SEND_HTTP_GET":
@@ -363,9 +377,13 @@ public class Recorder {
         content += Utils.NEWLINE;
         break;
       case "SEND_STDIN":
+        if (args == null || args.size() != 1) {
+          Utils.printStatusError("Invalid args for : " + id);
+          return content;
+        }
         content += "# send the message to STDIN" + Utils.NEWLINE;
         content += "echo \"Sending message to application\"" + Utils.NEWLINE;
-        content += "echo \"" + arg1 + "\" > /proc/${PID}/fd/0" + Utils.NEWLINE;
+        content += "echo \"" + args.get(0) + "\" > /proc/${PID}/fd/0" + Utils.NEWLINE;
         content += Utils.NEWLINE;
         break;
       case "EXTRACT_SOLUTIONS":
@@ -378,7 +396,18 @@ public class Recorder {
         content += Utils.NEWLINE;
         break;
       case "EXPECTED_PARAM":
-        content += "check_solution \"" + arg1 + "\" \"" + arg2 + "\"" + Utils.NEWLINE;
+        if (args == null || args.size() < 2) {
+          Utils.printStatusError("Invalid args for : " + id);
+          return content;
+        }
+        content += "check_solution";
+        for (String arg : args) {
+          content += " \"" + arg + "\"";
+        }
+        content += Utils.NEWLINE;
+        break;
+      default:
+        Utils.printStatusMessage("Unknown RECORD command: " + id);
         break;
     }
 
@@ -388,7 +417,7 @@ public class Recorder {
   private static String getExpectedParamList(ArrayList<ParameterInfo> paramlist) {
     String content = "check_solution ";
     for (ParameterInfo entry : paramlist) {
-      content += "\"" + entry.name + "\" \"" + entry.value + "\" ";
+      content += "\"" + entry.name + "\" \"" + entry.value + "\" \"" + entry.ctype + "\" ";
     }
     content += Utils.NEWLINE;
     return content;
@@ -397,12 +426,14 @@ public class Recorder {
   // this defines the data for expected parameters so we can create an array of them for the case
   // of solutions that have more than one parameter defined.
   public static class ParameterInfo {
-    private final String name;
-    private final String value;
+    private final String name;    // the name of the parameter
+    private final String value;   // the value of the parameter
+    private final String ctype;   // the constraint type of the param
     
-    public ParameterInfo(String name, String value) {
+    public ParameterInfo(String name, String value, String ctype) {
       this.name = name;
       this.value = value;
+      this.ctype = ctype;
     }
   }
 
@@ -469,14 +500,16 @@ public class Recorder {
 
   // the class for EXPECTED_PARAM command
   private static class RecordExpectedSingle {
-    private final RecordID command;
-    private final String   name;
-    private final String   value;
+    private final RecordID      command;
+    private final String        name;    // the name of the parameter
+    private final String        value;   // the value of the parameter
+    private final String        ctype;   // the constraint type of the param
     
-    private RecordExpectedSingle(String name, String value) {
+    private RecordExpectedSingle(String name, String value, String ctype) {
       this.command = RecordID.EXPECTED_PARAM;
-      this.name = name;
+      this.name  = name;
       this.value = value;
+      this.ctype = ctype;
     }
   }
 

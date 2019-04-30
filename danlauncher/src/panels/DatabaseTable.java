@@ -669,7 +669,7 @@ public class DatabaseTable {
               info.iConnect + ", Count " + info.iCount, contents, 400, 300);
 
           // inform Launcher recorder of solution selection
-          LauncherMain.checkSelectedSolution(contents);
+          LauncherMain.checkSelectedSolution(contents, info.ctype);
         }
         break;
       default:

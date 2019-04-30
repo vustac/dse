@@ -93,10 +93,7 @@ function run_test
 
   # if verification requested & the danfig or check_results.sh script files are missing, skip the verification
   if [[ ${VERIFY} -eq 1 ]]; then
-    if [[ ! -f danfig ]]; then
-      echo "==> SKIPPING verify of ${test}: MISSING: danfig"
-      VERIFY=0
-    elif [[ ! -f check_result.sh ]]; then
+    if [[ ! -f check_result.sh ]]; then
       echo "==> SKIPPING verify of ${test}: MISSING: check_result.sh"
       VERIFY=0
     fi

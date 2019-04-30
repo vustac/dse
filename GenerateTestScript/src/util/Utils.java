@@ -24,12 +24,12 @@ public class Utils {
   
   public static final String NEWLINE = System.getProperty("line.separator");
   
-  public static void printCommandMessage(String message) {
+  public static void printStatusMessage(String message) {
     //LauncherMain.printCommandError(message);
     System.out.println(message);
   }
   
-  public static void printCommandError(String message) {
+  public static void printStatusError(String message) {
     //LauncherMain.printCommandError(message);
     System.err.println(message);
   }
@@ -39,7 +39,7 @@ public class Utils {
     String content = "";
     File file = new File(filename);
     if (!file.isFile()) {
-      printCommandError("ERROR: file not found: " + filename);
+      printStatusError("ERROR: file not found: " + filename);
     } else {
       try {
         FileReader fileReader = new FileReader(file);
@@ -49,7 +49,7 @@ public class Utils {
           content += line + NEWLINE;
         }
       } catch (IOException ex) {
-        printCommandError("ERROR: " + ex.getMessage());
+        printStatusError("ERROR: " + ex.getMessage());
       }
     }
 
@@ -80,13 +80,13 @@ public class Utils {
       bw = new BufferedWriter(fw);
       bw.write(content);
     } catch (IOException ex) {
-      printCommandError("ERROR: " + ex.getMessage());
+      printStatusError("ERROR: " + ex.getMessage());
     } finally {
       if (bw != null) {
         try {
           bw.close();
         } catch (IOException ex) {
-          printCommandError("ERROR: " + ex.getMessage());
+          printStatusError("ERROR: " + ex.getMessage());
         }
       }
     }
@@ -104,7 +104,7 @@ public class Utils {
     try {
       bw = new BufferedWriter(new FileWriter(file));
     } catch (IOException ex) {
-      printCommandError("ERROR: " + ex.getMessage());
+      printStatusError("ERROR: " + ex.getMessage());
       return;
     }
 
@@ -118,7 +118,7 @@ public class Utils {
     try {
       bw.close();
     } catch (IOException ex) {
-      printCommandError("ERROR: " + ex.getMessage());
+      printStatusError("ERROR: " + ex.getMessage());
     }
   }
   

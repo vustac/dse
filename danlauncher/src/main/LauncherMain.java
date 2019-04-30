@@ -419,7 +419,7 @@ public final class LauncherMain {
     mainFrame.getTextField("TXT_SOLUTIONS").setText("" + solutions);
   }
   
-  public static void checkSelectedSolution(String solution) {
+  public static void checkSelectedSolution(String solution, String ctype) {
     // split the solution into name and value
     if (solution.contains(Utils.NEWLINE)) {
       // multiple parameter entries are separated by NEWLINEs
@@ -428,7 +428,7 @@ public final class LauncherMain {
       for (int ix = 0; ix < params.length; ix++) {
         // each entry is composed of <name> = <value> with each item separated by a space
         String[] array = params[ix].split(" ");
-        Recorder.ParameterInfo entry = new Recorder.ParameterInfo(array[0], array[2]);
+        Recorder.ParameterInfo entry = new Recorder.ParameterInfo(array[0], array[2], ctype);
         plist.add(entry);
       }
       recorder.addExpectedParams(plist);
@@ -436,7 +436,11 @@ public final class LauncherMain {
       // single entry
       // entry is composed of <name> = <value> with each item separated by a space
       String[] array = solution.split(" ");
-      recorder.addExpectedParam(array[0], array[2]);
+      ArrayList<Recorder.ParameterInfo> plist = new ArrayList<>();
+      Recorder.ParameterInfo entry = new Recorder.ParameterInfo(array[0], array[2], ctype);
+      plist.add(entry);
+      recorder.addExpectedParams(plist);
+//      recorder.addExpectedParam(array[0], array[2], ctype);
     }
   }
   

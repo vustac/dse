@@ -85,20 +85,22 @@ function run_test
   BOOTCPATH=${CLASSPATH}
 
   # setup the classpath for running the test
-  classpath_init ${instrfile}
+  classpath_init ${test}-dan-ed.jar
   classpath_add $DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then
     classpath_add lib/*
   fi
 
-  # if verification requested & the danfig or check_results.sh script files are missing, skip the verification
+  # if verification requested & the danfig or check_results.sh script files are missing,
+  # skip the verification
+  RUN_IN_BKGND=${VERIFY}
   if [[ ${VERIFY} -eq 1 ]]; then
     if [[ ! -f danfig ]]; then
       echo "==> SKIPPING verify of ${test}: MISSING: danfig"
-      VERIFY=0
+      RUN_IN_BKGND=0
     elif [[ ! -f check_result.sh ]]; then
       echo "==> SKIPPING verify of ${test}: MISSING: check_result.sh"
-      VERIFY=0
+      RUN_IN_BKGND=0
     fi
   fi
 
@@ -110,7 +112,7 @@ function run_test
   fi
   
   # no verification - run test in foreground and wait for it to finish
-  if [[ ${VERIFY} -eq 0 ]]; then
+  if [[ ${RUN_IN_BKGND} -eq 0 ]]; then
     echo "==> Running instrumented jar file"
     java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}
     return
@@ -203,7 +205,7 @@ function create_test_script
   fi
   
   echo "==> Creating test script"
-  java -cp ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar:${DSE_DIR}GenerateTestScript/lib/gson-2.8.1.jar main.GenerateTestScript ${class}/testcfg.json ${builddir}/test_script.sh > /dev/null 2>&1
+  java -cp ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar:${DSE_DIR}GenerateTestScript/lib/gson-2.8.1.jar main.GenerateTestScript ${builddir}/testcfg.json ${builddir}/test_script.sh > /dev/null 2>&1
   cat base_check.sh ${builddir}/test_script.sh > ${builddir}/check_result.sh
   chmod +x ${builddir}/check_result.sh
 }
@@ -366,7 +368,6 @@ function build_chain
 
   # make the directory for the selected test (if already exists, delete it first)
   builddir="results/${test}"
-  instrfile="${test}-dan-ed.jar"
   if [[ ${TESTMODE} -eq 0 ]]; then
     if [[ -d ${builddir} ]]; then
       rm -Rf ${builddir}
@@ -388,14 +389,12 @@ function build_chain
     cp ${class}/testcfg.json ${jsonfile}
     # get the args from the JSON config file (if it exists)
     runargs=`cat ${jsonfile} | jq -r '.runargs'`
-    if [[ ${VERIFY} -eq 1 ]]; then
-      RUNCHECK=1
-    fi
+    RUNCHECK=1
   fi
 
-  # if we are running the test and we have a valid JSON file deined for it,
+  # if we have a valid JSON file defined for test,
   # create the danfig and check_results.sh script files.
-  if [[ ${RUNTEST} -eq 1 && ${RUNCHECK} -eq 1 ]]; then
+  if [[ ${RUNCHECK} -eq 1 ]]; then
     # create the danfig and test script files from the test config file
     create_danfig
     create_test_script
