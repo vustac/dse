@@ -22,20 +22,20 @@
     {
       "command": "EXPECTED_PARAM",
       "name": "parsedInt",
-      "value": "0",
-      "ctype": "PATH"
+      "value": "-1",
+      "ctype": "LOOPBOUND"
     },
     {
       "command": "EXPECTED_PARAM",
       "name": "parsedInt",
       "value": "1",
-      "ctype": "PATH"
+      "ctype": "LOOPBOUND"
     },
     {
       "command": "EXPECTED_PARAM",
       "name": "parsedInt",
-      "value": "3",
-      "ctype": "PATH"
+      "value": "2147483647",
+      "ctype": "LOOPBOUND"
     },
     {
       "command": "SHOW_RESULTS",

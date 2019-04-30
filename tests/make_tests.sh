@@ -180,12 +180,13 @@ function instrument_test
   classpath_add $DANALYZER_DIR/dist/danalyzer.jar
 
   # instrument jar file
+  maximizeLoopBounds="1"
   echo "==> Building instrumented jar file for '${test}'"
   if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
+    echo "java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar ${maximizeLoopBounds}"
     echo
   else
-    java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar
+    java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar ${maximizeLoopBounds}
 
     if [[ -f ${test}-strip-dan-ed.jar ]]; then
       mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
