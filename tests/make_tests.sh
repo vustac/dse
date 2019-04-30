@@ -36,57 +36,24 @@ function classpath_add
   CLASSPATH=${CLASSPATH}:$1
 }
 
-# create the instrumented jar file
-# NOTE: this is performed from the subdirectory created for the specified test within the "results" dir.
-function instrument_test
+function clear_database
 {
-  if [[ ${FAILURE} -ne 0 ]]; then
-    return
-  fi
-
-  # exit if uninstrumented file not found
-  if [ ! -f ${test}.jar ]; then
-    echo "Test jar file '${test}.jar' not found!"
-    FAILURE=1
-    return
-  fi
-  
-  # strip debug info from jar file
-  echo "==> Stripping debug info from jar file"
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
+  echo "==> Clearing the database"
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
     echo
   else
-    pack200 -r -G ${test}-strip.jar ${test}.jar
-
-    if [[ ! -f ${test}-strip.jar ]]; then
-      echo "FAILURE: stripped file not produced!"
-      FAILURE=1
-      return
-    fi
+    # clear the database
+    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
   fi
+}
 
-  # setup the classpath for instrumenting the test
-  classpath_init $DANALYZER_DIR/lib/asm-tree-7.2.jar
-  classpath_add $DANALYZER_DIR/lib/asm-7.2.jar
-  classpath_add $DANALYZER_DIR/lib/com.microsoft.z3.jar
-  classpath_add $DANALYZER_DIR/lib/commons-io-2.5.jar
-  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
-
-  # instrument jar file
-  echo "==> Building instrumented jar file for '${test}'"
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
-    echo
-  else
-    java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar
-
-    if [[ -f ${test}-strip-dan-ed.jar ]]; then
-      mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
-    else
-      echo "FAILURE: instrumented file not produced: ${test}-dan-ed.jar"
-      FAILURE=1
-    fi
+function verify_test
+{
+  if [[ ${VERIFY} -eq 1 && ${TESTMODE} -eq 0 ]]; then
+    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
+    echo "==> Checking test results"
+    ./check_result.sh ${pid}
   fi
 }
 
@@ -118,7 +85,7 @@ function run_test
   BOOTCPATH=${CLASSPATH}
 
   # setup the classpath for running the test
-  classpath_init ${test}-dan-ed.jar
+  classpath_init ${instrfile}
   classpath_add $DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then
     classpath_add lib/*
@@ -173,24 +140,57 @@ function run_test
   pkill tail > /dev/null 2>&1
 }
 
-function verify_test
+# create the instrumented jar file
+# NOTE: this is performed from the subdirectory created for the specified test within the "results" dir.
+function instrument_test
 {
-  if [[ ${VERIFY} -eq 1 && ${TESTMODE} -eq 0 ]]; then
-    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
-    echo "==> Checking test results"
-    ./check_result.sh ${pid}
+  if [[ ${FAILURE} -ne 0 ]]; then
+    return
   fi
-}
 
-function clear_database
-{
-  echo "==> Clearing the database"
-  if [[ ${TESTMODE} -eq 1 ]]; then
-    echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
+  # exit if uninstrumented file not found
+  if [ ! -f ${test}.jar ]; then
+    echo "Test jar file '${test}.jar' not found!"
+    FAILURE=1
+    return
+  fi
+  
+  # strip debug info from jar file
+  echo "==> Stripping debug info from jar file"
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
     echo
   else
-    # clear the database
-    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
+    pack200 -r -G ${test}-strip.jar ${test}.jar
+
+    if [[ ! -f ${test}-strip.jar ]]; then
+      echo "FAILURE: stripped file not produced!"
+      FAILURE=1
+      return
+    fi
+  fi
+
+  # setup the classpath for instrumenting the test
+  classpath_init $DANALYZER_DIR/lib/asm-tree-7.2.jar
+  classpath_add $DANALYZER_DIR/lib/asm-7.2.jar
+  classpath_add $DANALYZER_DIR/lib/com.microsoft.z3.jar
+  classpath_add $DANALYZER_DIR/lib/commons-io-2.5.jar
+  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
+
+  # instrument jar file
+  echo "==> Building instrumented jar file for '${test}'"
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
+    echo
+  else
+    java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar
+
+    if [[ -f ${test}-strip-dan-ed.jar ]]; then
+      mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
+    else
+      echo "FAILURE: instrumented file not produced: ${test}-dan-ed.jar"
+      FAILURE=1
+    fi
   fi
 }
 
@@ -334,15 +334,20 @@ function extract_test
 }
 
 # this checks if the required source files are present, and if so:
-# 1. builds the jar file with full debugging info (for extracting info with danlauncher)
-# 2. create a results/<testname> directory to perform all builds in
-# 3. creates a debug-stripped jar from the original and instruments this jar file
+# - build the jar file with full debugging info (for extracting info with danlauncher)
+# - create a results/<testname> directory to perform all builds in
+# - create a mainclass.txt file in build dir consisting of the name of the main Class to run
+# - copy the testcfg.json (if any) from source dir to build dir
+# - creates a debug-stripped jar from the original and instruments this jar file
 #
 # if the run option specified (ie. 'RUNTEST' is set to 1), then also do:
 #
-# 4. clear the database of solutions
-# 5. run the instrumented jar file as background process
-# 6. verify that expected solution (parameter name and value) are found in the solution set.
+# - clear the database of solutions
+# - run the instrumented jar file as background process
+#
+# if the run option specified (ie. 'VERIFY' is set to 1), then also do:
+#
+# - verify that expected solution (parameter name and value) are found in the solution set.
 #
 # NOTE: 'file' is assumed to be defined on entry as the name of the source (java) file in the
 #       edu subdirectory structure. It is also assumed that there is only 1 java file for each
@@ -361,6 +366,7 @@ function build_chain
 
   # make the directory for the selected test (if already exists, delete it first)
   builddir="results/${test}"
+  instrfile="${test}-dan-ed.jar"
   if [[ ${TESTMODE} -eq 0 ]]; then
     if [[ -d ${builddir} ]]; then
       rm -Rf ${builddir}
@@ -428,6 +434,7 @@ FAILURE=0
 TESTMODE=0
 RUNTEST=0
 VERIFY=0
+COUNT_TOTAL=0
 COMMAND=()
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -462,8 +469,6 @@ BASEDIR=`pwd`
 if [[ ! -d "results" ]]; then
   mkdir -p results
 fi
-
-COUNT_TOTAL=0
 
 # make sure the generate tool has been built
 if [[ ! -f ${DSE_DIR}GenerateTestScript/dist/GenerateTestScript.jar ]]; then

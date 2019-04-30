@@ -36,57 +36,24 @@ function classpath_add
   CLASSPATH=${CLASSPATH}:$1
 }
 
-# create the instrumented jar file
-# NOTE: this is performed from the subdirectory created for the specified test within the "results" dir.
-function instrument_test
+function clear_database
 {
-  if [[ ${FAILURE} -ne 0 ]]; then
-    return
-  fi
-
-  # exit if uninstrumented file not found
-  if [ ! -f ${test}.jar ]; then
-    echo "Test jar file '${test}.jar' not found!"
-    FAILURE=1
-    return
-  fi
-  
-  # strip debug info from jar file
-  echo "==> Stripping debug info from jar file"
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "pack200 -r -G ${test}-strip.jar ${test}.jar"
+  echo "==> Clearing the database"
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
     echo
   else
-    pack200 -r -G ${test}-strip.jar ${test}.jar
-
-    if [[ ! -f ${test}-strip.jar ]]; then
-      echo "FAILURE: stripped file not produced!"
-      FAILURE=1
-      return
-    fi
+    # clear the database
+    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
   fi
+}
 
-  # setup the classpath for instrumenting the test
-  classpath_init $DANALYZER_DIR/lib/asm-tree-7.2.jar
-  classpath_add $DANALYZER_DIR/lib/asm-7.2.jar
-  classpath_add $DANALYZER_DIR/lib/com.microsoft.z3.jar
-  classpath_add $DANALYZER_DIR/lib/commons-io-2.5.jar
-  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
-
-  # instrument jar file
-  echo "==> Building instrumented jar file for '${test}'"
-  if [[ ${TESTMODE} -ne 0 ]]; then
-    echo "java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar"
-    echo
-  else
-    java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${test}-strip.jar
-
-    if [[ -f ${test}-strip-dan-ed.jar ]]; then
-      mv ${test}-strip-dan-ed.jar ${test}-dan-ed.jar
-    else
-      echo "FAILURE: instrumented file not produced: ${test}-dan-ed.jar"
-      FAILURE=1
-    fi
+function verify_test
+{
+  if [[ ${VERIFY} -eq 1 && ${TESTMODE} -eq 0 ]]; then
+    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
+    echo "==> Checking test results"
+    ./check_result.sh ${pid}
   fi
 }
 
@@ -118,7 +85,7 @@ function run_test
   BOOTCPATH=${CLASSPATH}
 
   # setup the classpath for running the test
-  classpath_init ${test}-dan-ed.jar
+  classpath_init ${instrfile}
   classpath_add $DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then
     classpath_add lib/*
@@ -173,55 +140,47 @@ function run_test
   pkill tail > /dev/null 2>&1
 }
 
-function verify_test
-{
-  if [[ ${VERIFY} -eq 1 && ${TESTMODE} -eq 0 ]]; then
-    # (NOTE: a failure in this call will perform an exit, which will terminate the script)
-    echo "==> Checking test results"
-    ./check_result.sh ${pid}
-  fi
-}
-
-function clear_database
-{
-  echo "==> Clearing the database"
-  if [[ ${TESTMODE} -eq 1 ]]; then
-    echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
-    echo
-  else
-    # clear the database
-    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
-  fi
-}
-
-# this checks if the required source files are present, and if so:
-# 1. clear the database of solutions
-# 2. run the instrumented jar file as background process
-# 3. verify that expected solution (parameter name and value) are found in the solution set.
+# runs the test specified by: ${test}
 #
-function build_chain
+function run_chain
 {
+  # this must start from the directory this script is in
+  cd ${BASEDIR}
+
+  # these specify where the build dir is in which all operations are performed
+  # and the files that are required to have been built by make_test.sh.
   builddir="results/${test}"
+  instrfile="${test}-dan-ed.jar"
+  mainfile="mainclass.txt"
+  jsonfile="testcfg.json"
 
   # make sure we have a directory for the specified test
   if [[ ! -d ${builddir} ]]; then
-    echo "FAILURE: results directory ${test} not found!"
+    echo "FAILURE ${test}: results directory not found!"
     exit 1
   fi
+
+  cd ${builddir}
 
   # now get the mainclass definition file (exit if not found)
-  if [[ ! -f "${builddir}/mainclass.txt" ]]; then
-    echo "FAILURE: mainclass.txt file not found in results directory!"
+  if [[ ! -f ${mainfile} ]]; then
+    echo "FAILURE ${test}: ${mainfile} file not found in results directory!"
     exit 1
   fi
 
-  MAINCLASS=`cat ${builddir}/mainclass.txt`
+  # if instrumented file is not found, exit
+  if [ ! -f ${instrfile} ]; then
+    echo "FAILURE ${test}: instrumented jar not found in results directory"
+    exit 1
+  fi
+
+  # extract the name of the main Class
+  MAINCLASS=`cat ${mainfile}`
 
   # check for the optional JSON config file
   # (required if we are going to perform a check of the test results)
   runargs=""
   RUNCHECK=0
-  jsonfile="${builddir}/testcfg.json"
   if [[ -f ${jsonfile} ]]; then
     # get the args from the JSON config file (if it exists)
     runargs=`cat ${jsonfile} | jq -r '.runargs'`
@@ -230,18 +189,14 @@ function build_chain
     fi
   fi
 
-  cd ${builddir}
-
-  # if instrumented file is not found, create it
-  if [ ! -f ${test}-dan-ed.jar ]; then
-    instrument_test
-  fi
-  
   # clear the database before we run
   clear_database
 
   # run instrumented jar and and verify results
   run_test
+
+  # count number of tests run
+  COUNT_TOTAL=`expr ${COUNT_TOTAL} + 1`
 }
 
 #========================================= START HERE ============================================
@@ -249,6 +204,7 @@ function build_chain
 FAILURE=0
 TESTMODE=0
 VERIFY=0
+COUNT_TOTAL=0
 COMMAND=()
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -276,10 +232,27 @@ if [ -z ${COMMAND} ]; then
 fi
 set -o nounset
 
-if [[ ${ALLTESTS} -eq 1 ]]; then
-  echo "FAILURE: Must specify a test to run"
-  exit 0
-fi
-test=${COMMAND}
+BASEDIR=`pwd`
 
-build_chain
+# all tests will be kept in a sub-folder of the current location called "results"
+if [[ ! -d "results" ]]; then
+  echo "FAILURE: results directory not found"
+  exit 1
+fi
+
+if [ ${ALLTESTS} -eq 0 ]; then
+  # if a single test is requested, just make that one
+  test=${COMMAND}
+  run_chain
+else
+  # else, we are going to generate them all...
+  # copy the source and library files from the dse tests project
+  echo "Runing all tests..."
+  testlist=`ls results | sort`
+  for test in ${testlist}; do
+    run_chain
+    echo "------------------------------------------"
+  done
+  echo "All ${COUNT_TOTAL} tests completed: no failures"
+fi
+
