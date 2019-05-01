@@ -178,6 +178,7 @@ public class Instrumenter {
   public static void instrumentClasses(Map<String, ClassNode> clsNodeMap) {
     int classCount = 0;
     int methCount = 0;
+    int maxcount = 0;
     
     // create a file for holding the list of classes that are instrumented.
     // this will be placed in the path the instrumented is currently running from.
@@ -786,11 +787,12 @@ public class Instrumenter {
               fore.add(new LdcInsnNode(byteOffset));
               fore.add(new LdcInsnNode(fullName));
               if (headerInstruction(loopHeaders, absInstNode)) {
-                fore.add(execute("maxCompareIntegerICMPGE", "(IIILjava/lang/String;)V"));  
-                System.out.println("Found max instruction!");
+                fore.add(execute("maxCompareIntegerICMPGE", "(IIILjava/lang/String;)V"));
+                ++maxcount;
               }
-              else 
+              else {
                 fore.add(execute("compareIntegerICMPGE", "(IIILjava/lang/String;)V"));  
+              }
               break;
             case Opcodes.IF_ICMPGT:
               fore.add(new InsnNode(Opcodes.DUP2));
@@ -1034,6 +1036,7 @@ public class Instrumenter {
     
     System.out.println("Total classes: " + classCount);
     System.out.println("Total methods: " + methCount);
+    System.out.println("Found max instruction " + maxcount + " times");
     try {
       if (classWriter != null) {
         classWriter.close();

@@ -48,24 +48,15 @@ public class RunnerThread extends Thread {
     @Override
     public void run() {
       try {
-        Utils.printStatusInfo("--------------------------------------------------------------------------------");
-        if (workingdir == null) {
-          Utils.printStatusInfo("RunnerThread running from current directory");
-        } else {
-          Utils.printStatusInfo("RunnerThread running from path: " + workingdir);
-        }
-        Utils.printStatusInfo(String.join(" ", command));
-        
         running = true;
         exitcode = issueCommand(this.command);
-        running = false;
       } catch (InterruptedException e){
         Utils.printStatusWarning("--INTERRUPTED--");
         proc.destroyForcibly();
-        running = false;
-      } catch (Exception e) {
-        Utils.printStatusError("Failure in issueCommand for: " + this.command[0]);
+      } catch (IOException e) {
+        Utils.printStatusError("Failure in issueCommand for: " + this.command[0] + " -> " + e.getMessage());
       }
+      running = false;
     }
     
     public OutputStream getStdin() {
@@ -128,13 +119,19 @@ public class RunnerThread extends Thread {
         return -1;
         
       try {
-        if (proc.getClass().getName().equals("java.lang.UNIXProcess")) {
+        String proctype = proc.getClass().getName();
+        if (proctype.equals("java.lang.UNIXProcess")) {
           Field f = proc.getClass().getDeclaredField("pid");
           f.setAccessible(true);
           procpid = f.getLong(proc);
           f.setAccessible(false);
+          Utils.printStatusInfo("RunnerThread: pid: " + pid);
+        } else {
+          Utils.printStatusInfo("RunnerThread: unhandled process type - " + proctype);
+          procpid = 0; // this is used to indicate we can't get pid of process
         }
       } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+        Utils.msgLogger(Utils.LogType.WARNING, "gitPidOfProcess: " + e.getMessage());
         procpid = -1;
       }
       return procpid;
@@ -170,11 +167,12 @@ public class RunnerThread extends Thread {
         
       Utils.printStatusInfo("--------------------------------------------------------------------------------");
       if (workingdir == null) {
-        Utils.printStatusInfo("RunnerThread running from current directory");
+        Utils.printStatusInfo("RunnerThread: running from current directory");
       } else {
-        Utils.printStatusInfo("RunnerThread running from path: " + workingdir);
+        Utils.printStatusInfo("RunnerThread: running from path: " + workingdir);
       }
       Utils.printStatusInfo(String.join(" ", command));
+
       proc = builder.start();
       pid = getPidOfProcess(proc);
 

@@ -175,6 +175,7 @@ public final class LauncherMain {
   private static String          javaHome;
   private static String          dsePath;
   private static String          maxLogLength;
+  private static String          mainclass;
   private static boolean         mainClassInitializing;
   private static RunMode         runMode;
   private static String          currentTab;
@@ -800,9 +801,9 @@ public final class LauncherMain {
       // if instrumented code is running, abort it before closing
       if (runMode == RunMode.RUNNING) {
         ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
-        if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
+        if (threadInfo != null && threadInfo.pid > 0 && runMode == RunMode.RUNNING) {
           Utils.printStatusInfo("START - CommandLauncher: Killing job " + threadInfo.jobid + ": pid " + threadInfo.pid);
-          String[] command = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
+          String[] command = { "kill", "-9", threadInfo.pid.toString() }; // 9 = SIGKILL
           CommandLauncher commandLauncher = new CommandLauncher();
           commandLauncher.start(command, null);
           runMode = RunMode.EXITING;
@@ -975,9 +976,9 @@ public final class LauncherMain {
       // stop the running process
       Utils.printStatusInfo("ACTION - STOP APPLICATION");
       ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
-      if (threadInfo != null && threadInfo.pid >= 0 && runMode == RunMode.RUNNING) {
+      if (threadInfo != null && threadInfo.pid > 0 && runMode == RunMode.RUNNING) {
         Utils.printStatusInfo("STOP - CommandLauncher: Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
-        String[] command = { "kill", "-15", threadInfo.pid.toString() }; // SIGTERM
+        String[] command = { "kill", "-15", threadInfo.pid.toString() }; // 15 = SIGTERM
         CommandLauncher commandLauncher = new CommandLauncher();
         commandLauncher.start(command, null);
         runMode = RunMode.TERMINATING;
@@ -2712,7 +2713,7 @@ public final class LauncherMain {
     }
     
     // get the user-supplied main class and input value
-    String mainclass = (String) mainClassCombo.getSelectedItem();
+    mainclass = (String) mainClassCombo.getSelectedItem();
     if (mainclass == null) {
       Utils.printStatusError("no main class found!");
       return;
@@ -2751,8 +2752,10 @@ public final class LauncherMain {
     String[] fullcmd = new String[cmdlist.size()];
     fullcmd = cmdlist.toArray(fullcmd);
 
+    // start elapsed timer and indicate we are running
     runMode = RunMode.RUNNING;
     startTime = System.currentTimeMillis();
+    elapsedTimer.start();
     
     threadLauncher.init(new ThreadTermination());
     threadLauncher.launch(fullcmd, projectPathName, "run_" + projectName, null);
@@ -3144,17 +3147,12 @@ public final class LauncherMain {
 
     @Override
     public void jobstarted(ThreadLauncher.ThreadInfo threadInfo) {
-      Utils.printStatusInfo("jobstart - " + threadInfo.jobname + ": pid " + threadInfo.pid);
-
-      // start elapsed timer
-      if (elapsedTimer != null) {
-        elapsedTimer.start();
-      }
+      Utils.printStatusInfo("JOB STARTED - " + threadInfo.jobname + ": pid " + threadInfo.pid);
     }
         
     @Override
     public void jobfinished(ThreadLauncher.ThreadInfo threadInfo) {
-      Utils.printStatusInfo("jobfinished - " + threadInfo.jobname + ": status = " + threadInfo.exitcode);
+      Utils.printStatusInfo("JOB FINISHED - " + threadInfo.jobname + ": status = " + threadInfo.exitcode);
       if (threadInfo.exitcode == 0) {
         Utils.printStatusMessage(threadInfo.jobname + " command (pid " + threadInfo.pid + ") completed successfully");
       } else if (!threadInfo.signal.isEmpty()) {
@@ -3182,7 +3180,7 @@ public final class LauncherMain {
       recorder.addCommand(RecordID.WAIT_FOR_TERM);
     }
   }
-        
+
   private class KillTimerListener implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -3198,17 +3196,17 @@ public final class LauncherMain {
 
         case TERMINATING:
           ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
-          if (threadInfo != null || threadInfo.pid < 0) {
+          if (threadInfo != null && threadInfo.pid > 0) {
+            Utils.printStatusInfo("START - CommandLauncher: Kill job " + threadInfo.jobid + ": pid " + threadInfo.pid);
+            String[] command2 = { "kill", "-9", threadInfo.pid.toString() }; // 9 = SIGKILL
+            CommandLauncher commandLauncher = new CommandLauncher();
+            commandLauncher.start(command2, null);
+            runMode = RunMode.KILLING;
+          } else {
             Utils.printStatusInfo("KillTimerListener: thread not found");
             runMode = RunMode.IDLE;
             Utils.printStatusInfo("STOP - Kill Timer");
             killTimer.stop();
-          } else {
-            Utils.printStatusInfo("START - CommandLauncher: Kill job " + threadInfo.jobid + ": pid " + threadInfo.pid);
-            String[] command2 = { "kill", "-9", threadInfo.pid.toString() }; // SIGKILL
-            CommandLauncher commandLauncher = new CommandLauncher();
-            commandLauncher.start(command2, null);
-            runMode = RunMode.KILLING;
           }
           break;
 

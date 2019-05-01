@@ -96,6 +96,7 @@ public class ThreadLauncher {
         // add the command to the queue
         ThreadInfo commandInfo = new ThreadInfo(command, workdir, this.outTextArea, jobname, fname);
         this.commandQueue.add(commandInfo);
+        Utils.msgLogger(LogType.INFO, "ThreadLauncher: starting " + jobname);
 
         // make sure the timer is running
         this.timer.start(); 
@@ -110,7 +111,7 @@ public class ThreadLauncher {
         if (stdin != null) {
           BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stdin));
           try {
-            Utils.msgLogger(LogType.INFO, "Sending to pid " + this.runner.getJobPid() + ": " + message);
+            Utils.msgLogger(LogType.INFO, "ThreadLauncher: Sending to pid " + this.runner.getJobPid() + ": " + message);
             writer.write(message);
             writer.flush();
             writer.close();
@@ -127,6 +128,7 @@ public class ThreadLauncher {
       }
         
       ThreadInfo threadInfo = this.runner.getJobInfo();
+      Utils.msgLogger(LogType.INFO, "ThreadLauncher: stopping " + threadInfo.jobname);
       Utils.msgLogger(LogType.INFO, "Trying to kill RunnerThread: " + Arrays.deepToString(threadInfo.command));
       this.runner.killProcess();
       this.commandQueue.clear();
