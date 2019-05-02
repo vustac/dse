@@ -13,11 +13,10 @@ The DSE consists of 5 seperate projects contained in separate subdirectories:
    processes to allow running callbacks (in danalyzer) when methods from the
    instrumented program are entered and exited. This simplifies the danalyzer code
    and is run in conjunction with it.
-
- * `dandebug`: a Java program that runs as a server for monitoring the debug output
-   from an instrumented test (using either UDP or TCP) and allows viewing and saving
-   the call graph of the captured data (as long as CALL/RETURN debug messages are enabled).
-
+   
+ * `danpatch`: consists of a native library (written in C++) used by the symbolic
+   execution engine at runtime to speed-up certain operations.
+   
  * `dansolver`: a Java program that runs as a server for receiving the symbolic
    constraints output by danalyzer on a TCP port and generating solutions for them.
    The results are then saved to a database (mongodb).
@@ -28,6 +27,10 @@ The DSE consists of 5 seperate projects contained in separate subdirectories:
    similarly to dandebug. It also provides an interface for examining the bytecode of
    the application and allows the user to specify the parameters he wishes to declare
    as symbolic, and monitors the solutions that are placed in the database by dansolver.
+
+ * `dandebug`: a Java program that runs as a server for monitoring the debug output
+   from an instrumented test (using either UDP or TCP) and allows viewing and saving
+   the call graph of the captured data (as long as CALL/RETURN debug messages are enabled).
 
 The following scripts provide an easier process for running the STAC Challenge
 problems and Canonicals.
