@@ -2187,6 +2187,7 @@ public class Executor {
       
       // these are separate from the path constraints because otherwise array
       // index out of bound constraints will never be satisfiable
+      // see addArrayIndexConstraints
       arrayConstraints.add(z3Context.mkBVSGE((BitVecExpr) idx.getValue(), zero));
       arrayConstraints.add(z3Context.mkBVSLT((BitVecExpr) idx.getValue(), bound));
 
