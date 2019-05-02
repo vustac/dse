@@ -1,6 +1,6 @@
 # VUSTAC Dynamic Symbolic Execution Engine
 
-The DSE consists of 5 seperate projects contained in separate subdirectories:
+The DSE consists of 6 seperate projects contained in separate subdirectories:
 
  * `danalyzer`: consists of a Java program that performs the instrumentation of the
    bytecode of a Java program, and provides the executed methods that are added to
