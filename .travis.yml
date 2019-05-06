@@ -61,7 +61,7 @@ script:
   - cd ../../../dansolver
   - ant run &
   - ps -ef | grep dansolver
-  - cd ../../tests
+  - cd ../../test
   - pwd
   - if [[ "`uname`" == "Linux"  ]]; then ./make_tests.sh --run;                              fi
   - if [[ "`uname`" == "Darwin" ]]; then /usr/local/bin/bash ./make_tests.sh --run;          fi
