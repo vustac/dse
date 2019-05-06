@@ -23,7 +23,7 @@ script:
   - if [[ "`uname`" == "Darwin" ]]; then sudo chown -R `id -un` /data/db; fi
   - if [[ "`uname`" == "Darwin" ]]; then mongod & fi
 
-  - cd danhelper
+  - cd src/danhelper
   - mkdir build
   - cd build
   - cmake ..
@@ -39,7 +39,7 @@ script:
   - ant
   - cd ../danlauncher
   - ant
-  - cd ../GenerateTestScript
+  - cd ../dantestgen
   - ant
   - cd ../
   - mkdir z3
@@ -61,7 +61,7 @@ script:
   - cd ../../../dansolver
   - ant run &
   - ps -ef | grep dansolver
-  - cd ../tests
+  - cd ../../tests
   - pwd
   - if [[ "`uname`" == "Linux"  ]]; then ./make_tests.sh --run;                              fi
   - if [[ "`uname`" == "Darwin" ]]; then /usr/local/bin/bash ./make_tests.sh --run;          fi
