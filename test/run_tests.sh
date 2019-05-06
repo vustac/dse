@@ -12,19 +12,40 @@ set -e
 # directories wherever this script file is run from. A seperate directory is created for each
 # test object so they can each have independent danfig files for them.
 
-DSE_DIR=../
-DANALYZER_DIR=`realpath ${DSE_DIR}danalyzer`
-DANHELPER_DIR=`realpath ${DSE_DIR}danhelper`
-DANPATCH_DIR=`realpath ${DSE_DIR}danpatch/build`
+BASEDIR=`pwd`
+DSE_DIR=`realpath ${BASEDIR}/..`
 
-if [[ ! -f $DANHELPER_DIR/libdanhelper.so ]]; then
-  DANHELPER_DIR="${DANHELPER_DIR}/build/src"
-fi
+DANALYZER_DIR=${DSE_DIR}/src/danalyzer
+DANHELPER_DIR=${DSE_DIR}/src/danhelper
+DANPATCH_DIR=${DSE_DIR}/src/danpatch
 
+# determine the correct name for the danhelper lib file (Linux uses .so, Mac uses .dylib)
 DANHELPER_FILE=libdanhelper.so
 if [[ "`uname`" == "Darwin" ]]; then
   DANHELPER_FILE=libdanhelper.dylib
 fi
+
+# now we need to know if the danhelper lib file is in the appropriate build subdir.
+# if not, move it there (it gets built in the src subdir).
+if [[ ! -f $DANHELPER_DIR/build/${DANHELPER_FILE} ]]; then
+  cd ${DANHELPER_DIR}
+  mkdir -p build
+  cmake .
+  make
+  if [[ -f $DANHELPER_DIR/${DANHELPER_FILE} ]]; then
+    mv $DANHELPER_DIR/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
+  elif [[ -f $DANHELPER_DIR/src/${DANHELPER_FILE} ]]; then
+    mv $DANHELPER_DIR/src/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
+  else
+    echo "ERROR: danhelper library was not created!"
+    exit 1
+  fi
+  cd ${BASEDIR}
+fi
+
+# these active ingredients in these paths are assumed to be in their associated build directories
+DANHELPER_DIR=${DANHELPER_DIR}/build
+DANPATCH_DIR=${DANPATCH_DIR}/build
 
 function classpath_init
 {
@@ -228,8 +249,6 @@ if [ -z ${COMMAND} ]; then
   ALLTESTS=1
 fi
 set -o nounset
-
-BASEDIR=`pwd`
 
 # all tests will be kept in a sub-folder of the current location called "results"
 if [[ ! -d "results" ]]; then

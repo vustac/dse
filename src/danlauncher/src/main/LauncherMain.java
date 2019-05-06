@@ -291,8 +291,9 @@ public final class LauncherMain {
     systemProps = new PropertiesFile(HOMEPATH + "/" + PROJ_CONFIG, "SYSTEM_PROPERTIES");
     javaHome     = systemProps.getPropertiesItem("SYS_JAVA_HOME", JAVA_HOME);
     try {
-      // the main DSE path should be one level up from where we are running from
-      dsePath    = systemProps.getPropertiesItem("SYS_DSEPATH", new File(HOMEPATH + "/..").getCanonicalPath());
+      // the main DSE path should be two levels up from where we are running from
+      File basepath = new File(HOMEPATH + "/../..");
+      dsePath    = systemProps.getPropertiesItem("SYS_DSEPATH", basepath.getCanonicalPath());
     } catch (IOException ex) {
       dsePath    = systemProps.getPropertiesItem("SYS_DSEPATH", HOMEPATH);
     }
@@ -2526,13 +2527,16 @@ public final class LauncherMain {
         
     // init project config file to current settings
     initProjectProperties(projectPathName);
-        
+    
+    // we will use this path a lot here
+    String danalyzerpath = dsePath + "/src/danalyzer";
+
     // verify all the required files exist
     if (!fileCheck(projectPathName + projectName) ||
-        !fileCheck(dsePath + "/danalyzer/dist/danalyzer.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/commons-io-2.5.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/asm-7.2.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/asm-tree-7.2.jar")) {
+        !fileCheck(danalyzerpath + "/dist/danalyzer.jar") ||
+        !fileCheck(danalyzerpath + "/lib/commons-io-2.5.jar") ||
+        !fileCheck(danalyzerpath + "/lib/asm-7.2.jar") ||
+        !fileCheck(danalyzerpath + "/lib/asm-tree-7.2.jar")) {
       Utils.printStatusError("Missing required files (danalyzer library)");
       return -1;
     }
@@ -2570,10 +2574,10 @@ public final class LauncherMain {
     }
 
     String mainclass = "danalyzer.instrumenter.Instrumenter";
-    String classpath = dsePath + "/danalyzer/dist/danalyzer.jar";
-    classpath += ":" + dsePath + "/danalyzer/lib/commons-io-2.5.jar";
-    classpath += ":" + dsePath + "/danalyzer/lib/asm-7.2.jar";
-    classpath += ":" + dsePath + "/danalyzer/lib/asm-tree-7.2.jar";
+    String classpath = danalyzerpath + "/dist/danalyzer.jar";
+    classpath += ":" + danalyzerpath + "/lib/commons-io-2.5.jar";
+    classpath += ":" + danalyzerpath + "/lib/asm-7.2.jar";
+    classpath += ":" + danalyzerpath + "/lib/asm-tree-7.2.jar";
     classpath += ":" + localpath;
 
     // remove any existing class and javap files in the location of the jar file
@@ -2700,14 +2704,19 @@ public final class LauncherMain {
 
     String instrJarFile = projectName.substring(0, projectName.lastIndexOf(".")) + "-dan-ed.jar";
     
+    // we will use this path a lot here
+    String danalyzerpath = dsePath + "/src/danalyzer";
+    String dhelperpath   = dsePath + "/src/danhelper/build/";
+    String dpatchpath    = dsePath + "/src/danpatch/build/";
+
     // verify all the required files exist
     if (!fileCheck(projectPathName + instrJarFile) ||
-        !fileCheck(dsePath + "/danalyzer/dist/danalyzer.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/com.microsoft.z3.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/commons-io-2.5.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/asm-7.2.jar") ||
-        !fileCheck(dsePath + "/danalyzer/lib/asm-tree-7.2.jar") ||
-        !fileCheck(dsePath + "/danhelper/" + System.mapLibraryName("danhelper"))) {
+        !fileCheck(danalyzerpath + "/dist/danalyzer.jar") ||
+        !fileCheck(danalyzerpath + "/lib/com.microsoft.z3.jar") ||
+        !fileCheck(danalyzerpath + "/lib/commons-io-2.5.jar") ||
+        !fileCheck(danalyzerpath + "/lib/asm-7.2.jar") ||
+        !fileCheck(danalyzerpath + "/lib/asm-tree-7.2.jar") ||
+        !fileCheck(dhelperpath + System.mapLibraryName("danhelper"))) {
       Utils.printStatusError("Missing required files (danalyzer/danhelper library)");
       return;
     }
@@ -2730,16 +2739,16 @@ public final class LauncherMain {
     }
     String options = "-Xverify:none";
     String bootlpath = "-Dsun.boot.library.path=" + javaHome + "/bin:/usr/lib:/usr/local/lib"
-              + ":" + dsePath + "/danpatch/build";
+              + ":" + dpatchpath;
     String bootcpath ="-Xbootclasspath/a"
-              + ":" + dsePath + "/danalyzer/dist/danalyzer.jar"
-              + ":" + dsePath + "/danalyzer/lib/com.microsoft.z3.jar"
-              + ":" + dsePath + "/danalyzer/lib/guava-27.1-jre.jar";
-    String agentpath ="-agentpath:" + dsePath + "/danhelper/" + System.mapLibraryName("danhelper");
+              + ":" + danalyzerpath + "/dist/danalyzer.jar"
+              + ":" + danalyzerpath + "/lib/com.microsoft.z3.jar"
+              + ":" + danalyzerpath + "/lib/guava-27.1-jre.jar";
+    String agentpath ="-agentpath:" + dhelperpath + System.mapLibraryName("danhelper");
     String classpath = instrJarFile
-              + ":" + dsePath + "/danalyzer/lib/commons-io-2.5.jar"
-              + ":" + dsePath + "/danalyzer/lib/asm-7.2.jar"
-              + ":" + dsePath + "/danalyzer/lib/asm-tree-7.2.jar"
+              + ":" + danalyzerpath + "/lib/commons-io-2.5.jar"
+              + ":" + danalyzerpath + "/lib/asm-7.2.jar"
+              + ":" + danalyzerpath + "/lib/asm-tree-7.2.jar"
               + ":" + localpath;
 
     Utils.printStatusMessage("RUN command started...");
