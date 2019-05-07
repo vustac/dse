@@ -35,30 +35,6 @@ if [[ "`uname`" == "Darwin" ]]; then
   DANHELPER_FILE=libdanhelper.dylib
 fi
 
-# now we need to know if the danhelper lib file is in the appropriate build subdir.
-# if not, move it there (it gets built in the src subdir).
-if [[ ! -f $DANHELPER_DIR/build/${DANHELPER_FILE} ]]; then
-  cd ${DANHELPER_DIR}
-  mkdir -p build
-  cmake .
-  make
-  if [[ -f $DANHELPER_DIR/${DANHELPER_FILE} ]]; then
-    mv $DANHELPER_DIR/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
-  elif [[ -f $DANHELPER_DIR/src/${DANHELPER_FILE} ]]; then
-    mv $DANHELPER_DIR/src/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
-  else
-    echo "ERROR: danhelper library was not created!"
-    exit 1
-  fi
-  cd ${BASEDIR}
-fi
-
-# these active ingredients in these paths are assumed to be in their associated build directories
-DANHELPER_DIR=${DANHELPER_DIR}/build
-DANPATCH_DIR=${DANPATCH_DIR}/build
-
-# now let's introduce some functions to make life easier...
-
 # these are used to initialize and add entries to a CLASSPATH field used for builds
 function classpath_init
 {
@@ -265,8 +241,13 @@ function create_test_script
     return
   fi
   
+  if [[ ! -f ${jsonfile} ]]; then
+    echo "==> Not creating test script (no JSON file found)"
+    return
+  fi
+  
   local count=`cat ${jsonfile} | jq -r '.commandlist' | jq length`
-  if [ ${count} -eq 0 ]; then
+  if [[ ${count} -eq 0 ]]; then
     echo "==> Not creating test script (no commands defined)"
     return
   else
@@ -310,8 +291,13 @@ function create_danfig
   echo "#" >> ${danfigfile}
   echo "# SYMBOLIC_PARAMETERS" >> ${danfigfile}
 
+  if [[ ! -f ${jsonfile} ]]; then
+    echo "# <none defined>" >> ${danfigfile}
+    return
+  fi
+  
   local count=`cat ${jsonfile} | jq -r '.symbolicList' | jq length`
-  if [ ${count} -eq 0 ]; then
+  if [[ ${count} -eq 0 ]]; then
     echo "# <none defined>" >> ${danfigfile}
   else
     for ((index=0; index < ${count}; index++)) do
@@ -330,8 +316,7 @@ function create_danfig
 # read options
 TESTMODE=0
 RUNTEST=0
-RUNARGS=""
-command=()
+ENTRY=()
 while [[ $# -gt 0 ]]; do
   key="$1"
   case ${key} in
@@ -344,24 +329,74 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      command+=("$1")
+      ENTRY+=("$1")
       shift
       ;;
   esac
 done
 
+set +o nounset
+if [ -z ${ENTRY} ]; then
+  echo "Usage: ./make.sh [-t] [-r] <appl_file>"
+  echo "Where: <appl_file> = the name (and path) of the application jar file (path can be relative or absolute)"
+  echo "       -t = [optional] indicates don't execute, just print commands"
+  echo "       -r = [optional] indicates run the instrumented file after creation"
+  echo
+  echo "This will instrument a jar file for the DSE and will optionally run it."
+  echo "NOTE: the location of the jar file to instrument must also contain a testcfg.json file"
+  echo "      that, at a minimum, defines: 'testname', 'runargs', and 'mainclass' to specify"
+  echo "      the name of the file to produce, the arguments to pass to it, and the name of"
+  echo "      the Main Class. It may also provide 'symbolicList' entries to define the symbolic"
+  echo "      parameters as well as 'commandlist' entries that define commands to execute."
+  echo
+  echo "      These are described in more detail in the scripts/README.md file."
+  echo
+  exit 0
+fi
+set -o nounset
+
+# 1st entry is jar file, the remainder is any optional args to pass to it
+jarfile="${ENTRY[@]:0:1}"
+arglist="${ENTRY[@]:1}"
+
+#echo "jarfile: ${jarfile}"
+#echo "arglist: ${arglist}"
+#args=`echo ${arglist} | wc -w`
+#echo "command args = ${args}"
+
+# now we need to know if the danhelper lib file is in the appropriate build subdir.
+# if not, move it there (it gets built in the src subdir).
+if [[ ! -f $DANHELPER_DIR/build/${DANHELPER_FILE} ]]; then
+  cd ${DANHELPER_DIR}
+  mkdir -p build
+  cmake .
+  make
+  if [[ -f $DANHELPER_DIR/${DANHELPER_FILE} ]]; then
+    mv $DANHELPER_DIR/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
+  elif [[ -f $DANHELPER_DIR/src/${DANHELPER_FILE} ]]; then
+    mv $DANHELPER_DIR/src/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
+  else
+    echo "ERROR: danhelper library was not created!"
+    exit 1
+  fi
+fi
+
+# these active ingredients in these paths are assumed to be in their associated build directories
+DANHELPER_DIR=${DANHELPER_DIR}/build
+DANPATCH_DIR=${DANPATCH_DIR}/build
+
 # split the name of the selected jar file into a path and the base name
-#test=basename ${command}
-#builddir=dirname ${command}
-INPUTJAR=${command##*/}
-builddir=${command%/*}
-if [[ "${builddir}" == "${command}" ]]; then
+#test=basename ${jarfile}
+#builddir=dirname ${jarfile}
+INPUTJAR=${jarfile##*/}
+builddir=${jarfile%/*}
+if [[ "${builddir}" == "${jarfile}" ]]; then
   builddir=""
 fi
   
 # make sure our build dir is valid
-if [[ ${TESTMODE} -eq 0 && ! -f ${command} ]]; then
-  echo "FAILURE: can't find file: ${command}"
+if [[ ${TESTMODE} -eq 0 && ! -f ${jarfile} ]]; then
+  echo "FAILURE: can't find file: ${jarfile}"
   exit 1
 fi
   
@@ -370,28 +405,33 @@ if [[ "${builddir}" != "" ]]; then
   cd ${builddir}
 fi
 
-# extract info from JSON config file
+# extract info from JSON config file (if present)
 jsonfile="testcfg.json"
+if [[ -f "${jsonfile}" ]]; then
+  TESTNAME=`cat ${jsonfile} | jq -r '.testname'`
+  RUNARGS=`cat ${jsonfile} | jq -r '.runargs'`
+  MAINCLASS=`cat ${jsonfile} | jq -r '.mainclass'`
 
-if [[ ! -f "${jsonfile}" ]]; then
-  echo "FAILURE: JSON file not found: ${jsonfile}"
-  exit 1
-fi
-
-# get the main class and running args from the JSON config file
-TESTNAME=`cat ${jsonfile} | jq -r '.testname'`
-RUNARGS=`cat ${jsonfile} | jq -r '.runargs'`
-MAINCLASS=`cat ${jsonfile} | jq -r '.mainclass'`
-
-set +o nounset
-if [[ ${MAINCLASS} == null ]]; then
-  echo "FAILURE: MainClass not defined in JSON file"
-  exit 1
-fi
-if [[ ${TESTNAME} == null ]]; then
+  set +o nounset
+  if [[ ${TESTNAME} == null ]]; then
+    # if testname not found, use name of jar file
+    TESTNAME=${INPUTJAR%.*}
+  fi
+  if [[ ${RUNARGS} == null ]]; then
+    # if runargs not found, use the params passed to this script
+    RUNARGS=${arglist}
+  fi
+  if [[ ${MAINCLASS} == null ]]; then
+    # can't fudge this one - just clear it out
+    MAINCLASS=""
+  fi
+  set -o nounset
+else
+  # set default values if file not found
   TESTNAME=${INPUTJAR}
+  RUNARGS=${arglist}
+  MAINCLASS=""
 fi
-set -o nounset
 
 # create the check_results.sh script file (if commands found in json file)
 create_test_script
@@ -407,6 +447,16 @@ if [[ ${RUNTEST} -eq 0 ]]; then
   exit 0
 fi
   
+if [[ ! -f "${jsonfile}" ]]; then
+  echo "FAILURE: JSON file not found: ${jsonfile}"
+  exit 1
+fi
+
+if [[ ${MAINCLASS} == "" ]]; then
+  echo "FAILURE: MainClass not defined in JSON file"
+  exit 1
+fi
+
 # clear the database before we run
 clear_database
 
