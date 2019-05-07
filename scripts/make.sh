@@ -4,403 +4,411 @@
 # 'nounset' throws an error if a parameter being used is undefined.
 # 'errexit' causes any error condition to terminate the script, so it doesn't continue running.
 set -o nounset
-#set -o errexit
+set -o errexit
 
-# this cleans up the path to remove all the '../' entries
-function cleanup_path
-{
-  REPO=$1
-  local NAME=$2
-  if [ ! -d ${REPO} ]; then
-    echo "$NAME not found at: ${REPO}"
-    REPO=""
+# this generates a clean path to the directory the script is contained in.
+# we do this in order to locate the DSE tools that are identified by the script's location.
+#
+# NOTE: This assumes that you have not transported this script file to some other location
+#       unless you move the entire dse project directory along with it.
+#
+SCRIPTPATH=${0%/*}
+if [[ "${SCRIPTPATH}" == "$0" ]]; then
+  SCRIPTPATH=`pwd`
+fi
+SCRIPTPATH=`realpath ${SCRIPTPATH}`
+#echo "script path = ${SCRIPTPATH}"
+
+# first, find location of the root directory of all the DSE sub-projects
+DSE_SRC_DIR=`realpath ${SCRIPTPATH}/../src`
+DSE_TST_DIR=`realpath ${SCRIPTPATH}/../test`
+
+# now define the common ones we need for execution
+DANALYZER_DIR=${DSE_SRC_DIR}/danalyzer
+DANHELPER_DIR=${DSE_SRC_DIR}/danhelper
+DANPATCH_DIR=${DSE_SRC_DIR}/danpatch
+DANTESTGEN_DIR=${DSE_SRC_DIR}/dantestgen
+
+# determine the correct name for the danhelper lib file (Linux uses .so, Mac uses .dylib)
+DANHELPER_FILE=libdanhelper.so
+if [[ "`uname`" == "Darwin" ]]; then
+  DANHELPER_FILE=libdanhelper.dylib
+fi
+
+# now we need to know if the danhelper lib file is in the appropriate build subdir.
+# if not, move it there (it gets built in the src subdir).
+if [[ ! -f $DANHELPER_DIR/build/${DANHELPER_FILE} ]]; then
+  cd ${DANHELPER_DIR}
+  mkdir -p build
+  cmake .
+  make
+  if [[ -f $DANHELPER_DIR/${DANHELPER_FILE} ]]; then
+    mv $DANHELPER_DIR/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
+  elif [[ -f $DANHELPER_DIR/src/${DANHELPER_FILE} ]]; then
+    mv $DANHELPER_DIR/src/${DANHELPER_FILE} ${DANHELPER_DIR}/build/
   else
-    REPO=`realpath ${REPO}/`
-    REPO="${REPO}/"
+    echo "ERROR: danhelper library was not created!"
+    exit 1
+  fi
+  cd ${BASEDIR}
+fi
+
+# these active ingredients in these paths are assumed to be in their associated build directories
+DANHELPER_DIR=${DANHELPER_DIR}/build
+DANPATCH_DIR=${DANPATCH_DIR}/build
+
+# now let's introduce some functions to make life easier...
+
+# these are used to initialize and add entries to a CLASSPATH field used for builds
+function classpath_init
+{
+  CLASSPATH=$1
+}
+
+function classpath_add
+{
+  CLASSPATH=${CLASSPATH}:$1
+}
+
+# this handles command execution and simply echos the command if $TESTMODE is set.
+# returns: $STATUS = 1 if command was executed, 0 if we are not actually running
+#
+function execute_command
+{
+  STATUS=0
+  echo "${TITLE}"
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "${COMMAND}"
+    echo
+    return
+  fi
+
+  ${COMMAND}
+  STATUS=1
+}
+
+# same as 'execute_command' except command is executed as a background process and a pipe
+# is used to feed user input to the STDIN of the process
+# returns: $STATUS = pid of process if command was executed, 0 if we are not actually running
+#
+function execute_command_in_background
+{
+  STATUS=0
+  if [[ ${RUN_STDIN} -eq 1 ]]; then
+    echo "${TITLE} (in background with pipe for STDIN)"
+  else
+    echo "${TITLE} (in background)"
+  fi
+  
+  # check for test mode
+  if [[ ${TESTMODE} -ne 0 ]]; then
+    echo "${COMMAND} &"
+    echo
+    return
+  fi
+
+  # determine if we need to use pipe for re-directing STDIN to app
+  if [[ ${RUN_STDIN} -eq 1 ]]; then
+    if [ ! -p inpipe ]; then
+      mkfifo inpipe
+    fi
+    tail -f inpipe | ${COMMAND} &
+    STATUS=$!
+  else
+    ${COMMAND} &
+    STATUS=$!
   fi
 }
 
-# verifies the specified command is present
+# clears the ongodb database.
+# can be run from any directory
+# no inputs or outputs
 #
-# inputs: $1 = the list of commands to verify
-#
-function check_command
+function clear_database
 {
-  VALID=""
-  for cmd in "$@"; do
-    LOCATION=$(command -v ${cmd} 2>&1)
-    if [[ $? -ne 0 ]]; then
-      echo "ERROR: command '${cmd}' not found. Please install it."
-      VALID="1"
-    fi
-  done
+  echo "==> Clearing the database"
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    echo "mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'"
+    echo
+  else
+    # clear the database
+    mongo mydb --quiet --eval 'db.dsedata.deleteMany({})'
+  fi
 }
 
-# adds specified jar file to $CLASSPATH
+# runs the instrumented jar file
+# run from the BUILD directory
 #
-# inputs: $1 = jar file (plus full path) to add
+# $TESTNAME = base name of application to run (not including 'dan-ed' or '.jar')
+# $RUN_IN_BKGND = 1 if run application in background
 #
-function add_file_to_classpath
+function run_test
 {
-    if [[ -z $1 ]]; then
-        return
-    fi
-
-    if [[ -z ${CLASSPATH} ]]; then
-        CLASSPATH="$1"
-    else
-        CLASSPATH="${CLASSPATH}:$1"
-    fi
-    # echo "  added: $1"
-}
-
-# adds the specified directory to the classpath. all files in this directory will be added.
-#
-# inputs: $1 = path of lib files to add
-#
-function add_dir_to_classpath
-{
-    if [[ -z $1 ]]; then
-        return
-    elif [[ ! -d "$1" ]]; then
-        return
-    else
-        if [[ -z ${CLASSPATH} ]]; then
-            CLASSPATH="$1/*"
-        else
-            CLASSPATH="${CLASSPATH}:$1/*"
-        fi
-    fi
-}
-
-# adds all of the jar files in the current path to $CLASSPATH except the $PROJJAR, since the
-# danalyzed version is added in its place.
-#
-function add_curdir_to_classpath
-{
-    jarpath=`pwd`
-    while read -r jarfile; do
-        select=(${jarfile})
-        select="${select##*/}"      # remove leading '/' from filename
-        # skip anything that is not a jar file
-        if [[ "${select}" != *".jar" ]]; then
-            continue
-        fi
-        # ignore the project jar file, since we have already included the danalyzed version of it
-        if [[ "${select}" != "${PROJJAR}.jar" &&
-              "${select}" != "${PROJECT}-dan-ed.jar" ]]; then
-            add_file_to_classpath ${jarfile}
-        fi
-    done < <(ls ${jarpath})
-}
-
-# gets additional naming suffix for certain tests that have multiple cases
-#
-# Inputs: $NUMBER = the Category number value (should be only for 11 and 12)
-#         $SELECT = the additional selection (if any) after the number
-# Returns:
-#         $SUFFIX = the additional info to attach to CategoryX to specify the name
-#
-function check_special_canonicals
-{
-    # if user did not make A or B selection, ask him for it
-    if [[ ${SELECT} != "A" && ${SELECT} != "B" ]]; then
-        echo "Canonical ${NUMBER} requires either an A or B selection:"
-        read -s -n 1 SELECT
-        SELECT=$(echo "${SELECT}" | tr '[:lower:]' '[:upper:]' 2>&1)
-        if [[ ${SELECT} != "A" && ${SELECT} != "B" ]]; then
-            echo "Invalid selection, case 'A' is chosen by default"
-            SELECT="A"
-        fi
-    fi
-
-    # create the corresponding file name
-    case ${NUMBER} in
-        11) SUFFIX="_Case_${SELECT}${SUFFIX}"
-            ;;
-        12) if [[ "${SELECT}" == "A" ]]; then
-                SUFFIX="${SUFFIX}_conditional"
-            else
-                SUFFIX="${SUFFIX}_exception"
-            fi
-            ;;
-        *)
-            echo "Invalid category selection: ${NUMBER}"
-            exit 1
-            ;;
-    esac
-}
-
-function get_project_info
-{
-    if [[ ${PROJECT} == "Category"* ]]; then
-        EXT=${PROJECT:8}
-        if [[ "${EXT:1}" =~ ^[[:digit:]] ]]; then
-            NUMBER=${EXT:0:2}
-            SELECT=${EXT:2}
-        else
-            NUMBER=${EXT:0:1}
-            SELECT=${EXT:1}
-        fi
-
-        if [[ ${NEWREF} -eq 0 ]]; then
-            SRCDIR="${TESTPATH}Canonical/Source/src_E1_E4/e1e4"
-        else
-            SRCDIR="${TESTPATH}Canonical/Source/src"
-        fi
-        if [[ ${NONVULNERABLE} -eq 0 ]]; then
-            SUFFIX="_vulnerable"
-        else
-            SUFFIX="_not_vulnerable"
-        fi
+  # setup the library path for running the test
+  LIBPATH=$JAVA_HOME/bin:/usr/lib:/usr/local/lib:${DANPATCH_DIR}
     
-        # handle special canonical cases
-        if [[ ${NUMBER} -gt 10 ]]; then
-            check_special_canonicals
-        fi
-    
-        # define the paths and files to use
-        SRCNAME="${PROJECT}${SUFFIX}"
-        PROJDIR="${TESTPATH}Canonical/${PROJECT}/"
-    
-        # copy source file to destination location for building project (if not found)
-        if [ ! -f ${PROJDIR}${SRCNAME}.java ]; then
-            echo "- copying project source from ${SRCDIR} to ${PROJDIR}"
-            if [ ! -d ${PROJDIR} ]; then
-                mkdir -p ${PROJDIR}
-            fi
-            if [[ ${TESTMODE} -eq 0 ]]; then
-                cp ${SRCDIR}/${SRCNAME}.java ${PROJDIR}
-            else
-                echo "cp ${SRCDIR}/${SRCNAME}.java ${PROJDIR}"
-            fi
-        fi
-    else
-        # get the PROJJAR and MAINCLASS
-        source projinfo.sh
-        if [[ ${FOUND} -eq 0 ]]; then
-            PROJJAR=${PROJECT}
-            PROJDIR="${TESTPATH}${PROJECT}/"
-            MAINCLASS=${PROJECT}
-            echo "Project not found. Using default MAINCLASS: ${MAINCLASS}"
-        fi
+  # setup the boot classpath for running the test
+  classpath_init /a
+  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
+  classpath_add $DANALYZER_DIR/lib/com.microsoft.z3.jar
+  classpath_add $DANALYZER_DIR/lib/guava-27.1-jre.jar
+  BOOTCPATH=${CLASSPATH}
+
+  # setup the classpath for running the test
+  classpath_init ${TESTNAME}-dan-ed.jar
+  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
+  if [[ -d lib ]]; then
+    classpath_add lib/*
+  fi
+
+  # get the run command
+  TITLE="==> Running instrumented jar file"
+  COMMAND="java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${RUNARGS}"
+
+  # if the danfig and check_results.sh script are present, run the verification
+  RUN_IN_BKGND=0
+  if [[ -f danfig && -f check_result.sh ]]; then
+    RUN_IN_BKGND=1
+  fi
+
+  # now run the test
+  # no verification - run test in foreground and wait for it to finish
+  if [[ ${RUN_IN_BKGND} -eq 0 ]]; then
+    execute_command
+    return
+  fi
+  
+  # else run the test in background mode so verification process can issue message to it
+  execute_command_in_background
+  pid=${STATUS}
+  
+  # delay just a bit to make sure app is running before starting checker
+  sleep 2
+
+  # run the script to check correctness
+  # (NOTE: a failure in this call will perform an exit, which will terminate the script)
+  if [[ ${TESTMODE} -eq 0 ]]; then
+    echo "==> Checking test results"
+    ./check_result.sh ${pid}
+  fi
+
+  # delete the pipe we created
+  if [[ ${RUN_STDIN} -eq 1 ]]; then
+    if [ -p inpipe ]; then
+      rm -f inpipe > /dev/null 2>&1
     fi
+
+    # kill the tail process
+    pkill tail > /dev/null 2>&1
+  fi
 }
 
-# runs the training session with an entry from the selected images directory
+# create the instrumented jar file
+# run from the BUILD directory
 #
-# $1 = the color selection (RED or BLUE)
+# $INPUTJAR = name of jar file to instrument
+# $TESTNAME = base name of instrumented jar file to produce
 #
-function imageproc_train
+function instrument_test
 {
-    IMAGETYPE=$1
-    while read -r jpgfile; do
-        select=(${jpgfile})
-        select="${select##*/}"      # remove leading '/' from filename
-        # only run jpg files
-        if [[ "${select}" == *".jpg" ]]; then
-            echo "- training file for ${IMAGETYPE}: ${select}"
-            if [[ ${TESTMODE} -eq 0 ]]; then
-              java -Xint -cp lib/ipchallenge-0.1.jar com.stac.Main train "${IMAGEDIR}/${IMAGETYPE}/${select}" ${IMAGETYPE}
-            else
-              echo "java -Xint -cp lib/ipchallenge-0.1.jar com.stac.Main train ${IMAGEDIR}/${IMAGETYPE}/${select} ${IMAGETYPE}"
-            fi
-        fi
-    done < <(ls "${IMAGEDIR}/${IMAGETYPE}")
+  # exit if uninstrumented file not found
+  if [ ! -f ${INPUTJAR} ]; then
+    echo "FAILURE: Test jar file '${INPUTJAR}' not found!"
+    exit 1
+  fi
+  
+  # strip debug info from jar file
+  TITLE="==> Stripping debug info from jar file"
+  COMMAND="pack200 -r -G ${TESTNAME}-strip.jar ${INPUTJAR}"
+  execute_command
+
+  if [[ ${STATUS} -eq 1 && ! -f ${TESTNAME}-strip.jar ]]; then
+    echo "FAILURE: stripped file not produced!"
+    exit 1
+  fi
+
+  # setup the classpath for instrumenting the test
+  classpath_init $DANALYZER_DIR/lib/asm-tree-7.2.jar
+  classpath_add $DANALYZER_DIR/lib/asm-7.2.jar
+  classpath_add $DANALYZER_DIR/lib/com.microsoft.z3.jar
+  classpath_add $DANALYZER_DIR/lib/commons-io-2.5.jar
+  classpath_add $DANALYZER_DIR/dist/danalyzer.jar
+
+  # set this to enable loop bounds testing (must be blank to skip)
+  maximizeLoopBounds="1"
+
+  # instrument jar file
+  TITLE="==> Building instrumented jar file '${TESTNAME}'"
+  COMMAND="java -cp ${CLASSPATH} danalyzer.instrumenter.Instrumenter ${TESTNAME}-strip.jar ${maximizeLoopBounds}"
+  execute_command
+
+  if [[ ${STATUS} -eq 0 ]]; then
+    return
+  fi
+
+  if [[ -f ${TESTNAME}-strip-dan-ed.jar ]]; then
+    mv ${TESTNAME}-strip-dan-ed.jar ${TESTNAME}-dan-ed.jar
+  else
+    echo "FAILURE: instrumented file not produced: ${TESTNAME}-dan-ed.jar"
+    exit 1
+  fi
 }
 
-#------------------------- START FROM HERE ---------------------------
-# Usage: make.sh [-t] [-v] [-n] <Project>
-# Where: <Project> = the project to instrument (e.g. SimpleTest, Category7, Collab)
-#        -t = don't build, just show commands
-#        -v = (for Category tests only) indicates use the nonvulnerable version
-#        -n = (for Category tests only) indicates use the rew reference version
+# create the test script from the test config file
+function create_test_script
+{
+  # indicate there are no commands to run
+  RUN_STDIN=0
+  
+  # exit if in test mode
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    return
+  fi
+  
+  local count=`cat ${jsonfile} | jq -r '.commandlist' | jq length`
+  if [ ${count} -eq 0 ]; then
+    echo "==> Not creating test script (no commands defined)"
+    return
+  else
+    # check to see if we need to issue STDIN commands to process (requires pipe to be used to issue it)
+    for ((index=0; index < ${count}; index++)) do
+      local name=`cat ${jsonfile} | jq -r '.commandlist['${index}'].command'`
+      if [[ ${name} == "SEND_STDIN" ]]; then
+        RUN_STDIN=1
+        break
+      fi
+    done
+  fi
+  
+  echo "==> Creating test script"
+  java -cp ${DANTESTGEN_DIR}/dist/dantestgen.jar:${DANTESTGEN_DIR}/lib/gson-2.8.1.jar main.GenerateTestScript testcfg.json test_script.sh > /dev/null 2>&1
+  cat ${DSE_TST_DIR}/base_check.sh test_script.sh > check_result.sh
+  chmod +x check_result.sh
+}
 
-# save current path
-CURDIR=$(pwd 2>&1)
+function create_danfig
+{
+  # exit if in test mode
+  if [[ ${TESTMODE} -eq 1 ]]; then
+    return
+  fi
+  
+  danfigfile="danfig"
+  echo "==> Creating danfig file"
+  echo "#! DANALYZER SYMBOLIC EXPRESSION LIST" > ${danfigfile}
+  echo "#" >> ${danfigfile}
+  echo "# DEBUG SETUP" >> ${danfigfile}
+  echo "DebugFlags: " >> ${danfigfile}
+  echo "DebugMode: TCPPORT" >> ${danfigfile}
+  echo "DebugPort: 5000" >> ${danfigfile}
+  echo "IPAddress: localhost" >> ${danfigfile}
+  echo "#" >> ${danfigfile}
+  echo "# SOLVER INTERFACE" >> ${danfigfile}
+  echo "SolverPort: 4000" >> ${danfigfile}
+  echo "SolverAddress: localhost" >> ${danfigfile}
+  echo "SolverMethod: NONE" >> ${danfigfile}
+  echo "#" >> ${danfigfile}
+  echo "# SYMBOLIC_PARAMETERS" >> ${danfigfile}
 
-# verify some needed commands have been installed
-check_command ant cmake z3
-if [[ ${VALID} -ne 0 ]]; then
+  local count=`cat ${jsonfile} | jq -r '.symbolicList' | jq length`
+  if [ ${count} -eq 0 ]; then
+    echo "# <none defined>" >> ${danfigfile}
+  else
+    for ((index=0; index < ${count}; index++)) do
+      local name=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].name'`
+      local meth=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].method'`
+      local type=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].type'`
+      local slot=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].slot'`
+      local strt=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].start'`
+      local end=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].end'`
+      echo "Symbolic: ${name} ${meth} ${slot} ${strt} ${end} ${type}" >> ${danfigfile}
+    done
+  fi
+}
+
+#========================================= START HERE ============================================
+# read options
+TESTMODE=0
+RUNTEST=0
+RUNARGS=""
+command=()
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case ${key} in
+    -t|--test)
+      TESTMODE=1
+      shift
+      ;;
+    -r|--run)
+      RUNTEST=1
+      shift
+      ;;
+    *)
+      command+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# split the name of the selected jar file into a path and the base name
+#test=basename ${command}
+#builddir=dirname ${command}
+INPUTJAR=${command##*/}
+builddir=${command%/*}
+if [[ "${builddir}" == "${command}" ]]; then
+  builddir=""
+fi
+  
+# make sure our build dir is valid
+if [[ ${TESTMODE} -eq 0 && ! -f ${command} ]]; then
+  echo "FAILURE: can't find file: ${command}"
+  exit 1
+fi
+  
+# these commands must be executed from the build directory
+if [[ "${builddir}" != "" ]]; then
+  cd ${builddir}
+fi
+
+# extract info from JSON config file
+jsonfile="testcfg.json"
+
+if [[ ! -f "${jsonfile}" ]]; then
+  echo "FAILURE: JSON file not found: ${jsonfile}"
   exit 1
 fi
 
-# setup the paths to use
-source setpaths.sh
+# get the main class and running args from the JSON config file
+TESTNAME=`cat ${jsonfile} | jq -r '.testname'`
+RUNARGS=`cat ${jsonfile} | jq -r '.runargs'`
+MAINCLASS=`cat ${jsonfile} | jq -r '.mainclass'`
 
-# cleanup the paths for test files
-cleanup_path ${TESTPATH} "TESTPATH"
-TESTPATH=${REPO}
-
-TESTMODE=0
-NEWREF=0
-NONVULNERABLE=0
-COMPILE=0
-
-# read options
-COMMAND=()
-while [[ $# -gt 0 ]]; do
-    key="$1"
-    case ${key} in
-        -t|--test)
-            TESTMODE=1
-            shift
-            ;;
-        -n|--new)
-            NEWREF=1
-            shift
-            ;;
-        -v|--nonvulnerable)
-            NONVULNERABLE=1
-            shift
-            ;;
-        *)
-            COMMAND+=("$1")
-            shift
-            ;;
-    esac
-done
-
-# the 1st remaining word is the project name and the remainder terms are the optional arguments
-PROJECT="${COMMAND[@]:0:1}"
-ARGLIST="${COMMAND[@]:1}"
-
-PROJJAR="${PROJECT}"
-SRCNAME="${PROJECT}"
-
-# need to determine the project values: PROJDIR, PROJJAR
-get_project_info
-
-# verify the project jar file exists in the specified dir or the lib subdir.
-# if not, check the dist dir & if found copy it to the main project dir.
-# if not found there, see if the source file is found and set flag to build it.
-# otherwise, terminate with error
-if [[ ${TESTMODE} -eq 0 ]]; then
-    if [[ ! -f ${PROJDIR}${PROJJAR}.jar && ! -f ${PROJDIR}lib/${PROJJAR}.jar ]]; then
-        if [[ -f ${PROJDIR}dist/${PROJJAR}.jar ]]; then
-            echo "Project jar was found in dist dir - will copy to main project dir"
-            cp ${PROJDIR}dist/${PROJJAR}.jar ${PROJDIR}${PROJJAR}.jar
-        elif [[ -f ${PROJDIR}${SRCNAME}.java ]]; then
-            echo "Project source was found - will re-build source from: ${PROJECT}${SRCNAME}.java"
-            COMPILE=1
-        else
-            echo "Invalid project selection (project jar not found): ${PROJDIR}${PROJJAR}.jar"
-            exit 1
-        fi
-    fi
+set +o nounset
+if [[ ${MAINCLASS} == null ]]; then
+  echo "FAILURE: MainClass not defined in JSON file"
+  exit 1
 fi
-
-cd "${DANALYZER_DIR}"
-if [[ ${TESTMODE} -ne 0 ]]; then
-    echo
-    echo "  (from: ${DANALYZER_DIR})"
+if [[ ${TESTNAME} == null ]]; then
+  TESTNAME=${INPUTJAR}
 fi
+set -o nounset
 
-echo "- building danalyzer"
-if [[ ${TESTMODE} -eq 0 ]]; then
-    ant jar &> /dev/null
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: command failure"
-        exit 1
-    fi
-else
-    echo "ant jar"
+# create the check_results.sh script file (if commands found in json file)
+create_test_script
+
+# create a danfig file to run the test with
+create_danfig
+  
+# create instrumented jar (from debug-stripped version of jar)
+instrument_test
+
+# exit if we are not running test
+if [[ ${RUNTEST} -eq 0 ]]; then
+  exit 0
 fi
+  
+# clear the database before we run
+clear_database
 
-# run the rest from the project dir
-cd ${PROJDIR}
-if [[ ${TESTMODE} -ne 0 ]]; then
-    echo
-    echo "  (from: ${PROJDIR})"
-fi
-
-# remove any existing instrumented jar
-rm -f ${PROJECT}-dan-ed.jar
-
-# run build & instrumentation from project dir
-if [[ ${COMPILE} -ne 0 && -f ${SRCNAME}.java ]]; then
-    echo "- building ${PROJECT}"
-    if [[ ${TESTMODE} -eq 0 ]]; then
-        javac ${SRCNAME}.java
-        jar cvf ${PROJECT}.jar *.class
-    else
-        echo "javac ${SRCNAME}.java"
-        echo "jar cvf ${PROJECT}.jar *.class"
-    fi
-fi
-
-# check whether the application jar file is in the main dir or in lib subdir
-if [[ ! -f "${PROJJAR}.jar" && ${TESTMODE} -eq 0 ]]; then
-    if [ ! -f "lib/${PROJJAR}.jar" ]; then
-        echo "${PROJJAR}.jar not found!"
-        exit 1
-    fi
-    PROJJAR="lib/${PROJJAR}"
-fi
-
-# strip out all debug info prior to instrumenting
-echo "- stripping debug info from ${PROJECT}"
-TMPJAR="temp"
-if [[ ${TESTMODE} -eq 0 ]]; then
-    pack200 -r -G ${TMPJAR}.jar ${PROJJAR}.jar
-else
-    echo "pack200 -r -G ${TMPJAR}.jar ${PROJJAR}.jar"
-fi
-
-# setup classpath and mainclass for running danalyzer
-CLASSPATH=""
-add_file_to_classpath "${DANALYZER_DIR}/dist/danalyzer.jar"
-add_file_to_classpath "${DANALYZER_DIR}/lib/commons-io-2.5.jar"
-add_file_to_classpath "${DANALYZER_DIR}/lib/asm-all-5.2.jar"
-add_curdir_to_classpath
-add_dir_to_classpath "lib"
-add_dir_to_classpath "libs"
-
-MAINCLASS="danalyzer.instrumenter.Instrumenter"
-
-# instrument stripped jar file and rename output file to proper name
-echo "- instrumenting ${PROJECT}"
-if [[ ${TESTMODE} -eq 0 ]]; then
-    java -cp ${CLASSPATH} ${MAINCLASS} ${TMPJAR}.jar
-    mv ${TMPJAR}-dan-ed.jar ${PROJECT}-dan-ed.jar
-    rm -f ${TMPJAR}.jar
-else
-    echo "java -cp ${CLASSPATH} ${MAINCLASS} ${TMPJAR}.jar"
-    echo "mv ${TMPJAR}-dan-ed.jar ${PROJECT}-dan-ed.jar"
-    echo "rm -f ${TMPJAR}.jar"
-fi
-
-if [[ ${PROJECT} == "ImageProcessor" ]]; then
-    echo "ImageProcessor requires training before running. This creates a .imageClustering folder"
-    echo " in your home directory that will contain a trainingSet.csv file that specifies the"
-    echo " location of the training files to use in the 'cluster' command. If this is not setup"
-    echo " correctly, running the instrumented ImageProcessor program will fail because the"
-    echo " files could not be found."
-    echo "Do you wish to run the setup for this program? (Y/n)"
-    read -s -n 1 SELECT
-    SELECT=$(echo "${SELECT}" | tr '[:lower:]' '[:upper:]' 2>&1)
-    if [[ ${SELECT} == "Y" ]]; then
-        echo "Full size (F) or Reduced size (S)? (F/S)"
-        read -s -n 1 SELECT
-        if [[ ${SELECT} == "F" || ${SELECT} == "f" ]]; then
-            IMAGEDIR=images_orig
-        else
-            IMAGEDIR=images_small
-        fi
-        if [ ! -d "${IMAGEDIR}/blue" ]; then
-            echo "Unable to find directories ${IMAGEDIR}/blue"
-            exit 1
-        fi
-        if [ ! -d "${IMAGEDIR}/red" ]; then
-            echo "Unable to find directories ${IMAGEDIR}/red"
-            exit 1
-        fi
-        echo "Training from directories ${IMAGEDIR}"
-        rm -rf ~/.imageClustering
-        imageproc_train "blue"
-        imageproc_train "red"
-#        java -Xint -cp challenge_program/lib/ipchallenge-0.1.jar com.stac.Main train images/blue/bluepic-0.jpg blue
-#        java -Xint -cp challenge_program/lib/ipchallenge-0.1.jar com.stac.Main train images/red/redpic-0.jpg red
-    fi
-fi
-
+# run instrumented jar and and verify results
+run_test

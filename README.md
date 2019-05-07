@@ -1,6 +1,6 @@
 # VUSTAC Dynamic Symbolic Execution Engine
 
-The DSE consists of 6 seperate projects contained in separate subdirectories:
+The `src` directory contains the source code for the following sub-projects of the DSE:
 
  * `danalyzer`: consists of a Java program that performs the instrumentation of the
    bytecode of a Java program, and provides the executed methods that are added to
@@ -28,53 +28,26 @@ The DSE consists of 6 seperate projects contained in separate subdirectories:
    the application and allows the user to specify the parameters he wishes to declare
    as symbolic, and monitors the solutions that are placed in the database by dansolver.
 
+ * `dantestgen`: a Java program that is uses information from a JSON-formatted file
+   to generate a test script that will run and verify a test program. The JSON file
+   contains details about the program and the steps required to test it (including
+   the parameters to make symbolic and issuing commands to the program as it is running)
+   and then to verify the expected symbolic solutions. This is used to generate the
+   scripts for all of the tests in the 'test' directory, so that the user only needs to
+   provide a source file and a JSON file in order to add a test. The scripts use the
+   functions provided by the base_check.sh script in the test directory and the JSON
+   files are all auto-generated using the danlauncher RECORD feature.
+ 
  * `dandebug`: a Java program that runs as a server for monitoring the debug output
    from an instrumented test (using either UDP or TCP) and allows viewing and saving
    the call graph of the captured data (as long as CALL/RETURN debug messages are enabled).
 
-The following scripts provide an easier process for running the STAC Challenge
-problems and Canonicals.
+The `test` directory contains source code and scripts for running the Continuous Integration
+testing performed by Travis. More information for these tests and how to run them are
+provided by the `README` in the test folder.
 
-   * `setup.sh`: will create the DSETests folder that will contain the tests that
-     you wish to instrument and run. This command is specified with a single
-     argument to define which test(s) to copy from the engagement repos.
-     It is assumed that the engagement repo (and public-el-information-mirror repo
-     for the Canonicals) have been setup and the path locations are defined in
-     setpaths.sh. The tests can be copied over individually or the entire list
-     from the specified engagement (e1, e2, e4, e5), or the Canonicals (canon),
-     or all tests (all). Running without an argument will display the usage info.
-
-   * `make.sh`: will perform the instrumentation of the specified test that is
-     contained in the DSETests directory. The format is simply "make.sh <Testname>"
-     It will build danalyzer (to make sure the latest version is being used), then
-     instruments the specified test file using it, and strips out all debug content
-     so that danhelper can interpret the input correctly.
-     Adding the -t option will cause no commands to actually run, but will output
-     the commands that would be used otherwise.
-
-   * `run.sh`: will run the specified test, assuming it has previously been instrumented
-     using make.sh. It also takes as an argument the test to run. If you want to
-     force a build of danhelper prior to running, add the -f option.
-     Adding the -t option will cause no commands to actually run, but will output
-     the commands that would be used otherwise.
-
-   * `runorig.sh`: will run the original (un-instrumented) version of the specified test.
-     This can be helpful for comparing results to the instrumented version.
-     Adding the -t option will cause no commands to actually run, but will output
-     the commands that would be used otherwise.
-
-The following scripts are not meant to be executed by the user - they are called by
-the above scripts. You may, however need to adapt them.
-
-   * `setpaths.sh`: sets up the paths for your directory structure. Modify this file to
-     conform to your needs, or setup your paths to conform to its defined paths.
-     Your choice.
-
-   * `projinfo.sh`: defines the name of the application jar file and the mainclass name
-     for it, as well as which engagement it is connected with. Any test project name
-     that is not found in here assumes that the jar file name and the mainclass name
-     will be the same as the project name.
-
-   * `projargs.sh`: defines the default arguments for each test. These can be overridden
-     by adding them to the end of the run.sh command.
-
+The `scripts` directory contains scripts to simplify the process of instrumenting and
+running a user-provided application. The requirements are the jar file containing the
+application to instrument, all library files needed to run the application, and a
+JSON-formatted file defining certain elements of the application. More information
+is provided by the `README` in the scripts folder.
