@@ -3,46 +3,62 @@
 The following script (in the scripts directory) provides an easy process for
 instrumenting and running an application provided by the user:
 
+### startup.sh
+
+`startup.sh [options]`
+
+where [options] are:
+
+**-i** or **--install** - perform an install of all necessary tools and libraries needed by the system. (default is **OFF**)"
+**-b** or **--build**   - stop dansolver (if running), build all DSE components, startup mongodb (if not running)
+and start dansolver to allow it to start receiving symbolic constraints to be solved from the instrumented code. (default is **ON**)
+**-z** or **--force-z3** - force pulling in and building z3 even if already installed. (default is **OFF**)
+**-h** or **--help**    - print this help message.
+
+If no options are specified, it will behave as if the **-b** option was selected.
+
+### make.sh
+
 `make.sh [options] <app.jar> [arglist]`
 
 where [options] are:
 
--t or --test  - don't actually build anything, dut display the commands used to build
--r or --run   - after building the test, run it
+**-t** or **--test**  - don't actually build anything, dut display the commands used to build
+**-r** or **--run**   - after building the test, run it
 
-<app.jar> = the name (and path) of the application jar file (path can be relative)
+**<app.jar>** = the name (and path) of the application jar file (path can be relative)
 
-[arglist] = (optional) argument list to pass to application (if no testcfg.json file defined)
+**[arglist]** = *(optional)* argument list to pass to application (if no testcfg.json file defined)
 
 This script will perform the following actions:
 
 - build the instrumented jar file
 
-If the '-r' option is specified, it will additionally:
+If the *-r* option is specified, it will additionally:
 
-- generate a default 'danfig' file containing the specified symbolic parameters if 'testcfg.json'
+- generate a default *danfig* file containing the specified symbolic parameters if *testcfg.json* specified them
 - run the instrumented jar file
      
-It will also perform the following if a 'commandlist' is defined in the 'testcfg.json' file
+It will also perform the following if a *commandlist* is defined in the *testcfg.json* file
 
-- generate a 'check_results.sh' script file to verify the solution
+- generate a *check_results.sh* script file to verify the solution
 - read the dansolver solution from the mongo database
-- validate the solution based on the entries in 'testcfg.json'
+- validate the solution based on the entries in *testcfg.json*
 
 This requires the following files be present in the directory of the jar application file:
 
-- lib/*            - contains all libraries needed by the application to run
-- testcfg.json     - the JSON config file that defines conditions for the application (only required for -r option)
+- __lib/*__            - contains all libraries needed by the application to run
+- __testcfg.json__     - the JSON config file that defines conditions for the application (only required for *-r* option)
 
 This will produce the following files (all contained in the results/TEST directory):
 
-- danfig           - the configuration file used when running the instrumented code
-- check_results.sh - contains the script for running the test results validation
-- test_script.sh   - same as check_results.sh but excludes the base_check.sh functions
-- TEST-strip.jar   - the un-instrumented test application code stripped of debug info
-- TEST-dan-ed.jar  - the instrumented test application
-- classlist.txt    - list of classes in the application (used when running application)
-- methodlist.txt   - list of methods in the application (used when running application)
+- __danfig__           - the configuration file used when running the instrumented code
+- __check_results.sh__ - contains the script for running the test results validation
+- __test_script.sh__   - same as *check_results.sh* but excludes the base_check.sh functions
+- __TEST-strip.jar__   - the un-instrumented test application code stripped of debug info
+- __TEST-dan-ed.jar__  - the instrumented test application
+- __classlist.txt__    - list of classes in the application (used when running application)
+- __methodlist.txt__   - list of methods in the application (used when running application)
     
 The JSON file that is required to instrument and run the application MUST contain the
 following entries (all values are defined as Strings):
