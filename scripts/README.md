@@ -12,7 +12,6 @@ where [options] are:
 **-i** or **--install** - perform an install of all necessary tools and libraries needed by the system. (default is **OFF**)
 
 **-b** or **--build**   - stop dansolver (if running), build all DSE components, startup mongodb (if not running)
-
 and start dansolver to allow it to start receiving symbolic constraints to be solved from the instrumented code. (default is **ON**)
 
 **-z** or **--force-z3** - force pulling in and building z3 even if already installed. (default is **OFF**)
@@ -20,6 +19,8 @@ and start dansolver to allow it to start receiving symbolic constraints to be so
 **-h** or **--help**    - print this help message.
 
 If no options are specified, it will behave as if the **-b** option was selected.
+
+This script is used to setup the environment for the DSE so that applications can be instrumented and run without a lot of effort.
 
 ### make.sh
 
