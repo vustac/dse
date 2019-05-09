@@ -14,7 +14,7 @@ where [options] are:
 **-b** or **--build**   - stop dansolver (if running), build all DSE components, startup mongodb (if not running)
 and start dansolver to allow it to start receiving symbolic constraints to be solved from the instrumented code. (default is **ON**)
 
-**-z** or **--force-z3** - force pulling in and building z3 even if already installed. (default is **OFF**)
+**-f** or **--force** - force pulling in and building z3 even if already installed. (default is **OFF**)
 
 **-h** or **--help**    - print this help message.
 
@@ -29,6 +29,7 @@ This script is used to setup the environment for the DSE so that applications ca
 where [options] are:
 
 **-t** or **--test**  - don't actually build anything, dut display the commands used to build
+
 **-r** or **--run**   - after building the test, run it
 
 **<app.jar>** = the name (and path) of the application jar file (path can be relative)
