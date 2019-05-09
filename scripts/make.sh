@@ -394,17 +394,17 @@ if [[ "${builddir}" == "${jarfile}" ]]; then
   builddir=""
 fi
   
-# make sure our build dir is valid
-if [[ ${TESTMODE} -eq 0 && ! -f ${jarfile} ]]; then
-  echo "FAILURE: can't find file: ${jarfile}"
-  exit 1
-fi
-  
 # these commands must be executed from the build directory
 if [[ "${builddir}" != "" ]]; then
   cd ${builddir}
 fi
 
+# make sure our build dir is valid
+if [[ ${TESTMODE} -eq 0 && ! -f ${INPUTJAR} ]]; then
+  echo "FAILURE: can't find file: `pwd`/${INPUTJAR}"
+  exit 1
+fi
+  
 # extract info from JSON config file (if present)
 jsonfile="testcfg.json"
 if [[ -f "${jsonfile}" ]]; then

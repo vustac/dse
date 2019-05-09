@@ -954,7 +954,8 @@ public final class LauncherMain {
       runTest(arglist);
 
       String testName = projectName.substring(0, projectName.indexOf(".jar"));
-      recorder.beginTest(testName, arglist);
+      String mainClass = (String) mainClassCombo.getSelectedItem();
+      recorder.beginTest(testName, arglist, mainClass);
       
       // add all symbolic parameters that are currently defined
       recorder.clearSymbolics();
@@ -1295,7 +1296,8 @@ public final class LauncherMain {
       if (runMode != RunMode.IDLE) {
         String testName = projectName.substring(0, projectName.indexOf(".jar"));
         String arglist = mainFrame.getTextField("TXT_ARGLIST").getText();
-        recorder.beginTest(testName, arglist);
+        String mainClass = (String) mainClassCombo.getSelectedItem();
+        recorder.beginTest(testName, arglist, mainClass);
       }
     }
   }

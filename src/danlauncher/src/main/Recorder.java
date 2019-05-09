@@ -95,14 +95,15 @@ public class Recorder {
    * 
    * @param testname - name of the test being run
    * @param arglist  - argument list for the test
+   * @param mainClass - main class of program
    */
-  public void beginTest(String testname, String arglist) {
+  public void beginTest(String testname, String arglist, String mainClass) {
     if (recordState) {
       // init the start time for the next command
       recordStartTime = System.currentTimeMillis();
       recording.commandlist.clear();
       recordCommandList.clear();
-      recording.setTestName(testname, arglist);
+      recording.setTestName(testname, arglist, mainClass);
     }
   }
 
@@ -443,21 +444,24 @@ public class Recorder {
   private class RecordInfo {
     private String testname;
     private String runargs;
+    private String mainclass;
     private final ArrayList<RecordSymbolicParam> symbolicList;
     private final ArrayList<Object> commandlist;
     
     private RecordInfo() {
       testname = "";
       runargs = "";
+      mainclass = "";
 
       // the lists that are saved (symbolic params and the commands to run)
       symbolicList = new ArrayList<>();
       commandlist = new ArrayList<>();
     }
     
-    private void setTestName(String name, String args) {
+    private void setTestName(String name, String args, String maincls) {
       testname = name;
       runargs = args;
+      mainclass = maincls;
     }
     
     private void addSymbolic(String method, String name, String type, String slot, String start, String end) {

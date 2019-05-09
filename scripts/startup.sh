@@ -203,6 +203,7 @@ function do_build
   cd build
   cmake ..
   make
+  cp src/libdanpatch.* .
   echo "Building danalyzer..."
   cd ${DSE_SRC_DIR}/danalyzer
   ant
