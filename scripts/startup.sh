@@ -34,6 +34,15 @@ function set_os_type
   fi
 }
 
+function set_java_home
+{
+  if [ ${LINUX} -eq 1 ]; then
+    export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+  else
+    export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-10.0.1.jdk/Contents/Home
+  fi
+}
+
 # this will check if we are either forcing an install of a list of programs or if they are missing
 # and will install them for the appropriate syatem.
 #
@@ -44,12 +53,15 @@ function do_update_standard
 {
   count=$#
   for ((index=0; index < ${count}; index++)) do
-    status=`command -v $1 > /dev/null 2>&1`
-    if [[ ${FORCE} -eq 0 && ${status} -eq 0 ]]; then
+    install=0
+    if command -v $1 > /dev/null 2>&1; then
+      install=1
+    fi
+    if [[ ${install} -eq 1 && ${FORCE} -eq 0 ]]; then
       echo "... $1 already installed."
     else
+      echo "... installing: $1"
       if [ ${LINUX} -eq 1 ]; then
-        echo "installing: $1"
         sudo apt install -y $1
       else
         brew install $1
@@ -72,30 +84,31 @@ function do_install
   fi
 
   # install java
-  status=`which javac > /dev/null 2>&1`
-  if [[ ${FORCE} -eq 0 && ${status} -eq 0 ]]; then
-    if [ ${LINUX} -eq 1 ]; then
-      JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
-    else
-      JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-10.0.1.jdk/Contents/Home
-    fi
+  install=0
+  if which javac > /dev/null 2>&1; then
+    install=1
+  fi
+  if [[ ${install} -eq 1 && ${FORCE} -eq 0 ]]; then
+    set_java_home
     echo "... jdk already installed: ${JAVA_HOME}"
   else
     if [ ${LINUX} -eq 1 ]; then
       # jdk 8 is the latest version for ubuntu 16.04 in standard repo
       sudo apt install -y openjdk-8-jdk
-      export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
     else
       # brew installs jdk 10 by default
       brew cask install java
-      export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-10.0.1.jdk/Contents/Home
     fi
+    set_java_home
     echo "JAVA_HOME = $JAVA_HOME"
   fi
   
   # install mongodb
-  status=`which mongod > /dev/null 2>&1`
-  if [[ ${FORCE} -eq 0 && ${status} -eq 0 ]]; then
+  install=0
+  if which javac > /dev/null 2>&1; then
+    install=1
+  fi
+  if [[ ${install} -eq 1 && ${FORCE} -eq 0 ]]; then
     echo "... mongodb already installed."
   else
     if [ ${LINUX} -eq 1 ]; then
@@ -150,7 +163,7 @@ function do_z3
   z3basename="z3-4.8.4.d6df51951f4c-x64"
 
   # stop dansolver if it is running, since it uses this library
-  local pid=$( ps -ef | grep dansolver | grep -v grep | cut -c 11-15 2>/dev/null )
+  local pid=$( ps -ef | grep dansolver | grep -v grep | cut -c 10-15 2>/dev/null )
   if [[ "${pid}" != "" ]]; then
     echo "killing dansolver process ${pid}"
     kill -9 ${pid}
@@ -175,12 +188,15 @@ function do_z3
 function do_build
 {
   # stop dansolver if it is running
-  local pid=$( ps -ef | grep dansolver | grep -v grep | cut -c 11-15 2>/dev/null )
+  local pid=$( ps -ef | grep dansolver | grep -v grep | cut -c 10-15 2>/dev/null )
   if [[ "${pid}" != "" ]]; then
     echo "killing dansolver process ${pid}"
     kill -9 ${pid}
     sleep 4
   fi
+
+  # set the java home reference
+  set_java_home
 
   # these commands are common to both OSes
   echo "Building danhelper..."
