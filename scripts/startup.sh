@@ -77,10 +77,10 @@ function do_install
   # install standard programs
   if [ ${LINUX} -eq 1 ]; then
     sudo apt update
-    do_update_standard git ant cmake g++ jq wget unzip
+    do_update_standard git ant cmake g++ jq wget unzip curl
   else
     brew update
-    do_update_standard bash ant gcc jq unzip
+    do_update_standard bash ant gcc jq unzip curl
   fi
 
   # install java

@@ -516,8 +516,9 @@ fi
 if [[ ! -f ${DANTESTGEN_DIR}/dist/dantestgen.jar ]]; then
   cd ${DANTESTGEN_DIR}
   ant
-  cd ${DSE_TST_DIR}
 fi
+
+cd ${DSE_TST_DIR}
 
 # this is assumed to be running from the tests directory
 if [ ${ALLTESTS} -eq 0 ]; then
