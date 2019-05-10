@@ -1,6 +1,7 @@
 {
   "testname": "SymbolicIndexArray",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/arrays/symbolic_index/SymbolicIndexArray",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

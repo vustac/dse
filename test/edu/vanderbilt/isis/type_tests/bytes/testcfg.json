@@ -1,6 +1,7 @@
 {
   "testname": "ByteRangeTest",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/type_tests/bytes/ByteRangeTest",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

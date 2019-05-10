@@ -1,6 +1,7 @@
 {
   "testname": "MultiArraySquare",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/arrays/multidim_square/MultiArraySquare",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

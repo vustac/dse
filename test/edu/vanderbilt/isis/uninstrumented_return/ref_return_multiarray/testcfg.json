@@ -1,6 +1,7 @@
 {
   "testname": "RefReturnMultiArray",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/uninstrumented_return/ref_return_multiarray/RefReturnMultiArray",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

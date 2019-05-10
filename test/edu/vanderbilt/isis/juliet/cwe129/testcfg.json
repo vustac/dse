@@ -1,6 +1,7 @@
 {
   "testname": "SimpleCWE129",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/juliet/cwe129/SimpleCWE129",
   "symbolicList": [],
   "commandlist": [
     {

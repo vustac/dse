@@ -1,6 +1,7 @@
 {
   "testname": "SymbolicStringLength",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/strings/symbolic_length/SymbolicStringLength",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

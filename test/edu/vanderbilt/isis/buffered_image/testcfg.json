@@ -1,6 +1,7 @@
 {
   "testname": "BufferedImageTest",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/buffered_image/BufferedImageTest",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

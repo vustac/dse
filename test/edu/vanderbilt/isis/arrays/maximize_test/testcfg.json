@@ -1,6 +1,7 @@
 {
   "testname": "SymbolicMaximizeTest",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/arrays/maximize_test/SymbolicMaximizeTest",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

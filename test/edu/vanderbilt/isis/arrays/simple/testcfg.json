@@ -1,6 +1,7 @@
 {
   "testname": "BasicArray",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/arrays/simple/BasicArray",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

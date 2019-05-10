@@ -1,6 +1,7 @@
 {
   "testname": "SymbolicStringEquals",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/strings/symbolic_equals/SymbolicStringEquals",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

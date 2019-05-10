@@ -1,6 +1,7 @@
 {
   "testname": "ConstructorTest",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/constructors/ConstructorTest",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

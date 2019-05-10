@@ -1,6 +1,7 @@
 {
   "testname": "MultiArrayNonSquare",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/arrays/multidim_nonsquare/MultiArrayNonSquare",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

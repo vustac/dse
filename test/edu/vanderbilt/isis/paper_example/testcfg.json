@@ -1,6 +1,7 @@
 {
   "testname": "SimpleServer",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/paper_example/SimpleServer",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

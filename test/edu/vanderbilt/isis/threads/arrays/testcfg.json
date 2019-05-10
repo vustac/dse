@@ -1,6 +1,7 @@
 {
   "testname": "ThreadTestArrays",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/threads/arrays/ThreadTestArrays",
   "symbolicList": [
     {
       "command": "SYMBOLIC_PARAM",

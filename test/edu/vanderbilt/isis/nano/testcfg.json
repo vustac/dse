@@ -1,6 +1,7 @@
 {
   "testname": "SimpleNano",
   "runargs": "",
+  "mainclass": "edu/vanderbilt/isis/nano/SimpleNano",
   "symbolicList": [],
   "commandlist": [
     {
