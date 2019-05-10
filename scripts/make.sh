@@ -6,6 +6,14 @@
 set -o nounset
 set -o errexit
 
+# set the java home path variable
+OSTYPE=`uname`
+if [[ "${OSTYPE}" == "Linux" ]]; then
+  export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+else
+  export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-10.0.1.jdk/Contents/Home
+fi
+
 # this generates a clean path to the directory the script is contained in.
 # we do this in order to locate the DSE tools that are identified by the script's location.
 #
@@ -31,7 +39,7 @@ DANTESTGEN_DIR=${DSE_SRC_DIR}/dantestgen
 
 # determine the correct name for the danhelper lib file (Linux uses .so, Mac uses .dylib)
 DANHELPER_FILE=libdanhelper.so
-if [[ "`uname`" == "Darwin" ]]; then
+if [[ "${OSTYPE}" == "Darwin" ]]; then
   DANHELPER_FILE=libdanhelper.dylib
 fi
 
