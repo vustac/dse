@@ -2,7 +2,7 @@
   "testname": "ConstructorTest",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/constructors/ConstructorTest",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/constructors/ConstructorTest/\u003cinit\u003e(ID)V",

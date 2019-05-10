@@ -2,7 +2,7 @@
   "testname": "SymbolicStringEquals",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/strings/symbolic_equals/SymbolicStringEquals",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/strings/symbolic_equals/SymbolicStringEquals/symbolicEqualsTest()V",

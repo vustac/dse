@@ -76,7 +76,7 @@ following entries (all values are defined as Strings):
 The following entries MAY optionally be included to define symbolic parameters and commands
 to run:
 
-  "**symbolicList**" : an array of symbolic parameters to define, each containing:
+  "**symboliclist**" : an array of symbolic parameters to define, each containing:
   "**commandlist**" : an array of commands to implement an automated test (see below)
 
 The content of these last 2 entries is defined in the *CREATING A TESTCFG.JSON MANUALLY* section of the

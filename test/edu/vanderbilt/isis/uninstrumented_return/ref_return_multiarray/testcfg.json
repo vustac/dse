@@ -2,7 +2,7 @@
   "testname": "RefReturnMultiArray",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/uninstrumented_return/ref_return_multiarray/RefReturnMultiArray",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/uninstrumented_return/ref_return_multiarray/RefReturnMultiArray/testReturn()V",

@@ -304,17 +304,17 @@ function create_danfig
     return
   fi
   
-  local count=`cat ${jsonfile} | jq -r '.symbolicList' | jq length`
+  local count=`cat ${jsonfile} | jq -r '.symboliclist' | jq length`
   if [[ ${count} -eq 0 ]]; then
     echo "# <none defined>" >> ${danfigfile}
   else
     for ((index=0; index < ${count}; index++)) do
-      local name=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].name'`
-      local meth=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].method'`
-      local type=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].type'`
-      local slot=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].slot'`
-      local strt=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].start'`
-      local end=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].end'`
+      local name=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].name'`
+      local meth=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].method'`
+      local type=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].type'`
+      local slot=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].slot'`
+      local strt=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].start'`
+      local end=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].end'`
       echo "Symbolic: ${name} ${meth} ${slot} ${strt} ${end} ${type}" >> ${danfigfile}
     done
   fi
@@ -354,7 +354,7 @@ if [ -z ${ENTRY} ]; then
   echo "NOTE: the location of the jar file to instrument must also contain a testcfg.json file"
   echo "      that, at a minimum, defines: 'testname', 'runargs', and 'mainclass' to specify"
   echo "      the name of the file to produce, the arguments to pass to it, and the name of"
-  echo "      the Main Class. It may also provide 'symbolicList' entries to define the symbolic"
+  echo "      the Main Class. It may also provide 'symboliclist' entries to define the symbolic"
   echo "      parameters as well as 'commandlist' entries that define commands to execute."
   echo
   echo "      These are described in more detail in the scripts/README.md file."

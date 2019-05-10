@@ -2,7 +2,7 @@
   "testname": "SimpleCWE606",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/juliet/cwe606/SimpleCWE606",
-  "symbolicList": [],
+  "symboliclist": [],
   "commandlist": [
     {
       "command": "DELAY",

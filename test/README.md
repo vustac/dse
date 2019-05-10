@@ -28,9 +28,8 @@ If the '-r' option is specified and a 'testcfg.json' file is defined, it will ad
     
 This will produce the following files (all contained in the results/TEST directory):
 
-- testcfg.json     - the JSON config file copied from the source location
-- mainclass.txt    - contains the name of the Main Class of the application
-- danfig           - the configuration file used when running the instrumented code
+- testcfg.json     - the JSON config file (copied from the source location)
+- danfig           - the danalyzer configuration file to use when running the instrumented code
 - check_results.sh - contains the script for running the test results validation
 - test_script.sh   - same as check_results.sh but excludes the base_check.sh functions
 - TEST.jar         - the original un-instrumented test application (with full debug enabled)
@@ -71,10 +70,10 @@ In detail, this JSON file must consist of the following (all values are defined 
   
   "**testname**" : the name of the java file (minus the extension)
   "**runargs**" : the argument list to pass to the application when it is run
-  "**symbolicList**" : an array of symbolic parameters to define, each containing:
+  "**symboliclist**" : an array of symbolic parameters to define, each containing:
   "**commandlist**" : an array of commands to implement an automated test (see below)
 
-The `symbolicList` must consist of the following entries for each parameter to define
+The `symboliclist` must consist of the following entries for each parameter to define
   "**command**" : "*SYMBOLIC_PARAMETER*"
   "**method**" : the method the symbolic is defined in (contains full path and signature)
   "**name**": the name to assign to the parameter (will be used in the solution)

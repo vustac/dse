@@ -2,7 +2,7 @@
   "testname": "ThreadTestArrays",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/threads/arrays/ThreadTestArrays",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/threads/arrays/ThreadTestArrays/setSymbolic()V",

@@ -277,17 +277,17 @@ function create_danfig
   echo "SolverMethod: NONE" >> ${builddir}/danfig
   echo "#" >> ${builddir}/danfig
   echo "# SYMBOLIC_PARAMETERS" >> ${builddir}/danfig
-  count=`cat ${jsonfile} | jq -r '.symbolicList' | jq length`
+  count=`cat ${jsonfile} | jq -r '.symboliclist' | jq length`
   if [ ${count} -eq 0 ]; then
     echo "# <none defined>" >> ${builddir}/danfig
   else
     for ((index=0; index < ${count}; index++)) do
-      local name=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].name'`
-      local meth=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].method'`
-      local type=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].type'`
-      local slot=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].slot'`
-      local strt=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].start'`
-      local end=`cat ${jsonfile} | jq -r '.symbolicList['${index}'].end'`
+      local name=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].name'`
+      local meth=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].method'`
+      local type=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].type'`
+      local slot=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].slot'`
+      local strt=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].start'`
+      local end=`cat ${jsonfile} | jq -r '.symboliclist['${index}'].end'`
       echo "Symbolic: ${name} ${meth} ${slot} ${strt} ${end} ${type}" >> ${builddir}/danfig
     done
   fi
@@ -383,7 +383,6 @@ function extract_test
 # this checks if the required source files are present, and if so:
 # - build the jar file with full debugging info (for extracting info with danlauncher)
 # - create a results/<testname> directory to perform all builds in
-# - create a mainclass.txt file in build dir consisting of the name of the main Class to run
 # - copy the testcfg.json (if any) from source dir to build dir
 # - creates a debug-stripped jar from the original and instruments this jar file
 #
@@ -420,9 +419,8 @@ function build_chain
     mkdir -p ${builddir}
   fi
   
-  # create a mainclass.txt file that contains the main class for the test (for the run_tests.sh)
+  # specify the Main Class for the application
   MAINCLASS=${class}/${test}
-  echo "${MAINCLASS}" > ${builddir}/mainclass.txt
   
   # check for the required JSON config file
   # (required if we are going to perform a check of the test results)

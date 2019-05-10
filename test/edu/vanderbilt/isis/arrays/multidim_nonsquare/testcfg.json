@@ -2,7 +2,7 @@
   "testname": "MultiArrayNonSquare",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/arrays/multidim_nonsquare/MultiArrayNonSquare",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/arrays/multidim_nonsquare/MultiArrayNonSquare/testNonSquare()V",

@@ -2,7 +2,7 @@
   "testname": "SimpleServer",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/paper_example/SimpleServer",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/paper_example/SimpleServer/getResponse(II)Ljava/lang/String;",

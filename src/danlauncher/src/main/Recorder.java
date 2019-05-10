@@ -111,7 +111,7 @@ public class Recorder {
    * clear the list of symbolic parameters
    */
   public void clearSymbolics() {
-    recording.symbolicList.clear();
+    recording.symboliclist.clear();
   }
   
   /**
@@ -445,7 +445,7 @@ public class Recorder {
     private String testname;
     private String runargs;
     private String mainclass;
-    private final ArrayList<RecordSymbolicParam> symbolicList;
+    private final ArrayList<RecordSymbolicParam> symboliclist;
     private final ArrayList<Object> commandlist;
     
     private RecordInfo() {
@@ -454,7 +454,7 @@ public class Recorder {
       mainclass = "";
 
       // the lists that are saved (symbolic params and the commands to run)
-      symbolicList = new ArrayList<>();
+      symboliclist = new ArrayList<>();
       commandlist = new ArrayList<>();
     }
     
@@ -465,7 +465,7 @@ public class Recorder {
     }
     
     private void addSymbolic(String method, String name, String type, String slot, String start, String end) {
-      symbolicList.add(new RecordSymbolicParam(method, name, type, slot, start, end));
+      symboliclist.add(new RecordSymbolicParam(method, name, type, slot, start, end));
     }
     
     private void addCommand(RecordID cmd, Object item) {

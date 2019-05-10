@@ -2,7 +2,7 @@
   "testname": "BasicArray",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/arrays/simple/BasicArray",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/arrays/simple/BasicArray/testBasic()V",

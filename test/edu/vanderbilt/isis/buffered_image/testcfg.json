@@ -2,7 +2,7 @@
   "testname": "BufferedImageTest",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/buffered_image/BufferedImageTest",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/buffered_image/BufferedImageTest/makeImage()V",

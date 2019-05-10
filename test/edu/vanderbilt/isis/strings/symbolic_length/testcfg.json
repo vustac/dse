@@ -2,7 +2,7 @@
   "testname": "SymbolicStringLength",
   "runargs": "",
   "mainclass": "edu/vanderbilt/isis/strings/symbolic_length/SymbolicStringLength",
-  "symbolicList": [
+  "symboliclist": [
     {
       "command": "SYMBOLIC_PARAM",
       "method": "edu/vanderbilt/isis/strings/symbolic_length/SymbolicStringLength/symbolicLengthTest()V",

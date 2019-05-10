@@ -8,16 +8,38 @@ set -o errexit
 set -o pipefail
 set -e
 
+# set the java home path variable
+OSTYPE=`uname`
+if [[ "${OSTYPE}" == "Linux" ]]; then
+  export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+else
+  export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-10.0.1.jdk/Contents/Home
+fi
+
 # this allows you to build a single test or build them all. It will create the test build
 # directories wherever this script file is run from. A seperate directory is created for each
 # test object so they can each have independent danfig files for them.
 
-BASEDIR=`pwd`
-DSE_DIR=`realpath ${BASEDIR}/..`
+# this generates a clean path to the directory the script is contained in.
+# we do this in order to locate the DSE tools that are identified by the script's location.
+#
+# NOTE: This assumes that you have not transported this script file to some other location
+#       unless you move the entire dse project directory along with it.
+#
+SCRIPTPATH=${0%/*}
+if [[ "${SCRIPTPATH}" == "$0" ]]; then
+  SCRIPTPATH=`pwd`
+fi
+SCRIPTPATH=`realpath ${SCRIPTPATH}`
+#echo "script path = ${SCRIPTPATH}"
 
-DANALYZER_DIR=${DSE_DIR}/src/danalyzer
-DANHELPER_DIR=${DSE_DIR}/src/danhelper
-DANPATCH_DIR=${DSE_DIR}/src/danpatch
+# first, find location of the root directory of all the DSE sub-projects
+DSE_SRC_DIR=`realpath ${SCRIPTPATH}/../src`
+DSE_TST_DIR=`realpath ${SCRIPTPATH}`
+
+DANALYZER_DIR=${DSE_SRC_DIR}/danalyzer
+DANHELPER_DIR=${DSE_SRC_DIR}/danhelper
+DANPATCH_DIR=${DSE_SRC_DIR}/danpatch
 
 # determine the correct name for the danhelper lib file (Linux uses .so, Mac uses .dylib)
 DANHELPER_FILE=libdanhelper.so
@@ -40,7 +62,7 @@ if [[ ! -f $DANHELPER_DIR/build/${DANHELPER_FILE} ]]; then
     echo "ERROR: danhelper library was not created!"
     exit 1
   fi
-  cd ${BASEDIR}
+  cd ${DSE_TST_DIR}
 fi
 
 # these active ingredients in these paths are assumed to be in their associated build directories
@@ -120,17 +142,35 @@ function run_test
     fi
   fi
 
+  # the run command to use
+  local runcmd="java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${RUNARGS}"
+
   # now run the test
   if [[ ${TESTMODE} -eq 1 ]]; then
     echo "==> Running instrumented jar file"
-    echo "java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}"
+    echo "${runcmd}"
     return
   fi
   
   # no verification - run test in foreground and wait for it to finish
   if [[ ${VERIFY} -eq 0 ]]; then
+    # these tests require user input to complete, so warn the user
+    if [[ "${test}" == "SimpleCWE129" || "${test}" == "SimpleCWE6069" ]]; then
+      echo
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo "!!! This test will hang until user directs input to application's standard input"
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo
+    elif [[ "${test}" == "SimpleNano" || "${test}" == "SimpleServer" ]]; then
+      echo
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo "!!! This test will hang until user directs input to localhost:8080"
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo
+    fi
+    
     echo "==> Running instrumented jar file"
-    java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs}
+    ${runcmd}
     return
   fi
     
@@ -140,7 +180,7 @@ function run_test
   if [ ! -p inpipe ]; then
     mkfifo inpipe
   fi
-  tail -f inpipe | java -Xverify:none -Dsun.boot.library.path=${LIBPATH} -Xbootclasspath${BOOTCPATH} -agentpath:$DANHELPER_DIR/$DANHELPER_FILE -cp ${CLASSPATH} ${MAINCLASS} ${runargs} &
+  tail -f inpipe | ${runcmd} &
   pid=$!
 
   # delay just a bit to make sure app is running before starting checker
@@ -163,13 +203,14 @@ function run_test
 function run_chain
 {
   # this must start from the directory this script is in
-  cd ${BASEDIR}
+  cd ${DSE_TST_DIR}
+
+  echo "Runing tests: ${test}"
 
   # these specify where the build dir is in which all operations are performed
   # and the files that are required to have been built by make_test.sh.
   builddir="results/${test}"
   instrfile="${test}-dan-ed.jar"
-  mainfile="mainclass.txt"
   jsonfile="testcfg.json"
 
   # make sure we have a directory for the specified test
@@ -180,32 +221,31 @@ function run_chain
 
   cd ${builddir}
 
-  # now get the mainclass definition file (exit if not found)
-  if [[ ! -f ${mainfile} ]]; then
-    echo "FAILURE ${test}: ${mainfile} file not found in results directory!"
-    exit 1
-  fi
-
   # if instrumented file is not found, exit
   if [ ! -f ${instrfile} ]; then
     echo "FAILURE ${test}: instrumented jar not found in results directory"
     exit 1
   fi
 
-  # extract the name of the main Class
-  MAINCLASS=`cat ${mainfile}`
-
-  # check for the optional JSON config file
-  # (required if we are going to perform a check of the test results)
-  runargs=""
-  RUNCHECK=0
-  if [[ -f ${jsonfile} ]]; then
-    # get the args from the JSON config file (if it exists)
-    runargs=`cat ${jsonfile} | jq -r '.runargs'`
-    if [[ ${VERIFY} -eq 1 ]]; then
-      RUNCHECK=1
-    fi
+  # check for the required JSON config file
+  if [[ ! -f ${jsonfile} ]]; then
+    echo "FAILURE ${test}: ${jsonfile} file not found in results directory"
+    exit 1
   fi
+
+  # extract test info from JSON file
+  RUNARGS=`cat ${jsonfile} | jq -r '.runargs'`
+  MAINCLASS=`cat ${jsonfile} | jq -r '.mainclass'`
+
+  set +o nounset
+  if [[ ${RUNARGS} == null ]]; then
+    RUNARGS=""
+  fi
+  if [[ ${MAINCLASS} == null ]]; then
+    echo "FAILURE ${test}: Main Class value not defined in ${jsonfile}"
+    exit 1
+  fi
+  set -o nounset
 
   # clear the database before we run
   clear_database
@@ -264,6 +304,7 @@ else
   # else, we are going to generate them all...
   # copy the source and library files from the dse tests project
   echo "Runing all tests..."
+  cd ${DSE_TST_DIR}
   testlist=`ls results | sort`
   for test in ${testlist}; do
     run_chain
