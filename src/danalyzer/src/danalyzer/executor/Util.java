@@ -259,6 +259,7 @@ public class Util {
    * @param threadId - the thread id running
    * @param val - the current array of primitives or Objects
    * @param type  - the data type for the array
+   * @return combo of Value-wrapped array
    */
   // who is to blame: dmcd2356
   public static Value[] cvtValueArray(int threadId, Object val, int type) {
