@@ -43,11 +43,16 @@ JNIEXPORT jobjectArray JNICALL Java_danalyzer_executor_NativeCode_newArrayNative
 
   jclass itemClass;
   switch (type) {
+  // all these cases are treated as Integer types
   case VALTYPE_CHR:
   case VALTYPE_BLN:
   case VALTYPE_INT8:
   case VALTYPE_INT16:
   case VALTYPE_INT32:
+  // REF, ARY and MARY types all use an Integer reference value to access the array
+  case VALTYPE_REF:
+  case VALTYPE_ARY:
+  case VALTYPE_MARY:
     itemClass = jni->FindClass("Ljava/lang/Integer;");
     if (NULL == itemClass) {
       printf("[[newArrayNative: 'Integer' class not found]]\n");
@@ -83,6 +88,7 @@ JNIEXPORT jobjectArray JNICALL Java_danalyzer_executor_NativeCode_newArrayNative
     }
     break;
   default:
+    printf("[[newArrayNative: invalid type: type %d]]\n", type);
     break;
   }
   

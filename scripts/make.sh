@@ -59,6 +59,11 @@ function classpath_add
 #
 function execute_command
 {
+  if [[ "${COMMAND}" == "" ]]; then
+    echo "FAILURE: execute_command called with no COMMAND definition"
+    exit 1
+  fi
+  
   STATUS=0
   echo "${TITLE}"
   if [[ ${TESTMODE} -ne 0 ]]; then
