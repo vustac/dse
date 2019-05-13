@@ -142,7 +142,7 @@ function run_test
   classpath_init ${TESTNAME}-dan-ed.jar
   classpath_add $DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then
-    classpath_add lib/*
+    classpath_add "lib/*"
   fi
 
   # get the run command

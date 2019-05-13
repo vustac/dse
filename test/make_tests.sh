@@ -132,7 +132,7 @@ function run_test
   classpath_init ${test}-dan-ed.jar
   classpath_add $DANALYZER_DIR/dist/danalyzer.jar
   if [[ -d lib ]]; then
-    classpath_add lib/*
+    classpath_add "lib/*"
   fi
 
   # if verification requested & the danfig or check_results.sh script files are missing,
