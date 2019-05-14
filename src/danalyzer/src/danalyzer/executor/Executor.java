@@ -3301,9 +3301,6 @@ public class Executor {
     Value val2 = currentStackFrame.popValue();
     Value val1 = currentStackFrame.popValue();
 
-    assertInvalidType(val1, opcode, "val1", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32);
-    assertInvalidType(val2, opcode, "val2", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32);
-
     Value val3 = ValueOp.andValue(Value.INT32, val1, val2, z3Context);
     currentStackFrame.pushValue(val3);
   }
@@ -3318,9 +3315,6 @@ public class Executor {
     Value val2 = currentStackFrame.popValue();
     Value val1 = currentStackFrame.popValue();
 
-    assertInvalidType(val1, opcode, "val1", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32);
-    assertInvalidType(val2, opcode, "val2", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32);
-
     Value val3 = ValueOp.orValue(Value.INT32, val1, val2, z3Context);
     currentStackFrame.pushValue(val3);
   }
@@ -3334,9 +3328,6 @@ public class Executor {
 
     Value val2 = currentStackFrame.popValue();
     Value val1 = currentStackFrame.popValue();
-
-    assertInvalidType(val1, opcode, "val1", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32);
-    assertInvalidType(val2, opcode, "val2", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32);
 
     Value val3 = ValueOp.xorValue(Value.INT32, val1, val2, z3Context);
     currentStackFrame.pushValue(val3);
@@ -3394,9 +3385,6 @@ public class Executor {
     Value val2 = currentStackFrame.popValue();
     Value val1 = currentStackFrame.popValue();
 
-    assertInvalidType(val1, opcode, "val1", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32 | Value.INT64);
-    assertInvalidType(val2, opcode, "val2", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32 | Value.INT64);
-
     Value val3 = ValueOp.andValue(Value.INT64, val1, val2, z3Context);
     currentStackFrame.pushValue(val3);
   }
@@ -3411,9 +3399,6 @@ public class Executor {
     Value val2 = currentStackFrame.popValue();
     Value val1 = currentStackFrame.popValue();
 
-    assertInvalidType(val1, opcode, "val1", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32 | Value.INT64);
-    assertInvalidType(val2, opcode, "val2", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32 | Value.INT64);
-
     Value val3 = ValueOp.orValue(Value.INT64, val1, val2, z3Context);
     currentStackFrame.pushValue(val3);
   }
@@ -3427,9 +3412,6 @@ public class Executor {
 
     Value val2 = currentStackFrame.popValue();
     Value val1 = currentStackFrame.popValue();
-
-    assertInvalidType(val1, opcode, "val1", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32 | Value.INT64);
-    assertInvalidType(val2, opcode, "val2", Value.CHR | Value.INT8 | Value.INT16 | Value.INT32 | Value.INT64);
 
     Value val3 = ValueOp.xorValue(Value.INT64, val1, val2, z3Context);
     currentStackFrame.pushValue(val3);
