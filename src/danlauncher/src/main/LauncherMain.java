@@ -291,8 +291,16 @@ public final class LauncherMain {
     systemProps = new PropertiesFile(HOMEPATH + "/" + PROJ_CONFIG, "SYSTEM_PROPERTIES");
     javaHome     = systemProps.getPropertiesItem("SYS_JAVA_HOME", JAVA_HOME);
     try {
-      // the main DSE path should be two levels up from where we are running from
-      File basepath = new File(HOMEPATH + "/../..");
+      // the main DSE path should be a few levels up from where we are running from
+      File basepath = new File(HOMEPATH);
+      File parent = basepath.getParentFile();
+      for (int ix = 0; ix < 3 && parent != null; ix++) {
+        if (parent.getCanonicalPath().endsWith("/dse")) {
+          basepath = parent;
+          break;
+        }
+        parent = parent.getParentFile();
+      }
       dsePath    = systemProps.getPropertiesItem("SYS_DSEPATH", basepath.getCanonicalPath());
     } catch (IOException ex) {
       dsePath    = systemProps.getPropertiesItem("SYS_DSEPATH", HOMEPATH);
@@ -834,7 +842,7 @@ public final class LauncherMain {
         JTabbedPane tabPanel = (JTabbedPane) panelInfo.panel;
         int curTab = tabPanel.getSelectedIndex();
         currentTab = tabPanel.getTitleAt(curTab);
-        Utils.printStatusInfo("TAB SELECT: " + currentTab);
+        Utils.msgLogger(Utils.LogType.INFO, "TAB SELECT: " + currentTab);
       
         // now inform panels of the selection
         debugLogger.setTabSelection(currentTab);
@@ -1247,6 +1255,7 @@ public final class LauncherMain {
   private class Action_SaveCallGraphPNG implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      setTabSelect(PanelTabs.CALLGRAPH.toString());
       saveCallGraph("callgraph", "png");
     }
   }
@@ -1254,6 +1263,7 @@ public final class LauncherMain {
   private class Action_SaveCallGraphJSON implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      setTabSelect(PanelTabs.CALLGRAPH.toString());
       saveCallGraph("callgraph", "json");
     }
   }
@@ -1261,7 +1271,8 @@ public final class LauncherMain {
   private class Action_SaveCompGraphPNG implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
-      saveCallGraph("janagraph", "png");
+      setTabSelect(PanelTabs.COMPGRAPH.toString());
+      saveCallGraph("compgraph", "png");
     }
   }
       
@@ -1323,7 +1334,7 @@ public final class LauncherMain {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       if (recorder.isEmpty()) {
-        Utils.printStatusError("Nothing was recorded");
+        Utils.printStatusMessage("Nothing was recorded");
         return;
       }
       
@@ -2267,7 +2278,7 @@ public final class LauncherMain {
         netServer.start();
         networkListener = netServer; // this allows us to signal the network listener
       } catch (IOException ex) {
-        Utils.printStatusError("ERROR: unable to start NetworkServer. " + ex);
+        Utils.printStatusError("unable to start NetworkServer. " + ex);
       }
 
       // re-enable timers
@@ -2434,7 +2445,7 @@ public final class LauncherMain {
   private static void initProjectProperties(String pathname) {
     // create the properties file for the project
     String propType = "PROJECT_PROPERTIES";
-    Utils.printStatusError(propType + " initialization");
+    Utils.printStatusMessage(propType + " initialization");
     projectProps = new PropertiesFile(pathname + ".danlauncher", propType);
     debugParams.setPropertiesFile(projectProps);
 
@@ -2455,7 +2466,7 @@ public final class LauncherMain {
         projectProps.setPropertiesItem (tag, setting);
       }
     }
-    Utils.printStatusError(propType + " initialization - COMPLETED");
+    Utils.printStatusMessage(propType + " initialization - COMPLETED");
   }
   
   private static void updateProjectProperty(String ctlName) {
@@ -2543,9 +2554,6 @@ public final class LauncherMain {
       return -1;
     }
     
-    // disable the janalyzer graph Save button, since there is no graph now.
-    getMenuItem("MENU_SAVE_JGRAPH").setEnabled(false);
-
     // clear out the symbolic parameter list and the history list for bytecode viewer
     // as well as the bytecode data, byteflow graph, solutions and debug/call graph info.
     symbolTbl.clear();

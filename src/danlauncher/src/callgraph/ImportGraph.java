@@ -195,8 +195,8 @@ public class ImportGraph {
     }
     
     // load the method list info from json file
-		GsonBuilder builder = new GsonBuilder();
-		Gson gson = builder.create();
+    GsonBuilder builder = new GsonBuilder();
+    Gson gson = builder.create();
     Type methodListType = new TypeToken<List<ImportMethod>>() {}.getType();
     graphMethList = gson.fromJson(br, methodListType);
     Utils.printStatusInfo("loaded ImportGraph: " + graphMethList.size() + " methods from file " + file.getName());
@@ -215,9 +215,15 @@ public class ImportGraph {
   }
   
   public void saveAsImageFile(File file) {
-    Utils.printStatusInfo("save ImportGraph as ImageFile: " + graphMethList.size() + " methods");
+    // make sure we have updated the graphics before we save
+    updateCallGraph();
+
+    Utils.printStatusInfo("save ImportGraph as ImageFile: " + graphMethList.size()
+            + " methods, size " + graphPanel.getSize().width + " x " + graphPanel.getSize().height);
+
     BufferedImage bi = new BufferedImage(graphPanel.getSize().width,
-        graphPanel.getSize().height, BufferedImage.TYPE_INT_ARGB); 
+                                         graphPanel.getSize().height,
+                                         BufferedImage.TYPE_INT_ARGB); 
     Graphics graphics = bi.createGraphics();
     graphPanel.paint(graphics);
     graphics.dispose();
@@ -239,8 +245,6 @@ public class ImportGraph {
     if (graphComponent == null) {
       graphComponent = new mxGraphComponent(graph);
       graphComponent.setConnectable(false);
-        
-      // add listener to show details of selected element
       graphComponent.getGraphControl().addMouseListener(new MouseListener());
       graphPanel.add(graphComponent);
     }
@@ -253,33 +257,6 @@ public class ImportGraph {
       
     // update the graph layout
     callGraph.layoutGraph();
-  }
-
-  // this displays the selected method in the Bytecode Viewer panel
-  private class MouseListener extends MouseAdapter {
-    @Override
-    public void mouseReleased(MouseEvent e) {
-      mxGraphHandler handler = graphComponent.getGraphHandler();
-      mxCell cell = (mxCell) handler.getGraphComponent().getCellAt(e.getX(), e.getY());
-      if (cell != null && cell.isVertex()) {
-        // show selected method in bytecode viewer
-        // Janalyzer keeps the "L" entry in the method name, but the Bytecode viewer name does not
-        ImportMethod selected = callGraph.getSelectedNode();
-        String methname = selected.fullName;
-        if (methname.startsWith("L")) {
-          methname = methname.substring(1);
-        }
-        MethodInfo methSelect = CallGraph.getMethodInfo(methname);
-        if (methSelect != null) {
-          displayMethodInfoPanel(methSelect);
-        } else {
-          Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
-          String meth = classmeth.methName + classmeth.signature;
-          String cls = classmeth.className;
-          LauncherMain.runBytecodeViewer(cls, meth);
-        }
-      }
-    }
   }
           
   private void displayMethodInfoPanel(MethodInfo selected) {
@@ -310,31 +287,6 @@ public class ImportGraph {
     textPanel.setText(message);
 
     methInfoPanel.display();
-  }
-  
-  private class Window_ExitListener extends java.awt.event.WindowAdapter {
-    @Override
-    public void windowClosing(java.awt.event.WindowEvent evt) {
-      methInfoPanel.close();
-    }
-  }
-
-  private class Action_RunBytecode implements ActionListener{
-    @Override
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-      // show selected method in bytecode viewer
-      // Janalyzer keeps the "L" entry in the method name, but the Bytecode viewer name does not
-      ImportMethod selected = callGraph.getSelectedNode();
-
-      Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
-      String meth = classmeth.methName + classmeth.signature;
-      String cls = classmeth.className;
-
-      LauncherMain.runBytecodeViewer(cls, meth);
-      
-      // close this menu
-      methInfoPanel.close();
-    }
   }
   
   private static String getCGName(String fullname) {
@@ -398,6 +350,61 @@ public class ImportGraph {
           }
         }
       }
+    }
+  }
+
+  /**
+   * add listener to show details of selected element
+   */
+  private class MouseListener extends MouseAdapter {
+    @Override
+    public void mouseReleased(MouseEvent e) {
+      // get coordinates of mouse click & see if it is one of the method blocks
+      mxGraphHandler handler = graphComponent.getGraphHandler();
+      mxCell cell = (mxCell) handler.getGraphComponent().getCellAt(e.getX(), e.getY());
+      if (cell != null && cell.isVertex()) {
+        // yes, show selected method in bytecode viewer
+        // Janalyzer keeps the "L" entry in the method name, but the Bytecode viewer name does not
+        ImportMethod selected = callGraph.getSelectedNode();
+        String methname = selected.fullName;
+        if (methname.startsWith("L")) {
+          methname = methname.substring(1);
+        }
+        MethodInfo methSelect = CallGraph.getMethodInfo(methname);
+        if (methSelect != null) {
+          displayMethodInfoPanel(methSelect);
+        } else {
+          Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
+          String meth = classmeth.methName + classmeth.signature;
+          String cls = classmeth.className;
+          LauncherMain.runBytecodeViewer(cls, meth);
+        }
+      }
+    }
+  }
+  
+  private class Window_ExitListener extends java.awt.event.WindowAdapter {
+    @Override
+    public void windowClosing(java.awt.event.WindowEvent evt) {
+      methInfoPanel.close();
+    }
+  }
+
+  private class Action_RunBytecode implements ActionListener{
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // show selected method in bytecode viewer
+      // Janalyzer keeps the "L" entry in the method name, but the Bytecode viewer name does not
+      ImportMethod selected = callGraph.getSelectedNode();
+
+      Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
+      String meth = classmeth.methName + classmeth.signature;
+      String cls = classmeth.className;
+
+      LauncherMain.runBytecodeViewer(cls, meth);
+      
+      // close this menu
+      methInfoPanel.close();
     }
   }
   

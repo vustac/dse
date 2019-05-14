@@ -389,19 +389,7 @@ public class CallGraph {
       if (graphComponent == null) {
         graphComponent = new mxGraphComponent(graph);
         graphComponent.setConnectable(false);
-        
-        // add listener to show details of selected element
-        graphComponent.getGraphControl().addMouseListener(new MouseAdapter() {
-          @Override
-          public void mouseReleased(MouseEvent e) {
-            mxGraphHandler handler = graphComponent.getGraphHandler();
-            mxCell cell = (mxCell) handler.getGraphComponent().getCellAt(e.getX(), e.getY());
-            if (cell != null && cell.isVertex()) {
-              MethodInfo selected = callGraph.getSelectedNode();
-              displayMethodInfoPanel(selected);
-            }
-          }
-        });
+        graphComponent.getGraphControl().addMouseListener(new MouseListener());
         graphPanel.add(graphComponent);
       }
 
@@ -602,9 +590,15 @@ public class CallGraph {
   }
   
   public void saveAsImageFile(File file) {
-    Utils.printStatusInfo("save CallGraph as ImageFile: " + graphMethList.size() + " methods");
+    // make sure we have updated the graphics before we save
+    updateCallGraph(curGraphMode, true);
+
+    Utils.printStatusInfo("save CallGraph as ImageFile: " + graphMethList.size()
+            + " methods, size " + graphPanel.getSize().width + " x " + graphPanel.getSize().height);
+
     BufferedImage bi = new BufferedImage(graphPanel.getSize().width,
-      graphPanel.getSize().height, BufferedImage.TYPE_INT_ARGB); 
+                                         graphPanel.getSize().height,
+                                         BufferedImage.TYPE_INT_ARGB); 
     Graphics graphics = bi.createGraphics();
     graphPanel.paint(graphics);
     graphics.dispose();
@@ -851,6 +845,24 @@ public class CallGraph {
         MethodInfo mthNode = graphMethList.get(ix);
         mthNode.exit(tid, tstamp, insCount);
         //Utils.printStatusInfo("Return: (" + mthNode.getDuration() + ") " + mthNode.getClassAndMethod());
+      }
+    }
+  }
+
+  /**
+   * add listener to show details of selected element
+   */
+  private class MouseListener extends MouseAdapter {
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+      // get coordinates of mouse click & see if it is one of the method blocks
+      mxGraphHandler handler = graphComponent.getGraphHandler();
+      mxCell cell = (mxCell) handler.getGraphComponent().getCellAt(e.getX(), e.getY());
+      if (cell != null && cell.isVertex()) {
+        // yes, get the selected method & display its info
+        MethodInfo selected = callGraph.getSelectedNode();
+        displayMethodInfoPanel(selected);
       }
     }
   }
