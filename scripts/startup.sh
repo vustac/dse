@@ -199,7 +199,7 @@ function do_install
   
   # install mongodb
   install=0
-  if which javac > /dev/null 2>&1; then
+  if which mongodb > /dev/null 2>&1; then
     install=1
   fi
   if [[ ${install} -eq 1 && ${FORCE} -eq 0 ]]; then
@@ -223,12 +223,12 @@ function do_z3
   if [ ${LINUX} -eq 1 ]; then
     os_vers="ubuntu-16.04"
     libext="so"
-    declare -a z3libfiles=("z3" "libz3java.${libext}" "libz3.${libext}" "com.microsoft.z3.jar")
+    declare -a z3libfiles=("libz3java.${libext}" "libz3.${libext}" "com.microsoft.z3.jar")
     declare -a z3libpaths=("/usr/lib")
   else
     os_vers="osx-10.14.1"
     libext="dylib"
-    declare -a z3libfiles=("z3" "libz3java.${libext}" "libz3.${libext}" "com.microsoft.z3.jar")
+    declare -a z3libfiles=("libz3java.${libext}" "libz3.${libext}" "com.microsoft.z3.jar")
     declare -a z3libpaths=("/usr/local/lib" "/Library/Java/Extensions")
   fi
 
@@ -242,6 +242,10 @@ function do_z3
         fi
       done
     done
+    if [[ ! -f "/usr/bin/z3" ]]; then
+      FORCE=1
+      echo "missing z3 file: /usr/bin/z3"
+    fi
     if [[ ${FORCE} -eq 0 ]]; then
       return
     fi
@@ -277,6 +281,7 @@ function do_z3
       sudo cp ${file} ${path}
     done
   done
+  sudo cp z3 /usr/bin
 }
 
 function do_build
@@ -303,6 +308,7 @@ function do_build
   cd build
   cmake ..
   make
+  cp src/libdanhelper.* .
   echo "Building danpatch..."
   cd ${DSE_SRC_DIR}/danpatch
   git clean -d -f -x
@@ -322,6 +328,9 @@ function do_build
   ant
   echo "Building danlauncher..."
   cd ${DSE_SRC_DIR}/danlauncher
+  ant
+  echo "Building dandebug..."
+  cd ${DSE_SRC_DIR}/dandebug
   ant
   echo "Building dantestgen..."
   cd ${DSE_SRC_DIR}/dantestgen
