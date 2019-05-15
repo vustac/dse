@@ -102,6 +102,7 @@ function do_verify
   verify_prog jq    --version "1"
   verify_prog unzip -v        "2"
   verify_prog curl  --version "2"
+  verify_prog z3    --version "3"
 
   verify_prog mongod --version "3"
 
