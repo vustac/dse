@@ -9,12 +9,14 @@ instrumenting and running an application provided by the user:
 
 where [options] are:
 
-**-i** or **--install** - perform an install of all necessary tools and libraries needed by the system. (default is **OFF**)
+**-v** or **--version** - display the installed versions (no install or build will be performed).
+
+**-i** or **--install** - perform an install of all necessary tools and libraries needed by the system.
 
 **-b** or **--build**   - stop dansolver (if running), build all DSE components, startup mongodb (if not running)
-and start dansolver to allow it to start receiving symbolic constraints to be solved from the instrumented code. (default is **ON**)
+and start dansolver to allow it to start receiving symbolic constraints to be solved from the instrumented code.
 
-**-f** or **--force** - force pulling in and building z3 even if already installed. (default is **OFF**)
+**-f** or **--force** - force pulling in and building z3 even if already installed.
 
 **-h** or **--help**    - print this help message.
 

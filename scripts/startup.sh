@@ -43,6 +43,99 @@ function set_java_home
   fi
 }
 
+function verify_prog
+{
+  local cmd=$1
+  local arg=$2
+  local padding=`echo "      " | cut -c ${#cmd}-`
+  if command -v ${cmd} > /dev/null 2>&1; then
+    if [[ $# -eq 2 ]]; then
+      echo "- ${cmd}${padding}: `${cmd} ${arg} | head -1`"
+    else
+      local fields=$3
+      echo "- ${cmd}${padding}: `${cmd} ${arg} | head -1 | cut -d ' ' -f ${fields}`"
+    fi
+  else
+    echo "- ${cmd}${padding}: ** not installed **"
+  fi
+}
+
+function verify_lib
+{
+  if [[ ${LINUX} -eq 1 ]]; then
+    libext="so"
+  else
+    libext="dylib"
+  fi
+
+  local prog=$1
+  local padding=`echo "            " | cut -c ${#prog}-`
+  local file="${DSE_SRC_DIR}/${prog}/build/lib${prog}.${libext}"
+  if [[ -f ${file} ]]; then
+    echo "- ${prog}${padding}: `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
+  else
+    echo "- ${prog}${padding}: ** not installed **"
+  fi
+}
+
+function verify_jar
+{
+  local prog=$1
+  local padding=`echo "            " | cut -c ${#prog}-`
+  local file="${DSE_SRC_DIR}/${prog}/dist/${prog}.jar"
+  if [[ -f ${file} ]]; then
+    echo "- ${prog}${padding}: `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
+  else
+    echo "- ${prog}${padding}: ** not installed **"
+  fi
+}
+
+function do_verify
+{
+  echo "Software versions installed:"
+  verify_prog git   --version "3"
+  verify_prog ant   -version  "4"
+  verify_prog bash  --version "4"
+  verify_prog wget  --version "3"
+  verify_prog cmake --version "3"
+  verify_prog g++   --version "2,3"
+  verify_prog jq    --version "1"
+  verify_prog unzip -v        "2"
+  verify_prog curl  --version "2"
+
+  verify_prog mongod --version "3"
+
+  if which javac > /dev/null 2>&1; then
+#    set_java_home
+#    echo "- JDK: ${JAVA_HOME}"
+    echo "- java   : `java -version  2>&1 | head -1 | cut -d " " -f 3`"
+  else
+    echo "- java   : ** not installed **"
+  fi
+  
+  echo
+  echo "Danalyzer Libraries installed:"
+  verify_lib "danhelper"
+  verify_lib "danpatch"
+  verify_jar "danalyzer"
+
+  echo
+  echo "Danalyzer Tools installed:"
+  verify_jar "dansolver"
+  verify_jar "danlauncher"
+  verify_jar "dantestgen"
+  verify_jar "dandebug"
+  
+  echo
+  local pid=`ps -ef | grep dansolver | grep -v grep | cut -c 11-15 2>/dev/null`
+  if [[ "${pid}" != "" ]]; then
+    echo "- Dansolver currently running as process: ${pid}"
+  else
+    echo "- Dansolver not currently running"
+  fi
+  echo
+}
+
 # this will check if we are either forcing an install of a list of programs or if they are missing
 # and will install them for the appropriate syatem.
 #
@@ -258,6 +351,7 @@ function do_build
 
 #========================================= START HERE ============================================
 # read options
+VERIFY_ONLY=0
 INSTALL=0
 BUILD=0
 FORCE=0
@@ -266,6 +360,10 @@ ENTRY=()
 while [[ $# -gt 0 ]]; do
   key="$1"
   case ${key} in
+    -v|--version)
+      VERIFY_ONLY=1
+      shift
+      ;;
     -i|--install)
       INSTALL=1
       shift
@@ -294,20 +392,23 @@ done
 #entry_first="${ENTRY[@]:0:1}"
 #entry_rest="${ENTRY[@]:1}"
 
+# if neither install or build option is specified, default to build
+if [[ ${INSTALL} -eq 0 && ${BUILD} -eq 0 ]]; then
+  BUILD=1
+fi
+
 set +o nounset
 if [ ${HELP} -eq 1 ]; then
   echo "Usage: ./startup.sh [options]"
   echo
   echo "Options:"
+  echo " -h = print this help message (no install or build performed)."
+  echo " -v = display the installed versions only (no install or build performed)."
   echo " -i = perform an install of all missing tools and libraries needed by the system."
-  echo "      (default is OFF)"
-  echo " -f = perform an install of all tools and libraries needed by the system even if they exist."
-  echo "      (default is OFF)"
+  echo " -f = perform an install of all tools and libraries needed by the system even if already installed."
   echo " -b = stop dansolver (if running), build all DSE components, startup mongodb (if not"
   echo "      running) and start dansolver to allow it to start receiving symbolic constraints"
   echo "      to be solved from the instrumented code."
-  echo "      (default is ON)"
-  echo " -h = print this help message"
   echo
   echo "With no options specified, this will behave as if the -b option was selected."
   echo
@@ -315,11 +416,12 @@ if [ ${HELP} -eq 1 ]; then
 fi
 set -o nounset
 
-if [[ ${INSTALL} -eq 0 && ${BUILD} -eq 0 ]]; then
-  BUILD=1
-fi
-
 set_os_type
+
+if [[ ${VERIFY_ONLY} -eq 1 ]]; then
+  do_verify
+  exit 0
+fi
 
 # do the installation if requested
 if [ ${INSTALL} -eq 1 ]; then
