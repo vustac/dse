@@ -4,7 +4,7 @@
 # 'nounset' throws an error if a parameter being used is undefined.
 # 'errexit' causes any error condition to terminate the script, so it doesn't continue running.
 set -o nounset
-set -o errexit
+#set -o errexit
 
 # this generates a clean path to the directory the script is contained in.
 # we do this in order to locate the DSE tools that are identified by the script's location.
@@ -36,7 +36,12 @@ function set_os_type
 
 function get_pid
 {
-  PID=$( ps -ef | cut -c 1-80 | grep $1 | grep -v grep | cut -d " " -f 2 2>/dev/null )
+  PID=""
+  local entry=$( ps -ef | cut -c 1-80 | grep $1 | grep -v grep )
+  if [[ "${entry}" != "" ]]; then
+    IFS=' ' read -r -a array <<< "${entry}"
+    PID=${array[1]}
+  fi
 }
 
 # finds the pid of the process that is set as a listener of the specified local port.
@@ -50,17 +55,33 @@ function find_local_server_pid
   # look for ip4 listener on local port
   local iplocal="127.0.0.1"
   local entry=$( sudo netstat -plntu | grep "${iplocal}:$1" | grep LISTEN 2>/dev/null )
-  if [[ ${entry} != "" ]]; then
-    echo "${entry}"
-    PID=$( echo ${entry} | cut -d " " -f 7 | cut -d "/" -f 1 2>/dev/null )
-    return
+  if [[ ${entry} == "" ]]; then
+    local iplocal="::"
+    entry=$( sudo netstat -plntu | grep "${iplocal}:$1" | grep LISTEN 2>/dev/null )
   fi
-  # look for ip6 listener on local port
-  local iplocal="::"
-  entry=$( sudo netstat -plntu | grep "${iplocal}:$1" | grep LISTEN 2>/dev/null )
-  if [[ ${entry} != "" ]]; then
-    #echo "${entry}"
-    PID=$( echo ${entry} | cut -d " " -f 7 | cut -d "/" -f 1 2>/dev/null )
+#  echo "${entry}"
+
+  # the pid/program is the 7th (last) field of the netstat response
+  # (must remove '/program' from entry)
+  IFS=' ' read -r -a array <<< "${entry}"
+  PID=${array[6]%/*}
+}
+
+function halt_dansolver
+{
+  # check if dansolver is in process list
+  get_pid dansolver
+  if [[ "${PID}" == "" ]]; then
+    # if not, check to see if port 4000 is being used as server socket
+    # (the above may not catch dansolver if started by java)
+    find_local_server_pid 4000
+  fi
+
+  if [[ "${PID}" != "" ]]; then
+    echo "------------------------------------------------------------"
+    echo "killing dansolver process ${PID}"
+    kill -9 ${PID}
+    sleep 4
   fi
 }
 
@@ -233,8 +254,9 @@ function do_install
   fi
   if [[ ${install} -eq 1 && ${FORCE} -eq 0 ]]; then
     set_java_home
-    echo "... jdk already installed: ${JAVA_HOME}"
+    echo "... java JDK already installed: ${JAVA_HOME}"
   else
+    echo "... installing: java JDK"
     if [ ${LINUX} -eq 1 ]; then
       # jdk 8 is the latest version for ubuntu 16.04 in standard repo
       sudo apt install -y openjdk-8-jdk
@@ -255,10 +277,11 @@ function do_install
   if [[ ${install} -eq 1 && ${FORCE} -eq 0 ]]; then
     echo "... mongodb already installed."
   else
+    echo "... installing: MongoDB"
     if [ ${LINUX} -eq 1 ]; then
-      sudo apt install -y mongodb-org
+      sudo apt install -y mongodb
     else
-      brew install mongodb-org
+      brew install mongodb
     fi
   fi
 
@@ -311,14 +334,10 @@ function do_z3
   z3basename="z3-4.8.4.d6df51951f4c-x64"
 
   # stop dansolver if it is running, since it uses this library
-  get_pid dansolver
-  if [[ "${PID}" != "" ]]; then
-    echo "killing dansolver process ${PID}"
-    kill -9 ${PID}
-    sleep 4
-  fi
+  halt_dansolver
 
-  echo "Installing z3..."
+  echo "------------------------------------------------------------"
+  echo "... installing z3"
   mkdir ${DSE_SRC_DIR}/z3
   cd ${DSE_SRC_DIR}/z3
   wget ${z3url_path}/${z3basename}-${os_vers}.zip
@@ -337,20 +356,7 @@ function do_z3
 function do_build
 {
   # stop dansolver if it is running
-  get_pid dansolver
-  if [[ "${PID}" != "" ]]; then
-    echo "killing dansolver process ${PID}"
-    kill -9 ${PID}
-    sleep 4
-  fi
-  
-  # and make sure port 4000 is available for dansolver (the above may not catch it if started by java
-  find_local_server_pid 4000
-  if [[ "${PID}" != "" ]]; then
-    echo "killing dansolver process ${PID}"
-    kill -9 ${PID}
-    sleep 4
-  fi
+  halt_dansolver
   
   # set the java home reference
   set_java_home
