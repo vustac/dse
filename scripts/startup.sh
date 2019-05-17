@@ -34,6 +34,36 @@ function set_os_type
   fi
 }
 
+function get_pid
+{
+  PID=$( ps -ef | cut -c 1-80 | grep $1 | grep -v grep | cut -d " " -f 2 2>/dev/null )
+}
+
+# finds the pid of the process that is set as a listener of the specified local port.
+# (checks for both ip4 and ip6 addresses on local port)
+#
+# $1 = the local port to check
+# PID = the pid found (empty if none)
+#
+function find_local_server_pid
+{
+  # look for ip4 listener on local port
+  local iplocal="127.0.0.1"
+  local entry=$( sudo netstat -plntu | grep "${iplocal}:$1" | grep LISTEN 2>/dev/null )
+  if [[ ${entry} != "" ]]; then
+    echo "${entry}"
+    PID=$( echo ${entry} | cut -d " " -f 7 | cut -d "/" -f 1 2>/dev/null )
+    return
+  fi
+  # look for ip6 listener on local port
+  local iplocal="::"
+  entry=$( sudo netstat -plntu | grep "${iplocal}:$1" | grep LISTEN 2>/dev/null )
+  if [[ ${entry} != "" ]]; then
+    #echo "${entry}"
+    PID=$( echo ${entry} | cut -d " " -f 7 | cut -d "/" -f 1 2>/dev/null )
+  fi
+}
+
 function set_java_home
 {
   if [ ${LINUX} -eq 1 ]; then
@@ -72,9 +102,9 @@ function verify_lib
   local padding=`echo "            " | cut -c ${#prog}-`
   local file="${DSE_SRC_DIR}/${prog}/build/lib${prog}.${libext}"
   if [[ -f ${file} ]]; then
-    echo "- ${prog}${padding}: `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
+    echo "- ${prog}${padding}: built on `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
   else
-    echo "- ${prog}${padding}: ** not installed **"
+    echo "- ${prog}${padding}: ** project not built **"
   fi
 }
 
@@ -84,9 +114,9 @@ function verify_jar
   local padding=`echo "            " | cut -c ${#prog}-`
   local file="${DSE_SRC_DIR}/${prog}/dist/${prog}.jar"
   if [[ -f ${file} ]]; then
-    echo "- ${prog}${padding}: `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
+    echo "- ${prog}${padding}: built on `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
   else
-    echo "- ${prog}${padding}: ** not installed **"
+    echo "- ${prog}${padding}: ** project not built **"
   fi
 }
 
@@ -115,24 +145,41 @@ function do_verify
   fi
   
   echo
-  echo "Danalyzer Libraries installed:"
+  echo "Danalyzer Libraries built:"
   verify_lib "danhelper"
   verify_lib "danpatch"
   verify_jar "danalyzer"
 
   echo
-  echo "Danalyzer Tools installed:"
+  echo "Danalyzer Tools built:"
   verify_jar "dansolver"
   verify_jar "danlauncher"
   verify_jar "dantestgen"
   verify_jar "dandebug"
   
   echo
-  local pid=`ps -ef | grep dansolver | grep -v grep | cut -c 11-15 2>/dev/null`
-  if [[ "${pid}" != "" ]]; then
-    echo "- Dansolver currently running as process: ${pid}"
+  get_pid mongod
+  if [[ "${PID}" != "" ]]; then
+    local netstat=$( sudo netstat -plntu | grep mongod 2>/dev/null )
+    local listen=$( echo ${netstat} | cut -d " " -f 6 2>/dev/null )
+    local port=$( echo ${netstat} | cut -d " " -f 4 2>/dev/null )
+    if [[ "${listen}" == "LISTEN" ]]; then
+      echo "- MongoDB currently running as process: ${PID}, listening on ${port}"
+    else
+      echo "- MongoDB currently running as process: ${PID}, but not listening"
+    fi
   else
-    echo "- Dansolver not currently running"
+    echo "- MongoDB not currently running"
+  fi
+
+  get_pid dansolver
+  if [[ "${PID}" == "" ]]; then
+    find_local_server_pid 4000
+  fi
+  if [[ "${PID}" == "" ]]; then
+    echo "- dansolver not currently running"
+  else
+    echo "- dansolver currently running as process ${PID}"
   fi
   echo
 }
@@ -151,6 +198,7 @@ function do_update_standard
     if command -v $1 > /dev/null 2>&1; then
       install=1
     fi
+    echo "------------------------------------------------------------"
     if [[ ${install} -eq 1 && ${FORCE} -eq 0 ]]; then
       echo "... $1 already installed."
     else
@@ -178,6 +226,7 @@ function do_install
   fi
 
   # install java
+  echo "------------------------------------------------------------"
   install=0
   if which javac > /dev/null 2>&1; then
     install=1
@@ -198,6 +247,7 @@ function do_install
   fi
   
   # install mongodb
+  echo "------------------------------------------------------------"
   install=0
   if which mongodb > /dev/null 2>&1; then
     install=1
@@ -206,9 +256,9 @@ function do_install
     echo "... mongodb already installed."
   else
     if [ ${LINUX} -eq 1 ]; then
-      sudo apt install -y mongodb
+      sudo apt install -y mongodb-org
     else
-      brew install mongodb
+      brew install mongodb-org
     fi
   fi
 
@@ -261,10 +311,10 @@ function do_z3
   z3basename="z3-4.8.4.d6df51951f4c-x64"
 
   # stop dansolver if it is running, since it uses this library
-  local pid=$( ps -ef | grep dansolver | grep -v grep | cut -c 10-15 2>/dev/null )
-  if [[ "${pid}" != "" ]]; then
-    echo "killing dansolver process ${pid}"
-    kill -9 ${pid}
+  get_pid dansolver
+  if [[ "${PID}" != "" ]]; then
+    echo "killing dansolver process ${PID}"
+    kill -9 ${PID}
     sleep 4
   fi
 
@@ -287,17 +337,26 @@ function do_z3
 function do_build
 {
   # stop dansolver if it is running
-  local pid=$( ps -ef | grep dansolver | grep -v grep | cut -c 10-15 2>/dev/null )
-  if [[ "${pid}" != "" ]]; then
-    echo "killing dansolver process ${pid}"
-    kill -9 ${pid}
+  get_pid dansolver
+  if [[ "${PID}" != "" ]]; then
+    echo "killing dansolver process ${PID}"
+    kill -9 ${PID}
     sleep 4
   fi
-
+  
+  # and make sure port 4000 is available for dansolver (the above may not catch it if started by java
+  find_local_server_pid 4000
+  if [[ "${PID}" != "" ]]; then
+    echo "killing dansolver process ${PID}"
+    kill -9 ${PID}
+    sleep 4
+  fi
+  
   # set the java home reference
   set_java_home
 
   # these commands are common to both OSes
+  echo "------------------------------------------------------------"
   echo "Building danhelper..."
   cd ${DSE_SRC_DIR}/danhelper
   git clean -d -f -x
@@ -309,6 +368,7 @@ function do_build
   cmake ..
   make
   cp src/libdanhelper.* .
+  echo "------------------------------------------------------------"
   echo "Building danpatch..."
   cd ${DSE_SRC_DIR}/danpatch
   git clean -d -f -x
@@ -320,43 +380,71 @@ function do_build
   cmake ..
   make
   cp src/libdanpatch.* .
+  echo "------------------------------------------------------------"
   echo "Building danalyzer..."
   cd ${DSE_SRC_DIR}/danalyzer
+  if [ -d dist ]; then
+    rm -rf dist
+  fi
   ant
+  echo "------------------------------------------------------------"
   echo "Building dansolver..."
   cd ${DSE_SRC_DIR}/dansolver
+  if [ -d dist ]; then
+    rm -rf dist
+  fi
   ant
+  echo "------------------------------------------------------------"
   echo "Building danlauncher..."
   cd ${DSE_SRC_DIR}/danlauncher
+  if [ -d dist ]; then
+    rm -rf dist
+  fi
   ant
+  echo "------------------------------------------------------------"
   echo "Building dandebug..."
   cd ${DSE_SRC_DIR}/dandebug
+  if [ -d dist ]; then
+    rm -rf dist
+  fi
   ant
+  echo "------------------------------------------------------------"
   echo "Building dantestgen..."
   cd ${DSE_SRC_DIR}/dantestgen
+  if [ -d dist ]; then
+    rm -rf dist
+  fi
   ant
+  echo
 
   # start mongo if it is not already running
   # NOTE: cut -c 1-80 eliminates the case where another program is using mongodb as an argument in
   #   its command. probably never necessary, as dansolver is the only known user and it is not
   #   running at this point, but just to be safe.
-  local mongopid=$( ps -ef | cut -c 1-80 | grep mongod | grep -v grep | cut -c 11-15 2>/dev/null )
-  if [[ "${mongopid}" == "" ]]; then
-    echo "Starting mongo"
+  get_pid mongod
+  if [[ "${PID}" == "" ]]; then
+    echo "------------------------------------------------------------"
+    echo "Starting MongoDB"
     mongod &
     sleep 2
-    mongopid=$( ps -ef | grep mongod | grep -v grep | cut -c 11-15 2>/dev/null )
+    get_pid mongod
   fi
+  echo "MongoDB running (in background) as process ${PID}"
   
+  echo "------------------------------------------------------------"
   echo "Starting dansolver"
   cd ${DSE_SRC_DIR}/dansolver
   ant run &
   sleep 2
-  pid=$( ps -ef | grep dansolver | grep -v grep | cut -c 11-15 2>/dev/null )
-
-  echo
-  echo "mongod running (in background) as process ${mongopid}"
-  echo "dansolver running (in background) as process ${pid}"
+  get_pid dansolver
+  if [[ "${PID}" == "" ]]; then
+    find_local_server_pid 4000
+  fi
+  if [[ "${PID}" == "" ]]; then
+    echo "ERROR: dansolver not running !"
+  else
+    echo "dansolver running (in background) as process ${PID}"
+  fi
 }
 
 #========================================= START HERE ============================================
