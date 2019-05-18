@@ -147,9 +147,12 @@ function verify_lib
 
   local prog=$1
   local padding=`echo "            " | cut -c ${#prog}-`
+  # get date executable was created
   local file="${DSE_SRC_DIR}/${prog}/build/lib${prog}.${libext}"
   if [[ -f ${file} ]]; then
-    echo "- ${prog}${padding}: built on `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
+    entry=$( ls -l ${file} )
+    IFS=' ' read -r -a array <<< "${entry}"
+    echo "- ${prog}${padding}: built on ${array[5]} ${array[6]} ${array[7]}"
   else
     echo "- ${prog}${padding}: ** project not built **"
   fi
@@ -159,9 +162,12 @@ function verify_jar
 {
   local prog=$1
   local padding=`echo "            " | cut -c ${#prog}-`
+  # get date executable was created
   local file="${DSE_SRC_DIR}/${prog}/dist/${prog}.jar"
   if [[ -f ${file} ]]; then
-    echo "- ${prog}${padding}: built on `ls -l ${file} | cut -d " " -f 6,7,8,9 | cut -c 1-12`"
+    entry=$( ls -l ${file} )
+    IFS=' ' read -r -a array <<< "${entry}"
+    echo "- ${prog}${padding}: built on ${array[5]} ${array[6]} ${array[7]}"
   else
     echo "- ${prog}${padding}: ** project not built **"
   fi
