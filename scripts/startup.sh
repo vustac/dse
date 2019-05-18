@@ -48,6 +48,8 @@ function get_pid
 # (checks for both ip4 and ip6 addresses on local port)
 #
 # $1 = the local port to check
+#
+# returns:
 # PID = the pid found (empty if none)
 #
 function find_local_server_pid
@@ -63,8 +65,32 @@ function find_local_server_pid
 
   # the pid/program is the 7th (last) field of the netstat response
   # (must remove '/program' from entry)
-  IFS=' ' read -r -a array <<< "${entry}"
-  PID=${array[6]%/*}
+  PID=""
+  if [[ ${entry} != "" ]]; then
+    IFS=' ' read -r -a array <<< "${entry}"
+    PID=${array[6]%/*}
+  fi
+}
+
+# finds the listening port for the specified server process name and pid.
+#
+# $1 = the pid of the process
+# $2 = the process name
+#
+# returns:
+# PORT = the local host port (empty if none)
+#
+function find_server_port
+{
+  local entry=$( sudo netstat -plntu | grep "LISTEN" | grep "$1/$2" 2>/dev/null )
+#  echo "${entry}"
+
+  # the port is the 4th field of the netstat response
+  PORT=""
+  if [[ ${entry} != "" ]]; then
+    IFS=' ' read -r -a array <<< "${entry}"
+    PORT=${array[3]}
+  fi
 }
 
 function halt_dansolver
@@ -143,7 +169,11 @@ function verify_jar
 
 function do_verify
 {
-  echo "Software versions installed:"
+  # since we will need to use sudo at some point which will require user password,
+  # let's get it over with at the start of the command rather than have user enter
+  # in the middle of executing.
+  sudo echo "Software versions installed:"
+
   verify_prog git   --version "3"
   verify_prog ant   -version  "4"
   verify_prog bash  --version "4"
@@ -181,11 +211,9 @@ function do_verify
   echo
   get_pid mongod
   if [[ "${PID}" != "" ]]; then
-    local netstat=$( sudo netstat -plntu | grep mongod 2>/dev/null )
-    local listen=$( echo ${netstat} | cut -d " " -f 6 2>/dev/null )
-    local port=$( echo ${netstat} | cut -d " " -f 4 2>/dev/null )
-    if [[ "${listen}" == "LISTEN" ]]; then
-      echo "- MongoDB currently running as process: ${PID}, listening on ${port}"
+    find_server_port ${PID} mongod
+    if [[ "${PORT}" != "" ]]; then
+      echo "- MongoDB currently running as process: ${PID}, listening on ${PORT}"
     else
       echo "- MongoDB currently running as process: ${PID}, but not listening"
     fi
@@ -355,6 +383,11 @@ function do_z3
 
 function do_build
 {
+  # since we will need to use sudo at some point which will require user password,
+  # let's get it over with at the start of the command rather than have user enter
+  # in the middle of executing.
+  sudo echo "Begining build process."
+
   # stop dansolver if it is running
   halt_dansolver
   
