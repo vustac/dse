@@ -60,6 +60,7 @@ script:
 
   - cd ../../../dansolver
   - ant run &
+  - sleep 4
   - ps -ef | grep dansolver
   - cd ../../test
   - pwd
