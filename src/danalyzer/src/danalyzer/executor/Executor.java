@@ -3859,11 +3859,17 @@ public class Executor {
     // get compare status
     boolean pathsel = con1 > con2;
 
+    // check if we are inverting the comparison result
+    boolean dobranch = pathsel;
+    if (opcode.equals("IFLE") || opcode.equals("IF_ICMPLE")) {
+        dobranch = ! dobranch;
+    }
+
     /* ----------debug head--------- *@*/
     if (sym1 || sym2) {
-      debugPrintBranch(threadId, opcode + " " + pathsel + " " + line + " " + method);
+      debugPrintBranch(threadId, opcode + " " + dobranch + " " + line + " " + method);
     } else {
-      debugPrintInfo(threadId, DebugUtil.BRANCH, opcode + " " + pathsel + " " + line + " " + method);
+      debugPrintInfo(threadId, DebugUtil.BRANCH, opcode + " " + dobranch + " " + line + " " + method);
     }
     // ----------debug tail---------- */
 
@@ -3882,7 +3888,7 @@ public class Executor {
             + " for " + con1 + " ? " + con2);
     // ----------debug tail---------- */
 
-    solvePC(threadId, line, pathsel, ConstraintType.PATH);
+    solvePC(threadId, line, dobranch, ConstraintType.PATH);
   }
   
   public void compareIntegerLessThan(String opcode, int con1, int con2, int line, String method) {
@@ -3899,11 +3905,17 @@ public class Executor {
     // get compare status
     boolean pathsel = con1 < con2;
 
+    // check if we are inverting the comparison result
+    boolean dobranch = pathsel;
+    if (opcode.equals("IFGE") || opcode.equals("IF_ICMPGE")) {
+        dobranch = ! dobranch;
+    }
+
     /* ----------debug head--------- *@*/
     if (sym1 || sym2) {
-      debugPrintBranch(threadId, opcode + " " + pathsel + " " + line + " " + method);
+      debugPrintBranch(threadId, opcode + " " + dobranch + " " + line + " " + method);
     } else {
-      debugPrintInfo(threadId, DebugUtil.BRANCH, opcode + " " + pathsel + " " + line + " " + method);
+      debugPrintInfo(threadId, DebugUtil.BRANCH, opcode + " " + dobranch + " " + line + " " + method);
     }
     // ----------debug tail---------- */
 
@@ -3921,14 +3933,14 @@ public class Executor {
             + " for " + con1 + " ? " + con2);
     // ----------debug tail---------- */
 
-    solvePC(threadId, line, pathsel, ConstraintType.PATH);
+    solvePC(threadId, line, dobranch, ConstraintType.PATH);
   }
   
   public void maxCompareIntegerLessThan(String opcode, int con1, int con2, int line, String method) {
     /* ----------debug head--------- *@*/
     debugPrintCommand(threadId, opcode + " - maxCompareIntegerLessThan", con1, con2);
     // ----------debug tail---------- */
-    
+
     Value val2 = currentStackFrame.popValue();
     Value val1 = currentStackFrame.popValue();
     
@@ -3938,11 +3950,17 @@ public class Executor {
     // get compare status
     boolean pathsel = con1 < con2;
 
+    // check if we are inverting the comparison result
+    boolean dobranch = pathsel;
+    if (opcode.equals("IFGE") || opcode.equals("IF_ICMPGE")) {
+        dobranch = ! dobranch;
+    }
+
     /* ----------debug head--------- *@*/
     if (sym1 || sym2) {
-      debugPrintBranch(threadId, opcode + " " + pathsel + " " + line + " " + method);
+      debugPrintBranch(threadId, opcode + " " + dobranch + " " + line + " " + method);
     } else {
-      debugPrintInfo(threadId, DebugUtil.BRANCH, opcode + " " + pathsel + " " + line + " " + method);
+      debugPrintInfo(threadId, DebugUtil.BRANCH, opcode + " " + dobranch + " " + line + " " + method);
     }
     // ----------debug tail---------- */
 
@@ -3966,7 +3984,7 @@ public class Executor {
       z3Optimize.MkMaximize(expr2);
     }
     
-    solvePC(threadId, line, pathsel, ConstraintType.LOOPBOUND);
+    solvePC(threadId, line, dobranch, ConstraintType.LOOPBOUND);
     
     if (sym2) {
       z3Optimize.Pop();
