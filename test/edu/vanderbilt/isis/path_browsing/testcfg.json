@@ -1,0 +1,66 @@
+{
+  "testname": "PathBrowser",
+  "runargs": "5",
+  "mainclass": "edu/vanderbilt/isis/path_browsing/PathBrowser",
+  "symboliclist": [
+    {
+      "command": "SYMBOLIC_PARAM",
+      "method": "edu/vanderbilt/isis/path_browsing/PathBrowser/testInput(I)I",
+      "name": "value",
+      "type": "I",
+      "slot": "0",
+      "start": "0",
+      "end": "0"
+    }
+  ],
+  "commandlist": [
+    {
+      "command": "WAIT_FOR_TERM",
+      "argument": ""
+    },
+    {
+      "command": "EXTRACT_SOLUTIONS",
+      "argument": ""
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "-2147483648",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "1073741824",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "8",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "0",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "6",
+      "ctype": "PATH"
+    },
+    {
+      "command": "EXPECTED_PARAM",
+      "name": "value",
+      "value": "4",
+      "ctype": "PATH"
+    },
+    {
+      "command": "SHOW_RESULTS",
+      "argument": ""
+    }
+  ]
+}
