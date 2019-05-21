@@ -160,9 +160,14 @@ function show_results
   if [ ${STATUS} -ne 0 ]; then
     echo "----- $1 FAILED -----"
     echo
-    echo "Results : type ${c_array[0]} - ${n_array[0]} = ${v_array[0]}";
-    for ((ix=1; ix<${SOLUTIONS}; ix++)); do
-      echo "        : type ${c_array[ix]} - ${n_array[ix]} = ${v_array[ix]}"
+    local prefix="Results"
+    for ((ix=0; ix<${SOLUTIONS}; ix++)); do
+      if [[ ${n_array[ix]} == null ]]; then
+        echo "${prefix} : type ${c_array[ix]} - (unsolvable)"
+      else
+        echo "${prefix} : type ${c_array[ix]} - ${n_array[ix]} = ${v_array[ix]}"
+      fi
+      prefix="       "
     done
     echo
     exit 1
