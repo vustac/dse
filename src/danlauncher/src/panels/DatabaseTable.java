@@ -643,6 +643,8 @@ public class DatabaseTable {
 
     switch(colname) {
       case "Method":
+      case "Offset":
+      case "Path":
         String meth   = (String)dbTable.getValueAt(row, getColumnIndex("Method"));
         String line   = (String)dbTable.getValueAt(row, getColumnIndex("Offset"));
         String branch = (String)dbTable.getValueAt(row, getColumnIndex("Path"));

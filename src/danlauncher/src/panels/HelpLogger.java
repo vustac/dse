@@ -146,7 +146,7 @@ public class HelpLogger {
         printParagraph("<<BYTEFLOW>>  - Displays the bytecode as a graphical flowchart");
         printParagraph("<<LOG>>       - Displays the captured log information");
         printParagraph("<<CALLGRAPH>> - Displays the call graph for the running application (when enabled)");
-        printParagraph("<<COMPGRAPH>> - Displays the call graph loaded from Janalyzer");
+        printParagraph("<<XPLOREGRAPH>> - Displays the loaded call graph (used for exploring new paths)");
         break;
         
       case "GENERAL":
@@ -171,7 +171,7 @@ public class HelpLogger {
                        "the headings ^^Project Configuration^^ and ^^Debug Configuration^^. The Debug settings " +
                        "specify what data is output to the <<LOG>> as well as whether a Call Graph is generated.");
         printParagraph("5. (Optional) Load the JSON Call Graph file created by janalyzer, which can then be viewed " +
-                       "in the COMPGRAPH tab. Search for the methods of interest that were indicated by " +
+                       "in the XPLOREGRAPH tab. Search for the methods of interest that were indicated by " +
                        "janalyzer and click on the specific method block that you are interested in. " +
                        "This will bring up the bytecode for the specified method, along with the local " +
                        "parameters for that method. It usually also helps to have run the decompiler from " +
@@ -200,13 +200,13 @@ public class HelpLogger {
                        "are essential to be monitored. When logging is enabled, if the CALLS selection " +
                        "is made it will also keep track of the call structure of the application, which will " +
                        "be displayed graphically in the <<CALLGRAPH>> tab. This allows the user to see " +
-                       "visually how the methods are called. It will also color the blocks in the <<COMPGRAPH>> " +
+                       "visually how the methods are called. It will also color the blocks in the <<XPLOREGRAPH>> " +
                        "tab to indicate the progress made in the overall application code.");
         printParagraph("To specify a symbolic parameter to define for the application, the user needs to " +
                        "bring up the method he is interested in in the <<BYTECODE>> viewer tab. He may do " +
                        "this by either making the method selection in the Bytecode panel and pressing the " +
                        "^^Get Bytecode^^ button, or by clicking on the method of interest in either the " +
-                       "CALLGRAPH or COMPGRAPH tabs and indicating you want to display the bytecode for " +
+                       "CALLGRAPH or XPLOREGRAPH tabs and indicating you want to display the bytecode for " +
                        "that method. When in the BYTECODE viewer tab, the bytecode for the selected method " +
                        "is displayed on the left panel and the local parameters found are displayed in the " +
                        "right panel. Symbolic parameters are selected from one or more of the local " +
@@ -351,7 +351,7 @@ public class HelpLogger {
         printParagraph("^^Highlight Range^^ - allows the user to tighten or loosen the range of " +
                        "methods viewed when Iterations, Instructions or Elapsed Time is selected. This allows " +
                        "increasing the criteria for marking the items having significant values.");
-        printParagraph("The following allow how the COMPGRAPH panel is viewed:");
+        printParagraph("The following allow how the XPLOREGRAPH panel is viewed:");
         printParagraph("^^Zoom Factor^^ controls how much the graph should be magnified or reduced. It allows " +
                        "a magnification of up to 2x (200%) and a reduction to 20% in steps of 5%.");
         break;
@@ -606,11 +606,20 @@ public class HelpLogger {
                        "calls that ran in a specific thread.");
         break;
         
-      case "COMPGRAPH":
-        printTitle("COMPGRAPH Tab");
-        printParagraph("This displays the call graph for the entire instrumented code that was generated " +
-                       "by ^^Janalyzer^^. The graph is exported as a JSON file that can be loaded into " +
-                       "danlauncher usung the ^^Load JSON Graph^^ selection in the ^^Project^^ menu. ");
+      case "XPLOREGRAPH":
+        printTitle("XPLOREGRAPH Tab");
+        printParagraph("This displays the call graph that was either loaded from a JSON file or copied from " +
+                       "the Call Graph for exploring new paths. The Janalyzer program can be used to " +
+                       "generate a graph tree for the entire instrumented code base for the purpose of observing " +
+                       "the percentage of methods traversed (code coverage). It can also be used to determine " +
+                       "new branch paths to explore by determining the symbolic parameter values that can " +
+                       "lead to these branches using the solver. The initial graph will be displayed with each " +
+                       "method in neutral color. As the code runs (with ^^Call/Return^^ debug flag set, new methods " +
+                       "will be added to the Call Graph in a different color to see the new paths followed. " +
+                       "The external JSON file can be loaded into danlauncher using the " +
+                       "^^Load Explore Graph^^ selection in the ^^Project^^ menu and can also be copied over " +
+                       "from the current Call Graph from the ^^Save Call Graph for Exploring^^ selection in the " +
+                       "^Save^^ menu.");
         printParagraph("This allows the user to see the methods that are run against the background of " +
                        "those that are not run. The user may then see methods he would like to explore that are " +
                        "currently not being run and can look for symbolic parameters that can be added " +

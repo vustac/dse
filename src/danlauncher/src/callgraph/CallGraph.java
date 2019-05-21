@@ -610,6 +610,23 @@ public class CallGraph {
   }
 
   /**
+   * exports the CallGraph data as ImportGraph type
+   * @return the graph structure
+   */  
+  public ArrayList<ImportGraph.ImportMethod> exportData() {
+    ImportGraph newGraph = new ImportGraph("EXPORTED");
+    if (!graphMethList.isEmpty()) {
+      // convert the MethodInfo entries to the simpler ImportMethod format
+      for (MethodInfo callEntry : graphMethList) {
+        newGraph.addMethodEntry(callEntry.getFullName(),
+                                callEntry.getParents(ALL_THREADS));
+      }
+    }
+    Utils.printStatusInfo("CallGraph data exported : " + graphMethList.size() + " methods");
+    return newGraph.getMethodList();
+  }
+  
+  /**
    * converts the CallGraph to an ImportGraph and saves to JSON file
    * 
    * @param file - name of file to save content to

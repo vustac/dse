@@ -130,7 +130,7 @@ public final class LauncherMain {
   private enum RunMode { IDLE, RUNNING, TERMINATING, KILLING, EXITING }
 
   // tab panel selections
-  private enum PanelTabs { COMMAND, SOLUTIONS, BYTECODE, BYTEFLOW, LOG, CALLGRAPH, COMPGRAPH }
+  private enum PanelTabs { COMMAND, SOLUTIONS, BYTECODE, BYTEFLOW, LOG, CALLGRAPH, XPLOREGRAPH }
   
   private static CallGraph       callGraph;
   private static ImportGraph     importGraph;
@@ -693,7 +693,7 @@ public final class LauncherMain {
     bytecodeViewer = new BytecodeViewer(PanelTabs.BYTECODE.toString());
     bytecodeGraph = new BytecodeGraph(PanelTabs.BYTEFLOW.toString(), bytecodeViewer);
     callGraph = new CallGraph(PanelTabs.CALLGRAPH.toString());
-    importGraph = new ImportGraph(PanelTabs.COMPGRAPH.toString());
+    importGraph = new ImportGraph(PanelTabs.XPLOREGRAPH.toString());
     dbtable = new DatabaseTable(PanelTabs.SOLUTIONS.toString());
     
     // create the help panels
@@ -726,7 +726,7 @@ public final class LauncherMain {
       addPanelToTab(tabPanel, PanelTabs.BYTEFLOW , bytecodeGraph.getScrollPanel());
       addPanelToTab(tabPanel, PanelTabs.LOG      , debugLogger.getScrollPanel());
       addPanelToTab(tabPanel, PanelTabs.CALLGRAPH, callGraph.getScrollPanel());
-      addPanelToTab(tabPanel, PanelTabs.COMPGRAPH, importGraph.getScrollPanel());
+      addPanelToTab(tabPanel, PanelTabs.XPLOREGRAPH, importGraph.getScrollPanel());
       tabPanel.addChangeListener(new Change_TabPanelSelect());
     }
     Utils.printStatusInfo("Completed tabbed panels");
@@ -853,7 +853,7 @@ public final class LauncherMain {
         // special actions
         if (currentTab.equals(PanelTabs.CALLGRAPH.toString())) {
           callGraph.updateCallGraph(graphMode, false);
-        } else if (currentTab.equals(PanelTabs.COMPGRAPH.toString())) {
+        } else if (currentTab.equals(PanelTabs.XPLOREGRAPH.toString())) {
           importGraph.updateCallGraph();
         }
       }
@@ -1072,7 +1072,7 @@ public final class LauncherMain {
 
     JMenu menu = menuProject; // selections for the Project Menu
     addMenuItem     (menu, "MENU_SEL_JAR"    , "Load Jar file", new Action_SelectJarFile());
-    addMenuItem     (menu, "MENU_SEL_JSON"   , "Load Janalyzer Graph", new Action_SelectImportGraphFile());
+    addMenuItem     (menu, "MENU_SEL_JSON"   , "Load Explore Graph", new Action_SelectImportGraphFile());
     menu.addSeparator();
     addMenuCheckbox (menu, "MENU_SHOW_UPPER" , "Show Upper Panel", true, 
                       new ItemListener_ShowUpperPanel());
@@ -1087,16 +1087,19 @@ public final class LauncherMain {
     menu = menuClear; // selections for the Clear Menu
     addMenuItem     (menu, "MENU_CLR_DBASE"  , "Clear SOLUTIONS", new Action_ClearDatabase());
     addMenuItem     (menu, "MENU_CLR_UNSOLVE", "Clear SOLUTIONS (old runs)", new Action_ClearDatabaseOldRuns());
-    addMenuItem     (menu, "MENU_CLR_LOG"    , "Clear LOG / GRAPH", new Action_ClearLog());
+    addMenuItem     (menu, "MENU_CLR_LOG"    , "Clear LOG & CALLGRAPH", new Action_ClearLog());
+    addMenuItem     (menu, "MENU_CLR_XPLORE" , "Clear XPLOREGRAPH", new Action_ClearExploreGraph());
+    addMenuItem     (menu, "MENU_RST_XPLORE" , "Reset XPLOREGRAPH", new Action_ResetExploreGraph());
 
     menu = menuSave; // selections for the Save Menu
     addMenuItem     (menu, "MENU_SAVE_DANFIG", "Update danfig file", new Action_UpdateDanfigFile());
     menu.addSeparator();
     addMenuItem     (menu, "MENU_SAVE_DBASE" , "Save Solutions Table", new Action_SaveDatabaseTable());
     addMenuItem     (menu, "MENU_SAVE_BCODE" , "Save Byteflow Graph", new Action_SaveByteFlowGraph());
-    addMenuItem     (menu, "MENU_SAVE_CGRAPH", "Save Call Graph", new Action_SaveCallGraphPNG());
+    addMenuItem     (menu, "MENU_SAVE_CGRAPH", "Save Call Graph as Image", new Action_SaveCallGraphPNG());
     addMenuItem     (menu, "MENU_SAVE_JSON"  , "Save Call Graph as JSON", new Action_SaveCallGraphJSON());
-    addMenuItem     (menu, "MENU_SAVE_JGRAPH", "Save Compare Graph", new Action_SaveCompGraphPNG());
+    addMenuItem     (menu, "MENU_SAVE_XPLORE", "Save Call Graph for Exploring", new Action_SaveCallGraphExplore());
+    addMenuItem     (menu, "MENU_SAVE_JGRAPH", "Save Explore Graph", new Action_SaveCompGraphPNG());
 
     menu = menuRecord; // selections for the Record Menu
     addMenuItem     (menu, "MENU_RECORD_START", "Start Recording", new Action_RecordStart());
@@ -1168,7 +1171,7 @@ public final class LauncherMain {
         int count = importGraph.loadFromJSONFile(file);
         if (count > 0) {
           // switch tab to COMPGRAPH
-          setTabSelect(PanelTabs.COMPGRAPH.toString());
+          setTabSelect(PanelTabs.XPLOREGRAPH.toString());
           importGraph.updateCallGraph();
           
           // allow save
@@ -1231,6 +1234,25 @@ public final class LauncherMain {
     }
   }
 
+  private class Action_ClearExploreGraph implements ActionListener {
+    @Override
+    public void actionPerformed(ActionEvent ae) {
+      // clear the explore graphics panel
+      importGraph.clearGraph();
+      if (currentTab.equals(PanelTabs.XPLOREGRAPH.toString())) {
+        importGraph.updateCallGraph();
+      }
+    }
+  }
+  
+  private class Action_ResetExploreGraph implements ActionListener {
+    @Override
+    public void actionPerformed(ActionEvent ae) {
+      // reset the explore graphics panel to its last loaded value
+      importGraph.resetGraph();
+    }
+  }
+  
   private class Action_CallgraphSetup implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -1268,10 +1290,18 @@ public final class LauncherMain {
     }
   }
 
+  private class Action_SaveCallGraphExplore implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      importGraph.importData(callGraph.exportData());
+      setTabSelect(PanelTabs.XPLOREGRAPH.toString());
+    }
+  }
+
   private class Action_SaveCompGraphPNG implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
-      setTabSelect(PanelTabs.COMPGRAPH.toString());
+      setTabSelect(PanelTabs.XPLOREGRAPH.toString());
       saveCallGraph("compgraph", "png");
     }
   }
@@ -1568,7 +1598,7 @@ public final class LauncherMain {
       if (value != null) {
         Double scaleFactor = value * 0.01;
         importGraph.setZoomFactor(scaleFactor);
-        if (currentTab.equals(PanelTabs.COMPGRAPH.toString())) {
+        if (currentTab.equals(PanelTabs.XPLOREGRAPH.toString())) {
           importGraph.updateCallGraph();
         }
       }
@@ -2148,12 +2178,9 @@ public final class LauncherMain {
     }
 
     // clear the graphics panel
-    importGraph.clearPath();
     callGraph.clearGraphAndMethodList();
     if (currentTab.equals(PanelTabs.CALLGRAPH.toString())) {
       callGraph.updateCallGraph(CallGraph.GraphHighlight.NONE, false);
-    } else if (currentTab.equals(PanelTabs.COMPGRAPH.toString())) {
-      importGraph.updateCallGraph();
     }
 
     // force the highlight selection back to NONE
@@ -2575,20 +2602,19 @@ public final class LauncherMain {
       readSymbolicList(content);
     }
   
-    String localpath = "*";
+    String localpath = "";
     if (new File(projectPathName + "lib").isDirectory()) {
       localpath += ":lib/*";
     }
-    if (new File(projectPathName + "libs").isDirectory()) {
-      localpath += ":libs/*";
-    }
 
-    String mainclass = "danalyzer.instrumenter.Instrumenter";
+    String mclass = "danalyzer.instrumenter.Instrumenter";
     String classpath = danalyzerpath + "/dist/danalyzer.jar";
     classpath += ":" + danalyzerpath + "/lib/commons-io-2.5.jar";
     classpath += ":" + danalyzerpath + "/lib/asm-7.2.jar";
     classpath += ":" + danalyzerpath + "/lib/asm-tree-7.2.jar";
-    classpath += ":" + localpath;
+    if (!localpath.isEmpty()) {
+      classpath += ":" + localpath;
+    }
 
     // remove any existing class and javap files in the location of the jar file
     if (clearClassFilesOnStartup) {
@@ -2633,7 +2659,7 @@ public final class LauncherMain {
         
       // instrument the jar file
       Utils.printStatusInfo("START - CommandLauncher: Instrumenting stripped file: " + outputName);
-      String[] command = { "java", "-cp", classpath, mainclass, outputName, "1" };
+      String[] command = { "java", "-cp", classpath, mclass, outputName, "1" };
       retcode = commandLauncher.start(command, projectPathName);
       if (retcode == 0) {
         Utils.printStatusMessage("CommandLauncher COMPLETED - Instrumentation successful");
@@ -2740,12 +2766,9 @@ public final class LauncherMain {
     mainclass = mainclass.replaceAll("/", ".");
 
     // build up the command to run
-    String localpath = "*";
+    String localpath = "";
     if (new File(projectPathName + "lib").isDirectory()) {
       localpath += ":lib/*";
-    }
-    if (new File(projectPathName + "libs").isDirectory()) {
-      localpath += ":libs/*";
     }
     String options = "-Xverify:none";
     String bootlpath = "-Dsun.boot.library.path=" + javaHome + "/bin:/usr/lib:/usr/local/lib"
@@ -2756,10 +2779,10 @@ public final class LauncherMain {
               + ":" + danalyzerpath + "/lib/guava-27.1-jre.jar";
     String agentpath ="-agentpath:" + dhelperpath + System.mapLibraryName("danhelper");
     String classpath = instrJarFile
-              + ":" + danalyzerpath + "/lib/commons-io-2.5.jar"
-              + ":" + danalyzerpath + "/lib/asm-7.2.jar"
-              + ":" + danalyzerpath + "/lib/asm-tree-7.2.jar"
-              + ":" + localpath;
+              + ":" + danalyzerpath + "/dist/danalyzer.jar";
+    if (!localpath.isEmpty()) {
+      classpath += ":" + localpath;
+    }
 
     Utils.printStatusMessage("RUN command started...");
     
@@ -3290,7 +3313,7 @@ public final class LauncherMain {
         String methCall = debugLogger.processMessage(message, callGraph);
         if (methCall != null) {
           boolean newEntry = importGraph.addPathEntry(methCall);
-          if (newEntry && currentTab.equals(PanelTabs.COMPGRAPH.toString())) {
+          if (newEntry && currentTab.equals(PanelTabs.XPLOREGRAPH.toString())) {
             importGraph.updateCallGraph();
           }
         }

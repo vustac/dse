@@ -50,8 +50,9 @@ public class ImportGraph {
   private static boolean     tabSelected;
   private static GuiControls gui;
   private static mxGraphComponent graphComponent;
-  private static BaseGraph<ImportMethod> callGraph = new BaseGraph<>();
-  private static ArrayList<ImportMethod> graphMethList = new ArrayList<>();
+  private static BaseGraph<ImportMethod> callGraph;
+  private static ArrayList<ImportMethod> initialMethList;
+  private static ArrayList<ImportMethod> graphMethList;
   private static GuiControls methInfoPanel;
 
   public ImportGraph(String name) {
@@ -60,8 +61,9 @@ public class ImportGraph {
     gui = new GuiControls();
     scrollPanel = gui.makeRawScrollPanel(name, graphPanel);
     
-    callGraph = null;
+    callGraph  = null;
     graphComponent = null;
+    initialMethList = new ArrayList<>();
     graphMethList = new ArrayList<>();
     tabSelected = false;
   }
@@ -77,16 +79,19 @@ public class ImportGraph {
       this.fullName = fullname;
       this.parent = new ArrayList<>();
     }
-  
   }
 
   public void addMethodEntry(String fullname, ArrayList<String> parents) {
-      if (fullname.startsWith("L")) {
-        fullname = fullname.substring(1);
-      }
-      ImportMethod entry = new ImportMethod(fullname);
-      entry.parent.addAll(parents);
-      graphMethList.add(entry);
+    if (fullname.startsWith("L")) {
+      fullname = fullname.substring(1);
+    }
+    ImportMethod entry = new ImportMethod(fullname);
+    entry.parent.addAll(parents);
+    graphMethList.add(entry);
+  }
+  
+  public ArrayList<ImportMethod> getMethodList () {
+    return graphMethList;
   }
   
   public JScrollPane getScrollPanel() {
@@ -111,20 +116,38 @@ public class ImportGraph {
     }
   }
 
-  public void setZoomFactor(double scaleFactor) {                                             
-    if (callGraph != null) {
-      callGraph.scaleVerticies(scaleFactor);
-//      graphPanel.update(graphPanel.getGraphics());   
-    }
-  }
+  public void resetGraph() {
+    Utils.printStatusInfo("ImportGraph: resetGraph");
   
-  public void clearPath() {
+    // reset method list to initial set
+    graphMethList = new ArrayList<>(initialMethList);
+    
+    // re-draw the graph
+    clearGraph();
+    drawCallGraph(graphMethList);
+
     // remove the color tracing of the traveled path from the graph
     if (callGraph != null && !graphMethList.isEmpty()) {
       for (int ix = 0; ix < graphMethList.size(); ix++) {
         ImportMethod node = graphMethList.get(ix);
         callGraph.colorVertex(node, "D2E9FF"); // set color to default
       }
+    }
+
+    // update the contents of the graph component
+    if (graphPanel != null) {
+      //graphPanel.removeAll();
+      Graphics graphics = graphPanel.getGraphics();
+      if (graphics != null) {
+        graphPanel.update(graphics);
+      }
+    }
+  }
+  
+  public void setZoomFactor(double scaleFactor) {                                             
+    if (callGraph != null) {
+      callGraph.scaleVerticies(scaleFactor);
+//      graphPanel.update(graphPanel.getGraphics());   
     }
   }
   
@@ -201,7 +224,10 @@ public class ImportGraph {
     graphMethList = gson.fromJson(br, methodListType);
     Utils.printStatusInfo("loaded ImportGraph: " + graphMethList.size() + " methods from file " + file.getName());
 
-    // draw the new graph on seperate pane
+    // save methods for initial settings
+    initialMethList = new ArrayList<>(graphMethList);
+      
+    // draw the new graph
     clearGraph();
     drawCallGraph(graphMethList);
       
@@ -212,6 +238,27 @@ public class ImportGraph {
     }
       
     return graphMethList.size();
+  }
+  
+  /**
+   * imports CallGraph data
+   * @param methList - the graph data to import
+   */  
+  public void importData(ArrayList<ImportGraph.ImportMethod> methList) {
+    // do a deep-copy of the contents
+    graphMethList = new ArrayList<>(methList);
+    initialMethList = new ArrayList<>(methList);
+    Utils.printStatusInfo("ImportGraph data imported : " + graphMethList.size() + " methods");
+
+    // draw the new graph
+    clearGraph();
+    drawCallGraph(graphMethList);
+
+    // update the contents of the graph component
+    Graphics graphics = graphPanel.getGraphics();
+    if (graphics != null) {
+      graphPanel.update(graphics);
+    }
   }
   
   public void saveAsImageFile(File file) {
@@ -359,6 +406,10 @@ public class ImportGraph {
   private class MouseListener extends MouseAdapter {
     @Override
     public void mouseReleased(MouseEvent e) {
+      if (callGraph == null) {
+        return;
+      }
+      
       // get coordinates of mouse click & see if it is one of the method blocks
       mxGraphHandler handler = graphComponent.getGraphHandler();
       mxCell cell = (mxCell) handler.getGraphComponent().getCellAt(e.getX(), e.getY());
@@ -393,6 +444,10 @@ public class ImportGraph {
   private class Action_RunBytecode implements ActionListener{
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      if (callGraph == null) {
+        return;
+      }
+      
       // show selected method in bytecode viewer
       // Janalyzer keeps the "L" entry in the method name, but the Bytecode viewer name does not
       ImportMethod selected = callGraph.getSelectedNode();
