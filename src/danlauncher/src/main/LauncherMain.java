@@ -1293,7 +1293,7 @@ public final class LauncherMain {
   private class Action_SaveCallGraphExplore implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
-      importGraph.importData(callGraph.exportData());
+      importGraph.importData(callGraph);
       setTabSelect(PanelTabs.XPLOREGRAPH.toString());
     }
   }
@@ -3282,6 +3282,9 @@ public final class LauncherMain {
       if (currentTab.equals(PanelTabs.CALLGRAPH.toString())) {
         callGraph.updateCallGraph(graphMode, false);
       }
+      if (currentTab.equals(PanelTabs.XPLOREGRAPH.toString())) {
+        importGraph.updateCallGraph();
+      }
     }
   }
 
@@ -3310,13 +3313,7 @@ public final class LauncherMain {
       // read & process next message
       String message = netServer.getNextMessage();
       if (message != null) {
-        String methCall = debugLogger.processMessage(message, callGraph);
-        if (methCall != null) {
-          boolean newEntry = importGraph.addPathEntry(methCall);
-          if (newEntry && currentTab.equals(PanelTabs.XPLOREGRAPH.toString())) {
-            importGraph.updateCallGraph();
-          }
-        }
+        debugLogger.processMessage(message, callGraph, importGraph);
 
         // get running stats and update display
         int threads = debugLogger.getThreadCount();

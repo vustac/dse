@@ -6,6 +6,7 @@
 package panels;
 
 import callgraph.CallGraph;
+import callgraph.ImportGraph;
 import callgraph.MethodInfo;
 import logging.FontInfo;
 import logging.Logger;
@@ -215,14 +216,14 @@ public class DebugLogger {
       } catch (InterruptedException ex) { /* ignore */ }
     }
   }
-  public String processMessage(String message, CallGraph callGraph) {
+  public void processMessage(String message, CallGraph callGraph, ImportGraph exploreGraph) {
     if (message == null) {
-      return null;
+      return;
     }
     
     if (message.startsWith("# Logfile started: ") || (message.startsWith("----------"))) {
       printDebug(message);
-      return null;
+      return;
     }
 
     // seperate message into the message type and the message content
@@ -238,7 +239,7 @@ public class DebugLogger {
         // no previous line error - save current data for concatenation to next line read
         lastMessage = message;
         lineError = true;
-        return null;
+        return;
       } else {
         // prev line error - attempt to piece current line with prev to see if we have complete line
         msgInfo = new MessageInfo(lastMessage + message);
@@ -246,7 +247,7 @@ public class DebugLogger {
           // nope - just indicate we lost the line
           lineError = true;
           Utils.printStatusError("processMessage: invalid input syntax: " + lastMessage + message);
-          return null;
+          return;
         }
 //        Utils.printStatusError("processMessage: FIXED !");
       }
@@ -275,8 +276,10 @@ public class DebugLogger {
     String content = msgInfo.content.trim();
     switch (msgInfo.type.trim()) {
       case "CALL":
-        callGraph.methodEnter(msgInfo.tid, msgInfo.tstamp, msgInfo.instrCount, msgInfo.method, msgInfo.linenum);
-        return msgInfo.method;
+        String parent = callGraph.methodEnter(msgInfo.tid, msgInfo.tstamp, msgInfo.instrCount,
+                                              msgInfo.method, msgInfo.linenum);
+        exploreGraph.addPathEntry(msgInfo.method, parent);
+        break;
       case "RETURN":
         callGraph.methodExit(msgInfo.tid, msgInfo.tstamp, content);
         break;
@@ -299,8 +302,6 @@ public class DebugLogger {
       default:
         break;
     }
-    
-    return null;
   }
   
   public class MessageInfo {

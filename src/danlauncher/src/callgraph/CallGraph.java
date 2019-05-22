@@ -611,19 +611,15 @@ public class CallGraph {
 
   /**
    * exports the CallGraph data as ImportGraph type
-   * @return the graph structure
    */  
-  public ArrayList<ImportGraph.ImportMethod> exportData() {
-    ImportGraph newGraph = new ImportGraph("EXPORTED");
+  public void exportData(ImportGraph inGraph) {
     if (!graphMethList.isEmpty()) {
-      // convert the MethodInfo entries to the simpler ImportMethod format
       for (MethodInfo callEntry : graphMethList) {
-        newGraph.addMethodEntry(callEntry.getFullName(),
-                                callEntry.getParents(ALL_THREADS));
+        inGraph.addMethodEntry(callEntry.getFullName(),
+                               callEntry.getParents(ALL_THREADS));
       }
     }
     Utils.printStatusInfo("CallGraph data exported : " + graphMethList.size() + " methods");
-    return newGraph.getMethodList();
   }
   
   /**
@@ -632,21 +628,19 @@ public class CallGraph {
    * @param file - name of file to save content to
    */  
   public void saveAsCompFile(File file) {
-    if (graphMethList.isEmpty()) {
+    if (graphMethList == null || graphMethList.isEmpty()) {
       Utils.printStatusError("Call Graph is empty!");
       return;
     }
     
-    // convert the MethodInfo entries to the simpler ImportMethod format
-    ImportGraph newGraph = new ImportGraph("COPYFILE");
-    for (MethodInfo callEntry : graphMethList) {
-      newGraph.addMethodEntry(callEntry.getFullName(),
-                              callEntry.getParents(ALL_THREADS));
+    // convert the list of MethodInfo into an list of JsonMethod entries
+    List<JsonMethod> methlist = new ArrayList<>();
+    for (MethodInfo entry : graphMethList) {
+      methlist.add(new JsonMethod(entry.getFullName(), entry.getParents(-1)));
     }
-    Utils.printStatusInfo("save CallGraph as CompFile: " + graphMethList.size() + " methods");
 
-    // convert to json and save to file
-    newGraph.saveAsJSONFile(file, true);
+    Utils.printStatusInfo("save CallGraph as Explore File: " + graphMethList.size() + " methods");
+    Utils.saveAsJSONFile(methlist, file);
   }
   
   /**
@@ -656,34 +650,13 @@ public class CallGraph {
    * @param allThreads - true if save all threads
    */  
   public void saveAsJSONFile(File file, boolean allThreads) {
-    // open the file to write to
-    BufferedWriter bw;
-    try {
-      bw = new BufferedWriter(new FileWriter(file));
-    } catch (IOException ex) {
-      Utils.printStatusError(ex.getMessage());
-      return;
-    }
-
     // select whether we are saving the complete list or just one thread
     List<MethodInfo> methlist = graphMethList;
     if (!allThreads && !threadMethList.isEmpty()) {
       methlist = threadMethList;
     }
     Utils.printStatusInfo("saving CallGraph: " + methlist.size() + " methods to file " + file.getName());
-
-    // convert to json and save to file
-    GsonBuilder builder = new GsonBuilder();
-    builder.setPrettyPrinting().serializeNulls();
-    //builder.excludeFieldsWithoutExposeAnnotation().create();
-    Gson gson = builder.create();
-    gson.toJson(methlist, bw);
-
-    try {
-      bw.close();
-    } catch (IOException ex) {
-      Utils.printStatusError(ex.getMessage());
-    }
+    Utils.saveAsJSONFile(methlist, file);
   }
   
   /**
@@ -743,10 +716,11 @@ public class CallGraph {
    * @param icount   - instruction count
    * @param method   - the full name of the method to add
    * @param line     - the line number corresponding to the call event
+   * @return the name of the parent method that called this method
    */  
-  public void methodEnter(int tid, long tstamp, int icount, String method, int line) {
+  public String methodEnter(int tid, long tstamp, int icount, String method, int line) {
     if (method == null || method.isEmpty() || graphMethList == null) {
-      return;
+      return null;
     }
     
 //    // ignore invalid method name - the data read was invalid!
@@ -832,6 +806,8 @@ public class CallGraph {
     if (parNode != null && callGraph.getEdge(parNode, mthNode) == null) {
       callGraph.addEdge(parNode, mthNode, null);
     }
+    
+    return parent;
   }
 
   /**

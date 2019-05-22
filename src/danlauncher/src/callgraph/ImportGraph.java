@@ -22,11 +22,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -51,9 +49,9 @@ public class ImportGraph {
   private static GuiControls gui;
   private static mxGraphComponent graphComponent;
   private static BaseGraph<ImportMethod> callGraph;
-  private static ArrayList<ImportMethod> initialMethList;
   private static ArrayList<ImportMethod> graphMethList;
   private static GuiControls methInfoPanel;
+  private static boolean changePending;
 
   public ImportGraph(String name) {
     tabName = name;
@@ -63,21 +61,29 @@ public class ImportGraph {
     
     callGraph  = null;
     graphComponent = null;
-    initialMethList = new ArrayList<>();
     graphMethList = new ArrayList<>();
     tabSelected = false;
+    changePending = false;
   }
   
   public void activate() {
   }
   
   public class ImportMethod {
-    public String  fullName;       // full name of method (package, class, method + signature)
-    public ArrayList<String> parent; // list of caller methods (full names)
+    public String  fullName;          // full name of method (package, class, method + signature)
+    public ArrayList<String> parent;  // list of caller methods (full names)
+    public boolean original;          // true if method was one of the original loaded
+    public boolean newmeth;           // true if method was new during this run
     
     public ImportMethod(String fullname) {
       this.fullName = fullname;
       this.parent = new ArrayList<>();
+      this.original = true;
+      this.newmeth = false;
+    }
+    
+    public void addParent(String name) {
+      this.parent.add(name);
     }
   }
 
@@ -90,10 +96,6 @@ public class ImportGraph {
     graphMethList.add(entry);
   }
   
-  public ArrayList<ImportMethod> getMethodList () {
-    return graphMethList;
-  }
-  
   public JScrollPane getScrollPanel() {
     return scrollPanel;
   }
@@ -104,6 +106,24 @@ public class ImportGraph {
   
   public void clearGraph() {
     Utils.printStatusInfo("ImportGraph: clearGraph");
+    // remove all methods
+    graphMethList.clear();
+
+    // re-draw call graph
+    drawCallGraph(graphMethList);
+  
+    graphComponent = null;
+    if (graphPanel != null) {
+      graphPanel.removeAll();
+      Graphics graphics = graphPanel.getGraphics();
+      if (graphics != null) {
+        graphPanel.update(graphics);
+      }
+    }
+  }
+
+  private void clearDisplay() {
+    Utils.printStatusInfo("ImportGraph: clearDisplay");
     callGraph = null;
     graphComponent = null;
 
@@ -119,24 +139,23 @@ public class ImportGraph {
   public void resetGraph() {
     Utils.printStatusInfo("ImportGraph: resetGraph");
   
-    // reset method list to initial set
-    graphMethList = new ArrayList<>(initialMethList);
-    
-    // re-draw the graph
-    clearGraph();
-    drawCallGraph(graphMethList);
-
-    // remove the color tracing of the traveled path from the graph
+    // remove the color tracing of the non-original methods in the graph
     if (callGraph != null && !graphMethList.isEmpty()) {
-      for (int ix = 0; ix < graphMethList.size(); ix++) {
-        ImportMethod node = graphMethList.get(ix);
-        callGraph.colorVertex(node, "D2E9FF"); // set color to default
+      for (ImportMethod entry : graphMethList) {
+        if (!entry.original) {
+          entry.newmeth = true;
+        }
       }
     }
 
+    // re-draw the graph
+    changePending = true;
+    clearDisplay();
+    drawCallGraph(graphMethList);
+
     // update the contents of the graph component
     if (graphPanel != null) {
-      //graphPanel.removeAll();
+      graphPanel.removeAll();
       Graphics graphics = graphPanel.getGraphics();
       if (graphics != null) {
         graphPanel.update(graphics);
@@ -151,54 +170,50 @@ public class ImportGraph {
     }
   }
   
-  public boolean addPathEntry(String methcall) {
-    // add color to specified method block
-    if (callGraph != null && !graphMethList.isEmpty()) {
-      // Janalyzer keeps the "L" entry in the method name, but the received method name does not
-      ImportMethod node = findMethodEntry(methcall);
-      if (node != null) {
-        callGraph.colorVertex(node, "6666FF"); // set color to blue
-        return true;
+  public void addPathEntry(String methcall, String parent) {
+    ImportMethod node;
+    boolean change = false;
+    
+    if (graphMethList != null && !graphMethList.isEmpty()) {
+      // check if new method found
+      node = findMethodEntry(methcall);
+      if (node == null) {
+        // yes, add entry
+        node = new ImportMethod(methcall);
+        node.addParent(parent);
+        node.newmeth = true;
+        graphMethList.add(node);
+        Utils.printStatusInfo("ImportGraph added method: " + methcall);
+        change = true;
       }
 
-      // ignore the <clinit>methods - they are not included in the methods provided by Janalyzer.
-      // Also some <init> methods are excluded if they are only initializing parameters.
-      if (!methcall.contains("<clinit>") && !methcall.contains("<init>")) {
-        Utils.printStatusWarning("ImportGraph: Method not found: " + methcall);
+      // update graph
+      if (change && tabSelected) {
+        changePending = true;
+        updateCallGraph();
       }
     }
-    return false;
   }
   
   /**
    * reads the CallGraph.graphMethList entries and saves to file
    * 
    * @param file - name of file to save content to
-   * @param allThreads - true if save all threads
    */  
-  public void saveAsJSONFile(File file, boolean allThreads) {
-    // open the file to write to
-    BufferedWriter bw;
-    try {
-      bw = new BufferedWriter(new FileWriter(file));
-    } catch (IOException ex) {
-      Utils.printStatusError(ex.getMessage());
+  public void saveAsJSONFile(File file) {
+    if (graphMethList == null || graphMethList.isEmpty()) {
+      Utils.printStatusError("Import Graph is empty!");
       return;
     }
-
-    // convert to json and save to file
-    Utils.printStatusInfo("saving ImportGraph: " + graphMethList.size() + " methods to file " + file.getName());
-    GsonBuilder builder = new GsonBuilder();
-    builder.setPrettyPrinting().serializeNulls();
-    //builder.excludeFieldsWithoutExposeAnnotation().create();
-    Gson gson = builder.create();
-    gson.toJson(graphMethList, bw);
-
-    try {
-      bw.close();
-    } catch (IOException ex) {
-      Utils.printStatusError(ex.getMessage());
+    
+    // convert the list of MethodInfo into an list of JsonMethod entries
+    List<JsonMethod> methlist = new ArrayList<>();
+    for (ImportMethod entry : graphMethList) {
+      methlist.add(new JsonMethod(entry.fullName, entry.parent));
     }
+
+    Utils.printStatusInfo("saving ImportGraph: " + graphMethList.size() + " methods to file " + file.getName());
+    Utils.saveAsJSONFile(methlist, file);
   }
   
   /**
@@ -208,6 +223,9 @@ public class ImportGraph {
    * @return number of methods found
    */  
   public int loadFromJSONFile(File file) {
+    // clear out previous list
+    graphMethList.clear();
+
     // open the file to read from
     BufferedReader br;
     try {
@@ -224,11 +242,16 @@ public class ImportGraph {
     graphMethList = gson.fromJson(br, methodListType);
     Utils.printStatusInfo("loaded ImportGraph: " + graphMethList.size() + " methods from file " + file.getName());
 
-    // save methods for initial settings
-    initialMethList = new ArrayList<>(graphMethList);
-      
+    // init all types to ORIGINAL
+    if (graphMethList != null) {
+      for (ImportMethod entry : graphMethList) {
+        entry.original = true;
+      }
+    }
+
     // draw the new graph
-    clearGraph();
+    changePending = true;
+    clearDisplay();
     drawCallGraph(graphMethList);
       
     // update the contents of the graph component
@@ -242,16 +265,19 @@ public class ImportGraph {
   
   /**
    * imports CallGraph data
-   * @param methList - the graph data to import
+   * @param cg - the call graph to copy from
    */  
-  public void importData(ArrayList<ImportGraph.ImportMethod> methList) {
-    // do a deep-copy of the contents
-    graphMethList = new ArrayList<>(methList);
-    initialMethList = new ArrayList<>(methList);
+  public void importData(CallGraph cg) {
+    // clear out previous list
+    graphMethList.clear();
+
+    // copy data from Call Graph
+    cg.exportData(this);
     Utils.printStatusInfo("ImportGraph data imported : " + graphMethList.size() + " methods");
 
     // draw the new graph
-    clearGraph();
+    changePending = true;
+    clearDisplay();
     drawCallGraph(graphMethList);
 
     // update the contents of the graph component
@@ -283,7 +309,7 @@ public class ImportGraph {
 
   public void updateCallGraph() {
     // exit if the graphics panel has not been established
-    if (graphPanel == null || callGraph == null) {
+    if (graphPanel == null || callGraph == null || !changePending) {
       return;
     }
     
@@ -300,6 +326,7 @@ public class ImportGraph {
     Graphics graphics = graphPanel.getGraphics();
     if (graphics != null) {
       graphPanel.update(graphics);
+      changePending = false;
     }
       
     // update the graph layout
@@ -355,10 +382,12 @@ public class ImportGraph {
   }
 
   private static ImportMethod findMethodEntry(String method) {
-    for (int ix = 0; ix < graphMethList.size(); ix++) {
-      ImportMethod entry = graphMethList.get(ix);
-      if (entry.fullName.equals(method)) {
-        return entry;
+    if (method != null && !method.isEmpty()) {
+      for (int ix = 0; ix < graphMethList.size(); ix++) {
+        ImportMethod entry = graphMethList.get(ix);
+        if (entry.fullName.equals(method)) {
+          return entry;
+        }
       }
     }
     return null;
@@ -375,9 +404,20 @@ public class ImportGraph {
     Utils.printStatusInfo("draw ImportGraph: Methods = " + methList.size());
 
     // add vertexes to graph
+    String color;
     for(ImportMethod mthNode : methList) {
       if (mthNode != null) {
         callGraph.addVertex(mthNode, getCGName(mthNode.fullName));
+        
+        // set the color selection of the method
+        if (mthNode.newmeth) {
+          color = "FFCCCC"; // a NEW entry is set to pink
+        } else if (mthNode.original) {
+          color = "D2E9FF"; // an ORIGINAL method is set to default
+        } else {
+          color = "6666FF"; // otherwise, a new entry from a prev run is set to blue
+        }
+        callGraph.colorVertex(mthNode, color);
       }
     }
     
