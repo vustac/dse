@@ -22,11 +22,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -48,7 +46,7 @@ import javax.swing.JTextPane;
  */
 public class CallGraph {
   
-  public enum GraphHighlight { NONE, STATUS, TIME, INSTRUCTION, ITERATION, THREAD }
+  public enum GraphHighlight { NONE, STATUS, SOLUTION, TIME, INSTRUCTION, ITERATION, THREAD }
 
   private static final int ALL_THREADS = -1;
 
@@ -171,6 +169,8 @@ public class CallGraph {
         return mthNode.getInstructionCount(tid);
       case ITERATION :
         return mthNode.getCount(tid);
+      case SOLUTION :
+        return mthNode.getSolutions();
       default:
         break;
     }
@@ -212,6 +212,19 @@ public class CallGraph {
             list = mthNode.getError(tid);
             if (list != null && !list.isEmpty()) {
               color = "FFCCCC"; // pink
+            }
+            break;
+          case SOLUTION :
+            value = getMethodValue(gmode, tid, mthNode);
+            if (range > 0 && value > minValue) {
+              ratio = calcStepRatio(value, minValue, range);
+              if (ratio > 0.0) {
+                // this runs from FF6666 (red) to FFCCCC (light red)
+                colorR = 255;
+                colorG = 204 - (int) (102.0 * ratio);
+                colorB = 204 - (int) (102.0 * ratio);
+                color = String.format ("%06x", (colorR << 16) + (colorG << 8) + colorB);
+              }
             }
             break;
           case TIME :
@@ -324,6 +337,14 @@ public class CallGraph {
     return graphClassList.size();
   }
 
+  public void addNewSolution(String method, int offset) {
+    MethodInfo entry = findMethodEntry(ALL_THREADS, method, graphMethList);
+    if (entry != null) {
+      Utils.printStatusInfo("CallGraph added solution to: " + method + " offset " + offset);
+      entry.newSolution(offset);
+    }
+  }
+  
   public static MethodInfo getMethodInfo(String fullname) {
     if (graphMethList == null || graphMethList.size() < 1) {
       return null;
@@ -421,6 +442,7 @@ public class CallGraph {
       message += "Thread: " + selected.getThread().toString() + Utils.NEWLINE;
     }
     message += Utils.NEWLINE;
+    message += "Solutions: " + selected.getSolutions() + Utils.NEWLINE;
     message += "Iterations: " + selected.getCount(tid) + Utils.NEWLINE;
     message += "Execution Time: " + (selected.getDuration(tid) < 0 ?
                "(never returned)" : selected.getDuration(tid) + " msec") + Utils.NEWLINE;

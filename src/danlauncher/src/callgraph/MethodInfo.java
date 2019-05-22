@@ -22,6 +22,7 @@ public class MethodInfo {
   private ArrayList<Integer> threadId; // the list of threads it was run in
   private HashMap<Integer, ThreadInfo> threadInfo; // the info for each individual thread
   private ThreadInfo total;        // contains the stats for all threads combined
+  private int     solutions;       // the number of solutions in this method
 
   private ThreadInfo getThreadInfo(int tid) {
     if (tid < 0) {
@@ -32,33 +33,34 @@ public class MethodInfo {
   }
   
   public MethodInfo(int tid, String method, String parent, long tstamp, int insCount, int line) {
+    this.solutions = 0;
     this.parent = new ArrayList<>();
-    threadId = new ArrayList<>();
-    total = new ThreadInfo(tid, tstamp, insCount, line, parent);
-    if (threadInfo == null) {
-      threadInfo = new HashMap<>();
+    this.threadId = new ArrayList<>();
+    this.total = new ThreadInfo(tid, tstamp, insCount, line, parent);
+    if (this.threadInfo == null) {
+      this.threadInfo = new HashMap<>();
     }
-    if (tid >= 0 && !threadId.contains(tid)) {
+    if (tid >= 0 && !this.threadId.contains(tid)) {
       ThreadInfo entry = new ThreadInfo(tid, tstamp, insCount, line, parent);
-      threadId.add(tid);
-      threadInfo.put(tid, entry);
+      this.threadId.add(tid);
+      this.threadInfo.put(tid, entry);
     }
 
-    fullName = className = methName = "";
+    this.fullName = this.className = this.methName = "";
     if (method != null && !method.isEmpty()) {
       // fullName should be untouched - it is used for comparisons
-      fullName = method;
+      this.fullName = method;
       String cleanName = method.replace("/", ".");
       if (cleanName.contains("(")) {
         cleanName = cleanName.substring(0, cleanName.lastIndexOf("("));
       }
       if (!cleanName.contains(".")) {
-        methName = cleanName;
+        this.methName = cleanName;
       } else {
-        methName = cleanName.substring(cleanName.lastIndexOf(".") + 1);
-        className = cleanName.substring(0, cleanName.lastIndexOf("."));
-        if (className.contains(".")) {
-          className = className.substring(className.lastIndexOf(".") + 1);
+        this.methName = cleanName.substring(cleanName.lastIndexOf(".") + 1);
+        this.className = cleanName.substring(0, cleanName.lastIndexOf("."));
+        if (this.className.contains(".")) {
+          this.className = this.className.substring(this.className.lastIndexOf(".") + 1);
         }
       }
     }
@@ -105,6 +107,10 @@ public class MethodInfo {
         }
       }
     }
+  }
+  
+  public void newSolution(int offset) {
+    this.solutions++;
   }
   
   public void repeatedCall(int tid, String parent, long tstamp, int insCount, int line) {
@@ -209,6 +215,10 @@ public class MethodInfo {
     return tinfo.parents;
   }
   
+  public int getSolutions() {
+    return solutions;
+  }
+
   public int getInstructionCount(int tid) {
     if (tid < 0) {
       return total.instrCount;

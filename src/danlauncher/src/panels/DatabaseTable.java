@@ -76,6 +76,7 @@ public class DatabaseTable {
   private static boolean  bSortOrder;
   private static int      colSortSelection;
   private static int      rowSelection;
+  private static int      rowsDisplayed;
   private static ArrayList<DatabaseInfo> dbList = new ArrayList<>();
 
   private static MongoClient                 mongoClient;
@@ -192,6 +193,7 @@ public class DatabaseTable {
     bSortOrder = false;
     rowSelection = -1;
     colSortSelection = 0;
+    rowsDisplayed = 0;
     
     dbTable.setModel(new DefaultTableModel(new Object [][]{ }, TABLE_COLUMNS) {
       Class[] types = new Class [] {
@@ -389,6 +391,16 @@ public class DatabaseTable {
         dbList.add(entry);
         if (!dbCopy.contains(entry.id)) {
           ++newEntries;
+          // if new entry is solvable, log the method it was found in
+          if (entry.bSolvable) {
+            // convert the method name to use dot between class and method names
+            String methname = entry.method;
+            int offset = methname.lastIndexOf("/");
+            if (offset >= 0) {
+              methname = methname.substring(0, offset) + "." + methname.substring(offset + 1);
+            }
+            LauncherMain.newSolutionReceived(methname, entry.iOpOffset);
+          }
         }
       }
     } catch (MongoTimeoutException ex) {
@@ -628,6 +640,9 @@ public class DatabaseTable {
       model.addRow(makeRow(tableEntry));
     }
 
+    // update the number of rows displayed
+    rowsDisplayed = dbList.size();
+    
     // auto-resize column width
     resizeColumnWidth(dbTable);
   }
@@ -707,7 +722,9 @@ public class DatabaseTable {
       readDatabase();
 
       // sort the table entries based on current selections
-      tableSortAndDisplay(colSortSelection, bSortOrder);
+      if (dbList.size() != rowsDisplayed) {
+        tableSortAndDisplay(colSortSelection, bSortOrder);
+      }
 
       // count the solved equations
       int solved = 0;

@@ -177,6 +177,7 @@ public final class LauncherMain {
   private static String          maxLogLength;
   private static String          mainclass;
   private static boolean         mainClassInitializing;
+  private static boolean         solutionsActive;
   private static RunMode         runMode;
   private static String          currentTab;
   
@@ -279,6 +280,7 @@ public final class LauncherMain {
     graphMode = CallGraph.GraphHighlight.NONE;
     runMode = RunMode.IDLE;
     mainClassInitializing = false;
+    solutionsActive = false;
     tabIndex = 0;
     String projectPath;
 
@@ -427,6 +429,12 @@ public final class LauncherMain {
   public static void setSolutionsReceived(int formulas, int solutions) {
     mainFrame.getTextField("TXT_FORMULAS").setText("" + formulas);
     mainFrame.getTextField("TXT_SOLUTIONS").setText("" + solutions);
+  }
+  
+  public static void newSolutionReceived(String method, int offset) {
+    if (solutionsActive) {
+      callGraph.addNewSolution(method, offset);
+    }
   }
   
   public static void checkSelectedSolution(String solution, String ctype) {
@@ -714,7 +722,7 @@ public final class LauncherMain {
     JSplitPane splitMain = gui.makeRawSplitPanel(splitName, true, 0.5);
     gui.addSplitComponent(splitName, 0, "BYTECODE"     , noWrapBytecodePanel, true);
     gui.addSplitComponent(splitName, 1, "TBL_PARAMLIST", localParams, true);
-    
+
     // add the tabbed message panels and a listener to detect when a tab has been selected
     Utils.printStatusInfo("Starting tabbed panels");
     GuiControls.PanelInfo panelInfo = gui.getPanelInfo("PNL_TABBED");
@@ -964,6 +972,7 @@ public final class LauncherMain {
       String testName = projectName.substring(0, projectName.indexOf(".jar"));
       String mainClass = (String) mainClassCombo.getSelectedItem();
       recorder.beginTest(testName, arglist, mainClass);
+      solutionsActive = true;
       
       // add all symbolic parameters that are currently defined
       recorder.clearSymbolics();
@@ -992,6 +1001,7 @@ public final class LauncherMain {
         CommandLauncher commandLauncher = new CommandLauncher();
         commandLauncher.start(command, null);
         runMode = RunMode.TERMINATING;
+        solutionsActive = false;
 
         // check on progress and take further action if necessary
         Utils.printStatusInfo("START - Kill Timer (2 sec)");
@@ -1146,6 +1156,8 @@ public final class LauncherMain {
   private class Action_SelectJarFile implements ActionListener{
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      solutionsActive = false;
+
       // load the selected file
       int rc = loadJarFile();
       if (rc == 0) {
@@ -1405,11 +1417,11 @@ public final class LauncherMain {
     GuiControls.Orient CENTER = GuiControls.Orient.CENTER;
     
     // create the frame
-    JFrame frame = gui.newFrame("Graph Setup", 400, 390, GuiControls.FrameSize.FIXEDSIZE);
+    JFrame frame = gui.newFrame("Graph Setup", 400, 440, GuiControls.FrameSize.FIXEDSIZE);
     frame.addWindowListener(new Window_GraphSetupListener());
   
     String panel = null;
-    gui.makePanel  (panel, "PNL_CALLGRF"  , LEFT, true , "CALLGRAPH Controls", 390, 250);
+    gui.makePanel  (panel, "PNL_CALLGRF"  , LEFT, true , "CALLGRAPH Controls", 390, 300);
     gui.makePanel  (panel, "PNL_JSONGRF"  , LEFT, true , "COMPGRAPH Controls", 390, 100);
 
     panel = "PNL_CALLGRF";
@@ -1426,6 +1438,7 @@ public final class LauncherMain {
     gui.makeRadiobutton(panel, "RB_ELAPSED" , LEFT, true, "Elapsed Time", 0);
     gui.makeRadiobutton(panel, "RB_INSTRUCT", LEFT, true, "Instructions", 0);
     gui.makeRadiobutton(panel, "RB_ITER"    , LEFT, true, "Iterations"  , 0);
+    gui.makeRadiobutton(panel, "RB_SOLUTION", LEFT, true, "Solutions"   , 0);
     gui.makeRadiobutton(panel, "RB_STATUS"  , LEFT, true, "Status"      , 0);
     gui.makeRadiobutton(panel, "RB_NONE"    , LEFT, true, "Off"         , 1);
 
@@ -1452,6 +1465,7 @@ public final class LauncherMain {
     gui.getRadiobutton("RB_ELAPSED" ).addActionListener(new Action_GraphModeElapsed());
     gui.getRadiobutton("RB_INSTRUCT").addActionListener(new Action_GraphModeInstruction());
     gui.getRadiobutton("RB_ITER"    ).addActionListener(new Action_GraphModeIteration());
+    gui.getRadiobutton("RB_SOLUTION").addActionListener(new Action_GraphModeSolution());
     gui.getRadiobutton("RB_STATUS"  ).addActionListener(new Action_GraphModeStatus());
     gui.getRadiobutton("RB_NONE"    ).addActionListener(new Action_GraphModeNone());
     gui.getButton("BTN_TH_UP").addActionListener(new Action_ThreadUp());
@@ -1496,6 +1510,13 @@ public final class LauncherMain {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       setHighlightMode(CallGraph.GraphHighlight.ITERATION);
+    }
+  }
+
+  private class Action_GraphModeSolution implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      setHighlightMode(CallGraph.GraphHighlight.SOLUTION);
     }
   }
 
@@ -2100,6 +2121,7 @@ public final class LauncherMain {
     JRadioButton timeSelBtn   = graphSetupFrame.getRadiobutton("RB_ELAPSED");
     JRadioButton instrSelBtn  = graphSetupFrame.getRadiobutton("RB_INSTRUCT");
     JRadioButton iterSelBtn   = graphSetupFrame.getRadiobutton("RB_ITER");
+    JRadioButton soluSelBtn   = graphSetupFrame.getRadiobutton("RB_SOLUTION");
     JRadioButton statSelBtn   = graphSetupFrame.getRadiobutton("RB_STATUS");
     JRadioButton noneSelBtn   = graphSetupFrame.getRadiobutton("RB_NONE");
 
@@ -2110,6 +2132,7 @@ public final class LauncherMain {
         timeSelBtn.setSelected(false);
         instrSelBtn.setSelected(false);
         iterSelBtn.setSelected(false);
+        soluSelBtn.setSelected(false);
         statSelBtn.setSelected(false);
         noneSelBtn.setSelected(false);
 
@@ -2123,6 +2146,7 @@ public final class LauncherMain {
         timeSelBtn.setSelected(true);
         instrSelBtn.setSelected(false);
         iterSelBtn.setSelected(false);
+        soluSelBtn.setSelected(false);
         statSelBtn.setSelected(false);
         noneSelBtn.setSelected(false);
         break;
@@ -2131,6 +2155,7 @@ public final class LauncherMain {
         timeSelBtn.setSelected(false);
         instrSelBtn.setSelected(true);
         iterSelBtn.setSelected(false);
+        soluSelBtn.setSelected(false);
         statSelBtn.setSelected(false);
         noneSelBtn.setSelected(false);
         break;
@@ -2139,6 +2164,16 @@ public final class LauncherMain {
         timeSelBtn.setSelected(false);
         instrSelBtn.setSelected(false);
         iterSelBtn.setSelected(true);
+        soluSelBtn.setSelected(false);
+        statSelBtn.setSelected(false);
+        noneSelBtn.setSelected(false);
+        break;
+      case SOLUTION:
+        threadSelBtn.setSelected(false);
+        timeSelBtn.setSelected(false);
+        instrSelBtn.setSelected(false);
+        iterSelBtn.setSelected(false);
+        soluSelBtn.setSelected(true);
         statSelBtn.setSelected(false);
         noneSelBtn.setSelected(false);
         break;
@@ -2147,6 +2182,7 @@ public final class LauncherMain {
         timeSelBtn.setSelected(false);
         instrSelBtn.setSelected(false);
         iterSelBtn.setSelected(false);
+        soluSelBtn.setSelected(false);
         statSelBtn.setSelected(true);
         noneSelBtn.setSelected(false);
         break;
@@ -2155,6 +2191,7 @@ public final class LauncherMain {
         timeSelBtn.setSelected(false);
         instrSelBtn.setSelected(false);
         iterSelBtn.setSelected(false);
+        soluSelBtn.setSelected(false);
         statSelBtn.setSelected(false);
         noneSelBtn.setSelected(true);
       default:
