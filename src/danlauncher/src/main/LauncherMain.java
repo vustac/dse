@@ -100,13 +100,17 @@ public final class LauncherMain {
   
   // Properties that are specific to the danlauncher system
   private enum SystemProperties { 
-    SYS_JAVA_HOME,    // location of jvm path used for running instrumented jar
-    SYS_DSEPATH,      // location of the DSE repo
-    SYS_PROJECT_PATH, // last project path location (to start location to look for jar file to load)
-    SYS_LOG_LENGTH,   // max log file length to maintain in debugLogger
-    SYS_DEBUG_PORT,   // the TCP port to receive debug info from the application (in debugParams file)
-    SYS_SOLVER_PORT,  // the TCP port for application to send solver output to   (in debugParams file)
-    SYS_CLR_OLD_FILES,  // clear out the old javap and class files when a jar file is loaded
+    SYS_JAVA_HOME,        // location of jvm path used for running instrumented jar
+    SYS_DSEPATH,          // location of the DSE repo
+    SYS_PROJECT_PATH,     // last project path location (to start location to look for jar file to load)
+    SYS_LOG_LENGTH,       // max log file length to maintain in debugLogger
+    SYS_DEBUG_PORT,       // the TCP port to receive debug info from the application (in debugParams file)
+    SYS_SOLVER_PORT,      // the TCP port for application to send solver output to   (in debugParams file)
+    SYS_CLR_OLD_FILES,    // clear out the old javap and class files when a jar file is loaded
+    SYS_LOAD_DANFIG,      // load the symbolic parameters specified in an existing danfig file
+    SYS_CLR_SOL_ON_LOAD,  // clear the solutions on a jar file load
+    SYS_CLR_SOL_ON_RUN,   // clear the solutions prior to each run
+    SYS_RUN_NO_SOLVER,    // allow running without the dansolver
   }
   
   // Properties that are project-specific (excluding the DebugParams settings)
@@ -311,13 +315,13 @@ public final class LauncherMain {
     projectPath  = systemProps.getPropertiesItem("SYS_PROJECT_PATH", HOMEPATH);
     debugPort    = systemProps.getIntegerProperties("SYS_DEBUG_PORT", 5000, 100, 65535);
     solverPort   = systemProps.getIntegerProperties("SYS_SOLVER_PORT", 4000, 100, 65535);
-    clearClassFilesOnStartup = systemProps.getPropertiesItem("SYS_CLR_OLD_FILES","false").equals("true");
+    loadDanfigOnStartup     = systemProps.getPropertiesItem("SYS_LOAD_DANFIG","true").equals("true");;
+    clearClassFilesOnStartup = systemProps.getPropertiesItem("SYS_CLR_OLD_FILES","true").equals("true");
+    clearSolutionsOnStartup = systemProps.getPropertiesItem("SYS_CLR_SOL_ON_LOAD","true").equals("true");;
+    clearSolutionsOnRun     = systemProps.getPropertiesItem("SYS_CLR_SOL_ON_RUN","true").equals("true");;
+    allowRunWithoutSolver   = systemProps.getPropertiesItem("SYS_RUN_NO_SOLVER","false").equals("true");;
     
     inputMode = InputMode.NONE;
-    loadDanfigOnStartup = true;
-    clearSolutionsOnStartup = true;
-    clearSolutionsOnRun = false;
-    allowRunWithoutSolver = false;
     
     // we need a filechooser and initialize it to the project path
     fileSelector = new JFileChooser();
@@ -1182,7 +1186,7 @@ public final class LauncherMain {
       if (file != null) {
         int count = importGraph.loadFromJSONFile(file);
         if (count > 0) {
-          // switch tab to COMPGRAPH
+          // switch tab to XPLOREGRAPH
           setTabSelect(PanelTabs.XPLOREGRAPH.toString());
           importGraph.updateCallGraph();
           
@@ -1216,6 +1220,7 @@ public final class LauncherMain {
       }
 
       solverConnection.sendClearAll();
+      dbtable.resetDatabase(); // inform database that we cleared the entries
     }
   }
   
@@ -1236,6 +1241,7 @@ public final class LauncherMain {
 
       int select = dbtable.getCurrentConnection();
       solverConnection.sendClearExcept(select);
+      dbtable.resetDatabase(); // inform database that we cleared the entries
     }
   }
   
@@ -1422,7 +1428,7 @@ public final class LauncherMain {
   
     String panel = null;
     gui.makePanel  (panel, "PNL_CALLGRF"  , LEFT, true , "CALLGRAPH Controls", 390, 300);
-    gui.makePanel  (panel, "PNL_JSONGRF"  , LEFT, true , "COMPGRAPH Controls", 390, 100);
+    gui.makePanel  (panel, "PNL_JSONGRF"  , LEFT, true , "XPLOREGRAPH Controls", 390, 100);
 
     panel = "PNL_CALLGRF";
     gui.makePanel  (panel, "PNL_HIGHLIGHT", LEFT, false, "Highlight Mode");
@@ -1809,7 +1815,6 @@ public final class LauncherMain {
     gui.makeLabel    (panel, "LBL_JAVAHOME"  , LEFT, true , javaHome);
     gui.makeButton   (panel, "BTN_DSEPATH"   , LEFT, false, "DSEPATH");
     gui.makeLabel    (panel, "LBL_DSEPATH"   , LEFT, true , dsePath);
-    gui.makeCheckbox (panel, "CBOX_CLR_FILES", LEFT, true , "CLR_OLD_FILES - Clear class & javap files on jar load", clearClassFilesOnStartup ? 1 : 0);
     gui.makeLabel    (panel, "LBL_1"         , LEFT, false, "LOG_LENGTH");
     gui.makeTextField(panel, "TXT_MAXLEN"    , LEFT, false, maxLogLength, 8, true);
     gui.makeLabel    (panel, "LBL_2"         , LEFT, true , "(maximum displayed log size)");
@@ -1821,19 +1826,25 @@ public final class LauncherMain {
     gui.makeLabel    (panel, "LBL_6"         , LEFT, true , "(port for danalyzer to send debug to)");
 
     gui.makeLineGap  (panel, 10);
-    gui.makeCheckbox(panel, "CBOX_LOAD_DANFIG", LEFT, true, "Load symbolics from current danfig file",
+    gui.makeCheckbox (panel, "CBOX_LOAD_DANFIG", LEFT, true, "LOAD_DANFIG - Load symbolics from current danfig file",
             loadDanfigOnStartup ? 1 : 0);
-    gui.makeCheckbox(panel, "CBOX_CLR_PRJLOAD", LEFT, true, "Clear SOLUTIONS on project Load", 
+    gui.makeCheckbox (panel, "CBOX_CLR_FILES"  , LEFT, true, "CLR_OLD_FILES - Clear class & javap files on jar load",
+            clearClassFilesOnStartup ? 1 : 0);
+    gui.makeCheckbox (panel, "CBOX_CLR_PRJLOAD", LEFT, true, "CLR_SOL_ON_LOAD - Clear SOLUTIONS on project Load", 
             clearSolutionsOnStartup ? 1 : 0);
-    gui.makeCheckbox(panel, "CBOX_CLR_PRJRUN" , LEFT, true, "Clear SOLUTIONS on project Run", 
+    gui.makeCheckbox (panel, "CBOX_CLR_PRJRUN" , LEFT, true, "CLR_SOL_ON_RUN - Clear SOLUTIONS on project Run", 
             clearSolutionsOnRun ? 1 : 0);
-    gui.makeCheckbox(panel, "CBOX_NO_SOLVER"  , LEFT, true, "Allow running without solver", 
+    gui.makeCheckbox (panel, "CBOX_NO_SOLVER"  , LEFT, true, "RUN_NO_SOLVER - Allow running without solver", 
             allowRunWithoutSolver ? 1 : 0);
-
+    
     // setup actions for controls
     gui.getButton("BTN_JAVAHOME").addActionListener(new Action_SetJavaHome());
     gui.getButton("BTN_DSEPATH").addActionListener(new Action_SetDsePath());
+    gui.getCheckbox("CBOX_LOAD_DANFIG").addActionListener(new Action_LoadDanfigOnStartup());
     gui.getCheckbox("CBOX_CLR_FILES").addActionListener(new Action_ClearClassFilesOnLoad());
+    gui.getCheckbox("CBOX_CLR_PRJLOAD").addActionListener(new Action_ClearSolutionsOnStartup());
+    gui.getCheckbox("CBOX_CLR_PRJRUN").addActionListener(new Action_ClearSolutionsOnRun());
+    gui.getCheckbox("CBOX_NO_SOLVER").addActionListener(new Action_AllowRunWithoutSolver());
   }
 
   private class Window_SystemSetupListener extends java.awt.event.WindowAdapter {
@@ -1945,15 +1956,47 @@ public final class LauncherMain {
     }
   }
 
-  private class Action_ClearClassFilesOnLoad implements ActionListener {
+  private boolean setSysPropsFromCheckbox(String cboxName, SystemProperties propid) {
+    boolean cboxValue = systemSetupFrame.getCheckbox(cboxName).isSelected();
+    systemProps.setPropertiesItem(propid.toString(), cboxValue ? "true" : "false");
+    return cboxValue;
+  }
+  
+  private class Action_LoadDanfigOnStartup implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
-      clearClassFilesOnStartup = systemSetupFrame.getCheckbox("CBOX_CLR_FILES").isSelected();
-      systemProps.setPropertiesItem(SystemProperties.SYS_CLR_OLD_FILES.toString(),
-              clearClassFilesOnStartup ? "true" : "false");
+      loadDanfigOnStartup = setSysPropsFromCheckbox("CBOX_CLR_FILES", SystemProperties.SYS_LOAD_DANFIG);
     }
   }
   
+  private class Action_ClearClassFilesOnLoad implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      clearClassFilesOnStartup = setSysPropsFromCheckbox("CBOX_CLR_FILES", SystemProperties.SYS_CLR_OLD_FILES);
+    }
+  }
+  
+  private class Action_ClearSolutionsOnStartup implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      clearSolutionsOnStartup = setSysPropsFromCheckbox("CBOX_CLR_PRJLOAD", SystemProperties.SYS_CLR_SOL_ON_LOAD);
+    }
+  }
+  
+  private class Action_ClearSolutionsOnRun implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      clearSolutionsOnRun = setSysPropsFromCheckbox("CBOX_CLR_PRJRUN", SystemProperties.SYS_CLR_SOL_ON_RUN);
+    }
+  }
+  
+  private class Action_AllowRunWithoutSolver implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      allowRunWithoutSolver = setSysPropsFromCheckbox("CBOX_NO_SOLVER", SystemProperties.SYS_RUN_NO_SOLVER);
+    }
+  }
+
   private static void enableInputModeSelections() {
       String selection = (String) mainFrame.getCombobox("COMBO_INMODE").getSelectedItem();
       boolean bPort = false;
@@ -2628,6 +2671,7 @@ public final class LauncherMain {
     clearDebugLogger();
     if (clearSolutionsOnStartup && solverConnection.isValid()) {
       solverConnection.sendClearAll();
+      dbtable.resetDatabase(); // inform database that we cleared the entries
     }
 
     Utils.printStatusInfo("Initializing danfig content");
@@ -2773,6 +2817,7 @@ public final class LauncherMain {
     clearDebugLogger();
     if (clearSolutionsOnRun && solverConnection.isValid()) {
       solverConnection.sendClearAll();
+      dbtable.resetDatabase(); // inform database that we cleared the entries
     }
 
     String instrJarFile = projectName.substring(0, projectName.lastIndexOf(".")) + "-dan-ed.jar";

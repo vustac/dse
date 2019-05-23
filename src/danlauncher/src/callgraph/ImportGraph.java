@@ -78,7 +78,7 @@ public class ImportGraph {
     public ImportMethod(String fullname) {
       this.fullName = fullname;
       this.parent = new ArrayList<>();
-      this.original = true;
+      this.original = false;
       this.newmeth = false;
     }
     
@@ -93,6 +93,8 @@ public class ImportGraph {
     }
     ImportMethod entry = new ImportMethod(fullname);
     entry.parent.addAll(parents);
+    entry.original = true;
+    entry.newmeth = false;
     graphMethList.add(entry);
   }
   
@@ -110,7 +112,7 @@ public class ImportGraph {
     graphMethList.clear();
 
     // re-draw call graph
-    drawCallGraph(graphMethList);
+    drawCallGraph();
   
     graphComponent = null;
     if (graphPanel != null) {
@@ -139,19 +141,17 @@ public class ImportGraph {
   public void resetGraph() {
     Utils.printStatusInfo("ImportGraph: resetGraph");
   
-    // remove the color tracing of the non-original methods in the graph
+    // reset the "new" markings in the methods in the graph
     if (callGraph != null && !graphMethList.isEmpty()) {
       for (ImportMethod entry : graphMethList) {
-        if (!entry.original) {
-          entry.newmeth = true;
-        }
+        entry.newmeth = false;
       }
     }
 
     // re-draw the graph
     changePending = true;
     clearDisplay();
-    drawCallGraph(graphMethList);
+    drawCallGraph();
 
     // update the contents of the graph component
     if (graphPanel != null) {
@@ -181,15 +181,19 @@ public class ImportGraph {
         // yes, add entry
         node = new ImportMethod(methcall);
         node.addParent(parent);
+        node.original = false;
         node.newmeth = true;
         graphMethList.add(node);
         Utils.printStatusInfo("ImportGraph added method: " + methcall);
+
+        // update call graph
+        addCallGraphMethod(node, parent);
         change = true;
+        changePending = true;
       }
 
       // update graph
       if (change && tabSelected) {
-        changePending = true;
         updateCallGraph();
       }
     }
@@ -252,7 +256,7 @@ public class ImportGraph {
     // draw the new graph
     changePending = true;
     clearDisplay();
-    drawCallGraph(graphMethList);
+    drawCallGraph();
       
     // update the contents of the graph component
     Graphics graphics = graphPanel.getGraphics();
@@ -278,7 +282,7 @@ public class ImportGraph {
     // draw the new graph
     changePending = true;
     clearDisplay();
-    drawCallGraph(graphMethList);
+    drawCallGraph();
 
     // update the contents of the graph component
     Graphics graphics = graphPanel.getGraphics();
@@ -398,14 +402,14 @@ public class ImportGraph {
    * 
    * @return the number of threads found
    */  
-  private void drawCallGraph(List<ImportMethod> methList) {
+  private void drawCallGraph() {
     callGraph = new BaseGraph<>();
 
-    Utils.printStatusInfo("draw ImportGraph: Methods = " + methList.size());
+    Utils.printStatusInfo("ImportGraph: drawCallGraph Methods: " + graphMethList.size());
 
     // add vertexes to graph
     String color;
-    for(ImportMethod mthNode : methList) {
+    for(ImportMethod mthNode : graphMethList) {
       if (mthNode != null) {
         callGraph.addVertex(mthNode, getCGName(mthNode.fullName));
         
@@ -422,7 +426,7 @@ public class ImportGraph {
     }
     
     // now connect the methods to their parents
-    for (ImportMethod mthNode : methList) {
+    for (ImportMethod mthNode : graphMethList) {
       if (mthNode == null) {
         break;
       }
@@ -438,6 +442,28 @@ public class ImportGraph {
         }
       }
     }
+  }
+
+  /**
+   * draws the graph as defined by the list passed.
+   * 
+   * @return the number of threads found
+   */  
+  private void addCallGraphMethod(ImportMethod mthNode, String parent) {
+    String color;
+    if (mthNode == null) {
+      return;
+    }
+    ImportMethod parNode = findMethodEntry(parent);
+    if (parNode == null) {
+      Utils.printStatusError("ImportGraph: addCallGraphMethod: parent not found: " + parent);
+      return;
+    }
+
+    // add vertex to graph and connect to its parent
+    callGraph.addVertex(mthNode, getCGName(mthNode.fullName));
+    callGraph.addEdge(parNode, mthNode, null);
+    callGraph.colorVertex(mthNode, "FFCCCC"); // a NEW method entry is set to pink
   }
 
   /**

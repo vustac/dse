@@ -95,12 +95,12 @@ public class PropertiesFile {
 
     String value = props.getProperty(tag);
     if (value == null || value.isEmpty()) {
-      //Utils.printStatusWarning(propertiesName + " site.properties <" + tag + "> : not found, setting to '" + dflt + "'");
+      Utils.msgLogger(Utils.LogType.INFO, propertiesName + " site.properties <" + tag + "> : not found, setting to '" + dflt + "'");
       setPropertiesItem (tag, dflt);
       return dflt;
     }
 
-    //Utils.printStatusInfo(propertiesName + " <" + tag + "> = '" + value + "'");
+    Utils.msgLogger(Utils.LogType.INFO, propertiesName + " <" + tag + "> = '" + value + "'");
     return value;
   }
   

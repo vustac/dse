@@ -282,6 +282,10 @@ public class DatabaseTable {
     databaseTimer.stop();
   }
   
+  public void resetDatabase() {
+    rowsDisplayed = 0;
+  }
+  
   public int getCurrentConnection() {
     // find most recent Run entries
     int currRun = 0;

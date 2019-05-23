@@ -243,11 +243,6 @@ public class HelpLogger {
         printParagraph("^^DSEPATH^^ - which specifies a path to the DSE repo where danalyzer, danhelper, " +
                        "and dansolver are located. This is also where the danlauncher program is located. " +
                        "You should also make sure the repo is up-to-date and all projects build without errors.");
-        printParagraph("^^CLR_OLD_FILES^^ - allows you to specify whether the class and javap " +
-                       "output files should be deleted every time a jar file is loaded. This will assure " +
-                       "that the files are fresh, in the event that modifications are made to the jar file. " +
-                       "However, if the jar is not being rebuilt, leaving older files intact will speedup " +
-                       "generating the Bytecode Viewer information.");
         printParagraph("^^LOG_LENGTH^^ - specifies the max number of bytes to keep buffered in the LOG " +
                        "panel for showing the Debug information. Reducing this value reduces the amount of " +
                        "memory consumed by danlauncher, but also limits how far back in the panel you can " +
@@ -259,20 +254,23 @@ public class HelpLogger {
         printParagraph("^^DEBUG_PORT^^ - specifies the TCP port of the localhost that the instrumented code is " +
                        "sending the debug information on. It runs as a server and the danlauncher attaches " +
                        "to this port to receive the debug messages that are sent.");
+        printParagraph("^^LOAD_DANFIG^^ set this if you want to read the " +
+                       "current danfig file and extract the symbolics defined in it. This is if you have " +
+                       "previously created a danfig file for the project and want to run it.");
+        printParagraph("^^CLR_OLD_FILES^^ - allows you to specify whether the class and javap " +
+                       "output files should be deleted every time a jar file is loaded. This will assure " +
+                       "that the files are fresh, in the event that modifications are made to the jar file. " +
+                       "However, if the jar is not being rebuilt, leaving older files intact will speedup " +
+                       "generating the Bytecode Viewer information.");
+        printParagraph("^^CLR_SOL_ON_LOAD^^ set this if you want to clear the database " +
+                       "solutions every time you load a new jar file.");
+        printParagraph("^^CLR_SOL_ON_RUN^^ set this if you want to clear the database " +
+                       "solutions prior to each time you run the application.");
+        printParagraph("^^RUN_NO_SOLVER^^ set this if you want to continue to run the " +
+                       "application if the solver is not running. Note that no solutions will be generated.");
 
         printParagraph("The following entry is defined in the site.properties file, but not settable in this panel:");
         printParagraph("^^SYS_PROJECT_PATH^^ - this parameter is set automatically each time a jar file is loaded.");
-
-        printParagraph("The following are not saved in the site.properties file:");
-        printParagraph("^^Load symbolics from current danfig file^^ set this if you want to read the " +
-                       "current danfig file and extract the symbolics defined in it. This is if you have " +
-                       "previously created a danfig file for the project and want to run it. (default: ENABLED)");
-        printParagraph("^^Clear SOLUTIONS on project Load^^ set this if you want to clear the database " +
-                       "solutions every time you load a new jar file. (default: ENABLED)");
-        printParagraph("^^Clear SOLUTIONS on project Run^^ set this if you want to clear the database " +
-                       "solutions every time you run the application. (default: DISABLED)");
-        printParagraph("^^Allow running without solver^^ set this if you want to continue to run the " +
-                       "application if the solver is not running. Note that no solutions will be generated. (default: DISABLED)");
         
         printSubSubHeader("Debug Setup:");
         printParagraph("^^NOTE:^^ This panel is only available when a project jar has been selected, because " +
