@@ -266,6 +266,9 @@ public class HelpLogger {
                        "solutions every time you load a new jar file.");
         printParagraph("^^CLR_SOL_ON_RUN^^ set this if you want to clear the database " +
                        "solutions prior to each time you run the application.");
+        printParagraph("^^RST_EXP_ON_RUN^^ set this if you want to reset the XPLOREGRAPH new method color " +
+                       "prior to each time you run the application. This will show the latest run path as " +
+                       "the color PINK and previous new paths as BLUE (original path will be in GREY).");
         printParagraph("^^RUN_NO_SOLVER^^ set this if you want to continue to run the " +
                        "application if the solver is not running. Note that no solutions will be generated.");
 
