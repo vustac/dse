@@ -2575,19 +2575,13 @@ public final class LauncherMain {
 
     // loop thru the properties table and set up each entry
     for (PropertiesTable propEntry : PROJ_PROP_TBL) {
-      // get properties values if defined (use the current gui control value as the default if not)
-      String setting = propEntry.panel.getInputControl(propEntry.controlName, propEntry.controlType);
-      String tag = propEntry.tag.toString();
+      // get properties values if defined (use empty string as the default if not)
+      String val = projectProps.getPropertiesItem(propEntry.tag.toString(), "");
 
-      if (projectProps.isPropertiesDefined(tag)) {
-        String val = projectProps.getPropertiesItem(tag, setting);
-        // if property value was found & differs from gui setting, update the gui
-        if (!setting.equals(val)) {
-          propEntry.panel.setInputControl(propEntry.controlName, propEntry.controlType, val);
-        }
-      } else {
-        // value wasn't in properties table - update the table & use value from control
-        projectProps.setPropertiesItem (tag, setting);
+      // if gui setting differs from property value, update the gui
+      String setting = propEntry.panel.getInputControl(propEntry.controlName, propEntry.controlType);
+      if (!setting.equals(val)) {
+        propEntry.panel.setInputControl(propEntry.controlName, propEntry.controlType, val);
       }
     }
     Utils.printStatusMessage(propType + " initialization - COMPLETED");
