@@ -1113,10 +1113,13 @@ public final class LauncherMain {
     menu.addSeparator();
     addMenuItem     (menu, "MENU_SAVE_DBASE" , "Save Solutions Table", new Action_SaveDatabaseTable());
     addMenuItem     (menu, "MENU_SAVE_BCODE" , "Save Byteflow Graph", new Action_SaveByteFlowGraph());
-    addMenuItem     (menu, "MENU_SAVE_CGRAPH", "Save Call Graph as Image", new Action_SaveCallGraphPNG());
-    addMenuItem     (menu, "MENU_SAVE_JSON"  , "Save Call Graph as JSON", new Action_SaveCallGraphJSON());
+    menu.addSeparator();
+    addMenuItem     (menu, "MENU_SAVE_CG_PNG", "Save Call Graph as Image", new Action_SaveCallGraphPNG());
+    addMenuItem     (menu, "MENU_SAVE_CG_JSN", "Save Call Graph as JSON", new Action_SaveCallGraphJSON());
     addMenuItem     (menu, "MENU_SAVE_XPLORE", "Save Call Graph for Exploring", new Action_SaveCallGraphExplore());
-    addMenuItem     (menu, "MENU_SAVE_JGRAPH", "Save Explore Graph", new Action_SaveCompGraphPNG());
+    menu.addSeparator();
+    addMenuItem     (menu, "MENU_SAVE_XG_PNG", "Save Explore Graph as Image", new Action_SaveExploreGraphPNG());
+    addMenuItem     (menu, "MENU_SAVE_XG_JSN", "Save Explore Graph as JSON", new Action_SaveExploreGraphJSON());
 
     menu = menuRecord; // selections for the Record Menu
     addMenuItem     (menu, "MENU_RECORD_START", "Start Recording", new Action_RecordStart());
@@ -1129,9 +1132,10 @@ public final class LauncherMain {
     
     // setup access to menu controls
     getMenuItem("MENU_SETUP_DBUG").setEnabled(false);
-    getMenuItem("MENU_SAVE_CGRAPH").setEnabled(false);
-    getMenuItem("MENU_SAVE_JSON").setEnabled(false);
-    getMenuItem("MENU_SAVE_JGRAPH").setEnabled(false);
+    getMenuItem("MENU_SAVE_CG_PNG").setEnabled(false);
+    getMenuItem("MENU_SAVE_CG_JSN").setEnabled(false);
+    getMenuItem("MENU_SAVE_XG_PNG").setEnabled(false);
+    getMenuItem("MENU_SAVE_XG_JSN").setEnabled(false);
     getMenuItem("MENU_SAVE_BCODE").setEnabled(false);
   }
   
@@ -1193,8 +1197,9 @@ public final class LauncherMain {
           setTabSelect(PanelTabs.XPLOREGRAPH.toString());
           importGraph.updateCallGraph();
           
-          // allow save
-          getMenuItem("MENU_SAVE_JGRAPH").setEnabled(true);
+          // allow export graph save
+          getMenuItem("MENU_SAVE_XG_PNG").setEnabled(true);
+          getMenuItem("MENU_SAVE_XG_JSN").setEnabled(true);
         }
       }
     }
@@ -1298,6 +1303,7 @@ public final class LauncherMain {
   private class Action_SaveCallGraphPNG implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // display the call graph before saving to update the graphics
       setTabSelect(PanelTabs.CALLGRAPH.toString());
       saveCallGraph("callgraph", "png");
     }
@@ -1306,6 +1312,7 @@ public final class LauncherMain {
   private class Action_SaveCallGraphJSON implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // display the call graph before saving to update the graphics
       setTabSelect(PanelTabs.CALLGRAPH.toString());
       saveCallGraph("callgraph", "json");
     }
@@ -1314,16 +1321,33 @@ public final class LauncherMain {
   private class Action_SaveCallGraphExplore implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // save current call graph as explore graph
       importGraph.importData(callGraph);
+      
+      // display the explore graph
       setTabSelect(PanelTabs.XPLOREGRAPH.toString());
+          
+      // allow export graph save
+      getMenuItem("MENU_SAVE_XG_PNG").setEnabled(true);
+      getMenuItem("MENU_SAVE_XG_JSN").setEnabled(true);
     }
   }
 
-  private class Action_SaveCompGraphPNG implements ActionListener {
+  private class Action_SaveExploreGraphPNG implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // display the explore graph before saving to update the graphics
       setTabSelect(PanelTabs.XPLOREGRAPH.toString());
       saveCallGraph("compgraph", "png");
+    }
+  }
+      
+  private class Action_SaveExploreGraphJSON implements ActionListener {
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // display the explore graph before saving to update the graphics
+      setTabSelect(PanelTabs.XPLOREGRAPH.toString());
+      saveCallGraph("compgraph", "json");
     }
   }
       
@@ -2319,21 +2343,23 @@ public final class LauncherMain {
         basename = basename.substring(0, offset);
       }
 
-      // remove any pre-existing file and convert method list to appropriate file
+      // remove any pre-existing file
+      file = new File(basename + fileExtension);
+      file.delete();
+
+      // convert method list to appropriate file
       if (graph.equals("callgraph")) {
         if (type.equals("json")) {
-          File graphFile = new File(basename + fileExtension);
-          graphFile.delete();
-          callGraph.saveAsCompFile(graphFile);
+          callGraph.saveAsCompFile(file);
         } else {
-          File pngFile = new File(basename + fileExtension);
-          pngFile.delete();
-          callGraph.saveAsImageFile(pngFile);
+          callGraph.saveAsImageFile(file);
         }
       } else {
-        File pngFile = new File(basename + fileExtension);
-        pngFile.delete();
-        importGraph.saveAsImageFile(pngFile);
+        if (type.equals("json")) {
+          importGraph.saveAsJSONFile(file);
+        } else {
+          importGraph.saveAsImageFile(file);
+        }
       }
     }
   }
@@ -3423,8 +3449,8 @@ public final class LauncherMain {
         mainFrame.getTextField("TXT_METHODS").setText("" + methodCount);
           
         // enable/disable Call Graph save buttons based on whether there is anything to save
-        getMenuItem("MENU_SAVE_CGRAPH").setEnabled(methodCount > 0);
-        getMenuItem("MENU_SAVE_JSON").setEnabled(methodCount > 0);
+        getMenuItem("MENU_SAVE_CG_PNG").setEnabled(methodCount > 0);
+        getMenuItem("MENU_SAVE_CG_JSN").setEnabled(methodCount > 0);
 
         // update the thread count display
         if (threads > 1) {

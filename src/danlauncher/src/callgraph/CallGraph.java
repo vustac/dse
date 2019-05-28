@@ -633,6 +633,8 @@ public class CallGraph {
 
   /**
    * exports the CallGraph data as ImportGraph type
+   * 
+   * @param inGraph - the ImportGraph entry to update
    */  
   public void exportData(ImportGraph inGraph) {
     if (!graphMethList.isEmpty()) {

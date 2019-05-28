@@ -74,12 +74,14 @@ public class ImportGraph {
     public ArrayList<String> parent;  // list of caller methods (full names)
     public boolean original;          // true if method was one of the original loaded
     public boolean newmeth;           // true if method was new during this run
+    public boolean oldmeth;           // true if method was new during previous run
     
     public ImportMethod(String fullname) {
       this.fullName = fullname;
       this.parent = new ArrayList<>();
       this.original = false;
       this.newmeth = false;
+      this.oldmeth = false;
     }
     
     public void addParent(String name) {
@@ -87,17 +89,6 @@ public class ImportGraph {
     }
   }
 
-  public void addMethodEntry(String fullname, ArrayList<String> parents) {
-    if (fullname.startsWith("L")) {
-      fullname = fullname.substring(1);
-    }
-    ImportMethod entry = new ImportMethod(fullname);
-    entry.parent.addAll(parents);
-    entry.original = true;
-    entry.newmeth = false;
-    graphMethList.add(entry);
-  }
-  
   public JScrollPane getScrollPanel() {
     return scrollPanel;
   }
@@ -106,6 +97,16 @@ public class ImportGraph {
     tabSelected = selected.equals(tabName);
   }
   
+  public void setZoomFactor(double scaleFactor) {                                             
+    if (callGraph != null) {
+      callGraph.scaleVerticies(scaleFactor);
+//      graphPanel.update(graphPanel.getGraphics());   
+    }
+  }
+  
+  /**
+   * this is used to clear the entire graph contents and refresh the display.
+   */
   public void clearGraph() {
     Utils.printStatusInfo("ImportGraph: clearGraph");
     // remove all methods
@@ -124,6 +125,9 @@ public class ImportGraph {
     }
   }
 
+  /**
+   * this is used to simply clear the display. The call graph information is left intact.
+   */
   private void clearDisplay() {
     Utils.printStatusInfo("ImportGraph: clearDisplay");
     callGraph = null;
@@ -138,12 +142,19 @@ public class ImportGraph {
     }
   }
 
+  /**
+   * this is used to reset the call graph contents to its initial loaded value.
+   * 
+   * (returns to last value from either import from CallGraph (using addMethodEntry, or
+   * from loadFromJSONFile.
+   */
   public void resetGraph() {
     Utils.printStatusInfo("ImportGraph: resetGraph");
   
-    // reset the "new" markings in the methods in the graph
+    // reset the "new" markings in the methods in the graph to "old"
     if (callGraph != null && !graphMethList.isEmpty()) {
       for (ImportMethod entry : graphMethList) {
+        entry.oldmeth = entry.newmeth;
         entry.newmeth = false;
       }
     }
@@ -163,44 +174,73 @@ public class ImportGraph {
     }
   }
   
-  public void setZoomFactor(double scaleFactor) {                                             
-    if (callGraph != null) {
-      callGraph.scaleVerticies(scaleFactor);
-//      graphPanel.update(graphPanel.getGraphics());   
-    }
-  }
-  
+  /**
+   * this is called during execution when a new method has been called.
+   * 
+   * This will always set the 'newmeth' flag to indicate the method was called during execution
+   * of the current path. The call graph produced will indicate PINK if this was a path not
+   * previously encountered and BLUE if it was encountered before.
+   * 
+   * @param methcall - the name of the method executed
+   * @param parent   - the name of the method that called this method
+   */
   public void addPathEntry(String methcall, String parent) {
     ImportMethod node;
-    boolean change = false;
     
-    if (graphMethList != null && !graphMethList.isEmpty()) {
+    if (graphMethList != null) {
       // check if new method found
       node = findMethodEntry(methcall);
       if (node == null) {
-        // yes, add entry
+        // yes, add new entry
         node = new ImportMethod(methcall);
         node.addParent(parent);
         node.original = false;
         node.newmeth = true;
+        node.oldmeth = false;
         graphMethList.add(node);
         Utils.printStatusInfo("ImportGraph added method: " + methcall);
 
         // update call graph
-        addCallGraphMethod(node, parent);
-        change = true;
+        callGraphMethodAdd(node);
+        callGraphMethodSetColor(node);
+        callGraphMethodConnect(node);
+        changePending = true;
+      } else if (! node.newmeth) {
+        // no, set flag to indicate this was also part of the new path
+        node.newmeth = true;
+        callGraphMethodSetColor(node);
         changePending = true;
       }
 
       // update graph
-      if (change && tabSelected) {
+      if (changePending && tabSelected) {
         updateCallGraph();
       }
     }
   }
   
   /**
-   * reads the CallGraph.graphMethList entries and saves to file
+   * this is only used for copying the current Call Graph contents over to this Explore Graph.
+   * 
+   * Because of this, all method entries are marked as 'original'.
+   * 
+   * @param fullname - name of method being added
+   * @param parents  - array of methods that call this method
+   */
+  public void addMethodEntry(String fullname, ArrayList<String> parents) {
+    if (fullname.startsWith("L")) {
+      fullname = fullname.substring(1);
+    }
+    ImportMethod entry = new ImportMethod(fullname);
+    entry.parent.addAll(parents);
+    entry.original = true;
+    entry.newmeth = false;
+    entry.oldmeth = false;
+    graphMethList.add(entry);
+  }
+  
+  /**
+   * reads the CallGraph.graphMethList entries and saves as JSON format to file
    * 
    * @param file - name of file to save content to
    */  
@@ -250,6 +290,8 @@ public class ImportGraph {
     if (graphMethList != null) {
       for (ImportMethod entry : graphMethList) {
         entry.original = true;
+        entry.newmeth = false;
+        entry.oldmeth = false;
       }
     }
 
@@ -268,7 +310,10 @@ public class ImportGraph {
   }
   
   /**
-   * imports CallGraph data
+   * imports CallGraph data.
+   * 
+   * CallGraph will make repeated calls to 'addMethodEntry' in this class for each method.
+   * 
    * @param cg - the call graph to copy from
    */  
   public void importData(CallGraph cg) {
@@ -291,6 +336,11 @@ public class ImportGraph {
     }
   }
   
+  /**
+   * reads the CallGraph.graphMethList entries and saves as image to file
+   * 
+   * @param file - name of file to save content to
+   */  
   public void saveAsImageFile(File file) {
     // make sure we have updated the graphics before we save
     updateCallGraph();
@@ -311,6 +361,9 @@ public class ImportGraph {
     }
   }
 
+  /**
+   * performs an update of the explore graph to the display.
+   */
   public void updateCallGraph() {
     // exit if the graphics panel has not been established
     if (graphPanel == null || callGraph == null || !changePending) {
@@ -336,7 +389,12 @@ public class ImportGraph {
     // update the graph layout
     callGraph.layoutGraph();
   }
-          
+  
+  /**
+   * displays a panel containing Call Graph information for the selected method.
+   * 
+   * @param selected - the method selection
+   */
   private void displayMethodInfoPanel(MethodInfo selected) {
     // if panel is currently displayed for another method, close that one before opening the new one
     if (methInfoPanel != null) {
@@ -367,6 +425,15 @@ public class ImportGraph {
     methInfoPanel.display();
   }
   
+  /**
+   * returns the name to display in the Call Graph for the method.
+   * 
+   * This should be: class.method
+   * where class does not include the package path and method only consists of the method name
+   * 
+   * @param fullname - the full name of the method
+   * @return the CG-formatted method name to display
+   */
   private static String getCGName(String fullname) {
     String  className = "";
     String  methName = fullname.replace("/", ".");
@@ -385,6 +452,12 @@ public class ImportGraph {
     return className.isEmpty() ? methName : className + Utils.NEWLINE + methName;
   }
 
+  /**
+   * search for and return the entry in graphMethList having the specified method name.
+   * 
+   * @param method - the name of the method to search for
+   * @return 
+   */
   private static ImportMethod findMethodEntry(String method) {
     if (method != null && !method.isEmpty()) {
       for (int ix = 0; ix < graphMethList.size(); ix++) {
@@ -398,38 +471,48 @@ public class ImportGraph {
   }
 
   /**
-   * draws the graph as defined by the list passed.
+   * sets the color of the specified call graph method
    * 
-   * @return the number of threads found
-   */  
-  private void drawCallGraph() {
-    callGraph = new BaseGraph<>();
-
-    Utils.printStatusInfo("ImportGraph: drawCallGraph Methods: " + graphMethList.size());
-
-    // add vertexes to graph
-    String color;
-    for(ImportMethod mthNode : graphMethList) {
-      if (mthNode != null) {
-        callGraph.addVertex(mthNode, getCGName(mthNode.fullName));
-        
-        // set the color selection of the method
-        if (mthNode.newmeth) {
-          color = "FFCCCC"; // a NEW entry is set to pink
-        } else if (mthNode.original) {
-          color = "D2E9FF"; // an ORIGINAL method is set to default
+   * @param mthNode - the ImportMethod entry to color
+   */
+  private void callGraphMethodSetColor(ImportMethod mthNode) {
+    if (mthNode != null) {
+      // set the color selection of the method
+      boolean oldpath = mthNode.original | mthNode.oldmeth;
+      String color = "D2E9FF"; // this is the default (GREY) color
+      if (mthNode.newmeth) {
+        if (oldpath) {
+          color = "FF6666"; // a new entry from a prev run is set to ORANGE
         } else {
-          color = "6666FF"; // otherwise, a new entry from a prev run is set to blue
+          color = "FFCCCC"; // a new entry that was never encountered before is set to PINK
         }
-        callGraph.colorVertex(mthNode, color);
+      } else if (mthNode.oldmeth) {
+        color = "6666FF";   // a prev run entry is set to BLUE
       }
+      callGraph.colorVertex(mthNode, color);
     }
-    
-    // now connect the methods to their parents
-    for (ImportMethod mthNode : graphMethList) {
-      if (mthNode == null) {
-        break;
-      }
+  }
+  
+  /**
+   * adds the specified method to the call graph
+   * 
+   * @param mthNode - the ImportMethod entry to add
+   */
+  private void callGraphMethodAdd(ImportMethod mthNode) {
+    if (mthNode != null) {
+      callGraph.addVertex(mthNode, getCGName(mthNode.fullName));
+    }
+  }
+
+  /**
+   * connects the specified method to its callers in the call graph.
+   * 
+   * NOTE: all parent methods must be defined prior to this call.
+   * 
+   * @param mthNode - the ImportMethod entry to connect
+   */
+  private void callGraphMethodConnect(ImportMethod mthNode) {
+    if (mthNode != null) {
       // for each parent entry for a method...
       for (String parent : mthNode.parent) {
         if (parent != null && !parent.isEmpty()) {
@@ -443,27 +526,27 @@ public class ImportGraph {
       }
     }
   }
-
+  
   /**
-   * draws the graph as defined by the list passed.
+   * draws the graph as defined by the list passed (performs color formatting as well).
    * 
    * @return the number of threads found
    */  
-  private void addCallGraphMethod(ImportMethod mthNode, String parent) {
-    String color;
-    if (mthNode == null) {
-      return;
-    }
-    ImportMethod parNode = findMethodEntry(parent);
-    if (parNode == null) {
-      Utils.printStatusError("ImportGraph: addCallGraphMethod: parent not found: " + parent);
-      return;
-    }
+  private void drawCallGraph() {
+    callGraph = new BaseGraph<>();
 
-    // add vertex to graph and connect to its parent
-    callGraph.addVertex(mthNode, getCGName(mthNode.fullName));
-    callGraph.addEdge(parNode, mthNode, null);
-    callGraph.colorVertex(mthNode, "FFCCCC"); // a NEW method entry is set to pink
+    Utils.printStatusInfo("ImportGraph: drawCallGraph Methods: " + graphMethList.size());
+
+    // add vertexes to graph
+    for(ImportMethod mthNode : graphMethList) {
+      callGraphMethodAdd(mthNode);
+      callGraphMethodSetColor(mthNode);
+    }
+    
+    // now connect the methods to their parents
+    for (ImportMethod mthNode : graphMethList) {
+      callGraphMethodConnect(mthNode);
+    }
   }
 
   /**
