@@ -396,7 +396,7 @@ public class DatabaseTable {
         if (!dbCopy.contains(entry.id)) {
           ++newEntries;
           // if new entry is solvable, log the method it was found in
-          if (entry.bSolvable) {
+          if (entry.bSolvable != null && entry.bSolvable) {
             // convert the method name to use dot between class and method names
             String methname = entry.method;
             int offset = methname.lastIndexOf("/");
