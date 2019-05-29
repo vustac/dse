@@ -391,41 +391,6 @@ public class ImportGraph {
   }
   
   /**
-   * displays a panel containing Call Graph information for the selected method.
-   * 
-   * @param selected - the method selection
-   */
-  private void displayMethodInfoPanel(MethodInfo selected) {
-    // if panel is currently displayed for another method, close that one before opening the new one
-    if (methInfoPanel != null) {
-      methInfoPanel.close();
-    }
-    
-    // create the panel to display the selected method info on
-    methInfoPanel = new GuiControls();
-    JFrame frame = methInfoPanel.newFrame("Executed Method Information", 600, 450, GuiControls.FrameSize.FIXEDSIZE);
-    frame.addWindowListener(new Window_ExitListener());
-
-    GuiControls.Orient LEFT = GuiControls.Orient.LEFT;
-    GuiControls.Orient CENTER = GuiControls.Orient.CENTER;
-    
-    String panel = null;
-    methInfoPanel.makePanel (panel, "PNL_INFO", LEFT, true , "", 600, 400);
-    
-    panel = "PNL_INFO";
-    JTextPane textPanel = methInfoPanel.makeScrollTextPane(panel, "TXT_METHINFO");
-    JButton bcodeButton = methInfoPanel.makeButton(panel, "BTN_BYTECODE", CENTER, true, "Show bytecode");
-    
-    bcodeButton.addActionListener(new Action_RunBytecode());
-    
-    // setup initial method info text
-    String message = CallGraph.getSelectedMethodInfo(selected, -1);
-    textPanel.setText(message);
-
-    methInfoPanel.display();
-  }
-  
-  /**
    * returns the name to display in the Call Graph for the method.
    * 
    * This should be: class.method
@@ -550,6 +515,103 @@ public class ImportGraph {
   }
 
   /**
+   * displays a panel containing Call Graph information for the selected method.
+   * 
+   * @param selected - the method selection
+   */
+  private void displayMethodInfoPanel(MethodInfo selected) {
+    // if panel is currently displayed for another method, close that one before opening the new one
+    if (methInfoPanel != null) {
+      methInfoPanel.close();
+    }
+    
+    // create the panel to display the selected method info on
+    methInfoPanel = new GuiControls();
+    JFrame frame = methInfoPanel.newFrame("Executed Method Information", 600, 450, GuiControls.FrameSize.FIXEDSIZE);
+    frame.addWindowListener(new Window_ExitListener());
+
+    GuiControls.Orient LEFT = GuiControls.Orient.LEFT;
+    GuiControls.Orient RIGHT = GuiControls.Orient.RIGHT;
+    GuiControls.Orient CENTER = GuiControls.Orient.CENTER;
+    
+    String panel = null;
+    methInfoPanel.makePanel (panel, "PNL_INFO", LEFT, true , "", 600, 400);
+    
+    panel = "PNL_INFO";
+    JTextPane textPanel =
+        methInfoPanel.makeScrollTextPane(panel, "TXT_METHINFO");
+    JButton bcodeButton =
+        methInfoPanel.makeButton(panel, "BTN_BYTECODE", CENTER, false, "Show Byte Code");
+    JButton bflowButton =
+        methInfoPanel.makeButton(panel, "BTN_BYTEFLOW", CENTER, false, "Show Byte Flow");
+    JButton bExit =
+        methInfoPanel.makeButton(panel, "BTN_EXIT", RIGHT, true, "Exit");
+    
+    bcodeButton.addActionListener(new Action_RunBytecode());
+    bflowButton.addActionListener(new Action_RunByteflow());
+    bExit.addActionListener(new Action_RunExit());
+
+    // setup initial method info text
+    String message = CallGraph.getSelectedMethodInfo(selected, -1);
+    textPanel.setText(message);
+
+    methInfoPanel.display();
+  }
+  
+  private class Window_ExitListener extends java.awt.event.WindowAdapter {
+    @Override
+    public void windowClosing(java.awt.event.WindowEvent evt) {
+      methInfoPanel.close();
+    }
+  }
+
+  private class Action_RunExit implements ActionListener{
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      methInfoPanel.close();
+    }
+  }
+  
+  private class Action_RunBytecode implements ActionListener{
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // show selected method in bytecode viewer
+      ImportMethod selected = callGraph.getSelectedNode();
+
+      Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
+      String meth = classmeth.methName + classmeth.signature;
+      String cls = classmeth.className;
+      
+      LauncherMain.runBytecodeViewer(cls, meth, false);
+      
+      // close this menu
+      methInfoPanel.close();
+    }
+  }
+  
+  private class Action_RunByteflow implements ActionListener{
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      if (callGraph == null) {
+        return;
+      }
+      
+      // show selected method in bytecode viewer
+      // Janalyzer keeps the "L" entry in the method name, but the Bytecode viewer name does not
+      ImportMethod selected = callGraph.getSelectedNode();
+
+      Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
+      String meth = classmeth.methName + classmeth.signature;
+      String cls = classmeth.className;
+
+      LauncherMain.runBytecodeViewer(cls, meth, true);
+      
+      // close this menu
+      methInfoPanel.close();
+    }
+  }
+  
+  /**
    * add listener to show details of selected element
    */
   private class MouseListener extends MouseAdapter {
@@ -577,38 +639,9 @@ public class ImportGraph {
           Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
           String meth = classmeth.methName + classmeth.signature;
           String cls = classmeth.className;
-          LauncherMain.runBytecodeViewer(cls, meth);
+          LauncherMain.runBytecodeViewer(cls, meth, true);
         }
       }
-    }
-  }
-  
-  private class Window_ExitListener extends java.awt.event.WindowAdapter {
-    @Override
-    public void windowClosing(java.awt.event.WindowEvent evt) {
-      methInfoPanel.close();
-    }
-  }
-
-  private class Action_RunBytecode implements ActionListener{
-    @Override
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-      if (callGraph == null) {
-        return;
-      }
-      
-      // show selected method in bytecode viewer
-      // Janalyzer keeps the "L" entry in the method name, but the Bytecode viewer name does not
-      ImportMethod selected = callGraph.getSelectedNode();
-
-      Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.fullName);
-      String meth = classmeth.methName + classmeth.signature;
-      String cls = classmeth.className;
-
-      LauncherMain.runBytecodeViewer(cls, meth);
-      
-      // close this menu
-      methInfoPanel.close();
     }
   }
   

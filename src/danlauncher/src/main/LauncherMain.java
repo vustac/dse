@@ -438,10 +438,14 @@ public final class LauncherMain {
     mainFrame.getTextField("TXT_SOLUTIONS").setText("" + solutions);
   }
   
-  public static void newSolutionReceived(String method, int offset) {
+  public static void newSolutionReceived(String method, int offset, String solution, String type, boolean path) {
     if (solutionsActive) {
-      callGraph.addNewSolution(method, offset);
+      callGraph.addNewSolution(method, offset, solution, type, path);
     }
+  }
+  
+  public static String getInputMode() {
+    return inputMode.toString();
   }
   
   public static void checkSelectedSolution(String solution, String ctype) {
@@ -536,7 +540,7 @@ public final class LauncherMain {
     }
   }
 
-  public static int runBytecodeViewer(String classSelect, String methodSelect) {
+  public static int runBytecodeViewer(String classSelect, String methodSelect, boolean flowtab) {
     Utils.printStatusInfo("Running Bytecode Viewer for class: " + classSelect + " method: " + methodSelect);
     
     // check if bytecode for this method already displayed
@@ -580,14 +584,15 @@ public final class LauncherMain {
       runBytecodeParser(classSelect, methodSelect, content);
     }
       
-    // swich tab to show bytecode
+    // swich tab to show bytecode (even if we want to show byteflow)
     String selected = getTabSelect();
     setTabSelect(PanelTabs.BYTECODE.toString());
-      
+    
+    // now if we were either already in byteflow, or it was requested in the call, switch to byteflow.
     // this is an attempt to get the bytecode graph to update its display properly by
     // switching to different panel and back again
     String byteflowTab = PanelTabs.BYTEFLOW.toString();
-    if (selected.equals(byteflowTab)) {
+    if (flowtab || selected.equals(byteflowTab)) {
       setTabSelect(byteflowTab);
     }
 
@@ -947,7 +952,7 @@ public final class LauncherMain {
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       String classSelect  = (String) classCombo.getSelectedItem();
       String methodSelect = (String) methodCombo.getSelectedItem();
-      runBytecodeViewer(classSelect, methodSelect);
+      runBytecodeViewer(classSelect, methodSelect, false);
     }
   }
 
@@ -956,7 +961,7 @@ public final class LauncherMain {
     public void actionPerformed(java.awt.event.ActionEvent evt) {
       if (!bytecodeHistory.isEmpty()) {
         MethodHistoryInfo entry = bytecodeHistory.remove(bytecodeHistory.size() - 1);
-        runBytecodeViewer(entry.className, entry.methodName);
+        runBytecodeViewer(entry.className, entry.methodName, false);
         
         // update the selections
         classCombo.setSelectedItem(entry.className);

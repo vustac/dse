@@ -129,6 +129,10 @@ public final class BytecodeViewer {
     return false;
   }
 
+  public String getMethodName() {
+    return methodLoaded;
+  }
+  
   public static Integer byteOffsetToLineNumber(int offset) {
     // check for exact match
     if (boff2Line.containsKey(offset)) {

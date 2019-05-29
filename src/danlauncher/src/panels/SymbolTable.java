@@ -517,7 +517,7 @@ public class SymbolTable {
     // seperate the class and method names for display
     TableListInfo pinfo = paramList.get(rowSelection);
     Utils.ClassMethodName classmeth = new ClassMethodName(pinfo.method);
-    LauncherMain.runBytecodeViewer(classmeth.className, classmeth.methName + classmeth.signature);
+    LauncherMain.runBytecodeViewer(classmeth.className, classmeth.methName + classmeth.signature, false);
     
     // indicate nothing has been edited yet
     bEdited = false;

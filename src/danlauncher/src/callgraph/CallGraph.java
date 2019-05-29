@@ -170,7 +170,7 @@ public class CallGraph {
       case ITERATION :
         return mthNode.getCount(tid);
       case SOLUTION :
-        return mthNode.getSolutions();
+        return mthNode.getSolutionCount();
       default:
         break;
     }
@@ -337,11 +337,11 @@ public class CallGraph {
     return graphClassList.size();
   }
 
-  public void addNewSolution(String method, int offset) {
+  public void addNewSolution(String method, int offset, String solution, String type, boolean path) {
     MethodInfo entry = findMethodEntry(ALL_THREADS, method, graphMethList);
     if (entry != null) {
-      Utils.printStatusInfo("CallGraph added solution to: " + method + " offset " + offset);
-      entry.newSolution(offset);
+      Utils.printStatusInfo("CallGraph added solution to: " + method + " offset " + offset + ": " + solution);
+      entry.newSolution(offset, solution, type, path);
     }
   }
   
@@ -350,8 +350,10 @@ public class CallGraph {
       return null;
     }
     
+    fullname = fullname.replaceAll("/", ".");
     for (MethodInfo entry : graphMethList) {
-      if (entry.getFullName().equals(fullname)) {
+      String methname = entry.getFullName().replaceAll("/", ".");
+      if (methname.equals(fullname)) {
         return entry;
       }
     }
@@ -431,6 +433,14 @@ public class CallGraph {
     return updated;
   }
 
+  public static ArrayList<MethodInfo.SolutionInfo> getMethodSolutions(String method) {
+    MethodInfo entry = getMethodInfo(method);
+    if (entry == null) {
+      return null;
+    }
+    return entry.getSolutions();
+  }
+  
   public static String getSelectedMethodInfo(MethodInfo selected, int tid) {
     // setup the message contents to display
     String message = "";
@@ -442,7 +452,16 @@ public class CallGraph {
       message += "Thread: " + selected.getThread().toString() + Utils.NEWLINE;
     }
     message += Utils.NEWLINE;
-    message += "Solutions: " + selected.getSolutions() + Utils.NEWLINE;
+    ArrayList<MethodInfo.SolutionInfo> solutions = selected.getSolutions();
+    if (solutions.isEmpty()) {
+      message += "Solutions: <none>" + Utils.NEWLINE;
+    } else {
+      message += "Solutions:" + Utils.NEWLINE;
+      for (MethodInfo.SolutionInfo entry : solutions) {
+        message += "    (" + entry.type + ") " + entry.offset + ": " + entry.sol + Utils.NEWLINE;
+      }
+      message += Utils.NEWLINE;
+    }
     message += "Iterations: " + selected.getCount(tid) + Utils.NEWLINE;
     message += "Execution Time: " + (selected.getDuration(tid) < 0 ?
                "(never returned)" : selected.getDuration(tid) + " msec") + Utils.NEWLINE;
@@ -507,6 +526,7 @@ public class CallGraph {
     int threadInit = selected.getThread().get(0);
 
     GuiControls.Orient LEFT = GuiControls.Orient.LEFT;
+    GuiControls.Orient RIGHT = GuiControls.Orient.RIGHT;
     GuiControls.Orient CENTER = GuiControls.Orient.CENTER;
     
     String panel = null;
@@ -531,9 +551,15 @@ public class CallGraph {
     JTextPane textPanel =
         methInfoPanel.makeScrollTextPane(panel, "TXT_METHINFO");
     JButton bcodeButton =
-        methInfoPanel.makeButton(panel, "BTN_BYTECODE", CENTER, true, "Show bytecode");
+        methInfoPanel.makeButton(panel, "BTN_BYTECODE", CENTER, false, "Show Byte Code");
+    JButton bflowButton =
+        methInfoPanel.makeButton(panel, "BTN_BYTEFLOW", CENTER, false, "Show Byte Flow");
+    JButton bExit =
+        methInfoPanel.makeButton(panel, "BTN_EXIT", RIGHT, true, "Exit");
     
     bcodeButton.addActionListener(new Action_RunBytecode());
+    bflowButton.addActionListener(new Action_RunByteflow());
+    bExit.addActionListener(new Action_RunExit());
     
     // setup initial method info text
     String message = getSelectedMethodInfo(selected, ALL_THREADS);
@@ -549,6 +575,13 @@ public class CallGraph {
     }
   }
 
+  private class Action_RunExit implements ActionListener{
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      methInfoPanel.close();
+    }
+  }
+  
   private class Action_RunBytecode implements ActionListener{
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -559,7 +592,24 @@ public class CallGraph {
       String meth = classmeth.methName + classmeth.signature;
       String cls = classmeth.className;
       
-      LauncherMain.runBytecodeViewer(cls, meth);
+      LauncherMain.runBytecodeViewer(cls, meth, false);
+      
+      // close this menu
+      methInfoPanel.close();
+    }
+  }
+  
+  private class Action_RunByteflow implements ActionListener{
+    @Override
+    public void actionPerformed(java.awt.event.ActionEvent evt) {
+      // show selected method in bytecode viewer
+      MethodInfo selected = callGraph.getSelectedNode();
+
+      Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.getFullName());
+      String meth = classmeth.methName + classmeth.signature;
+      String cls = classmeth.className;
+      
+      LauncherMain.runBytecodeViewer(cls, meth, true);
       
       // close this menu
       methInfoPanel.close();

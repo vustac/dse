@@ -22,7 +22,7 @@ public class MethodInfo {
   private ArrayList<Integer> threadId; // the list of threads it was run in
   private HashMap<Integer, ThreadInfo> threadInfo; // the info for each individual thread
   private ThreadInfo total;        // contains the stats for all threads combined
-  private int     solutions;       // the number of solutions in this method
+  private ArrayList<SolutionInfo> solutions; // the solutions found for this method
 
   private ThreadInfo getThreadInfo(int tid) {
     if (tid < 0) {
@@ -33,7 +33,7 @@ public class MethodInfo {
   }
   
   public MethodInfo(int tid, String method, String parent, long tstamp, int insCount, int line) {
-    this.solutions = 0;
+    this.solutions = new ArrayList<>();
     this.parent = new ArrayList<>();
     this.threadId = new ArrayList<>();
     this.total = new ThreadInfo(tid, tstamp, insCount, line, parent);
@@ -63,6 +63,20 @@ public class MethodInfo {
           this.className = this.className.substring(this.className.lastIndexOf(".") + 1);
         }
       }
+    }
+  }
+  
+  public class SolutionInfo {
+    public String  sol;             // solution
+    public String  type;            // constraint type for solution (PATH, ARRAY, LOOPBOUND)
+    public int     offset;          // byte offset in the method of the branch instruction
+    public boolean branchStatus;    // true if branch was taken in the executed path
+    
+    public SolutionInfo(String solution, String type, int offset, boolean path) {
+      this.sol = solution;
+      this.type = type;
+      this.offset= offset;
+      this.branchStatus = path;
     }
   }
   
@@ -109,8 +123,9 @@ public class MethodInfo {
     }
   }
   
-  public void newSolution(int offset) {
-    this.solutions++;
+  public void newSolution(int offset, String solution, String type, boolean path) {
+    SolutionInfo entry = new SolutionInfo(solution, type, offset, path);
+    this.solutions.add(entry);
   }
   
   public void repeatedCall(int tid, String parent, long tstamp, int insCount, int line) {
@@ -215,7 +230,11 @@ public class MethodInfo {
     return tinfo.parents;
   }
   
-  public int getSolutions() {
+  public int getSolutionCount() {
+    return solutions.size();
+  }
+
+  public ArrayList<SolutionInfo> getSolutions() {
     return solutions;
   }
 

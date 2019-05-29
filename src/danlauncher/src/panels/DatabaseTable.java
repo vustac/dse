@@ -403,7 +403,9 @@ public class DatabaseTable {
             if (offset >= 0) {
               methname = methname.substring(0, offset) + "." + methname.substring(offset + 1);
             }
-            LauncherMain.newSolutionReceived(methname, entry.iOpOffset);
+            
+            // if this is a normal PATH constraint solution, add it to the method info
+            LauncherMain.newSolutionReceived(methname, entry.iOpOffset, entry.solution, entry.ctype, entry.bPath);
           }
         }
       }
@@ -673,7 +675,7 @@ public class DatabaseTable {
         meth = classmeth.methName + classmeth.signature;
         String cls = classmeth.className;
 
-        int ret = LauncherMain.runBytecodeViewer(cls, meth);
+        int ret = LauncherMain.runBytecodeViewer(cls, meth, false);
         if (ret == 0) {
           LauncherMain.setBytecodeSelections(cls, meth);
           LauncherMain.highlightBranch(Integer.parseInt(line), branch.equals("true"));

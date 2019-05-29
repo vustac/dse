@@ -7,6 +7,8 @@ package panels;
 
 import gui.GuiControls;
 import callgraph.BaseGraph;
+import callgraph.CallGraph;
+import callgraph.MethodInfo;
 import main.LauncherMain;
 import util.Utils;
 
@@ -21,6 +23,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import javax.imageio.ImageIO;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
@@ -42,7 +45,6 @@ public class BytecodeGraph {
   private static ArrayList<FlowInfo> flowBlocks = new ArrayList<>();
   private static HashMap<Integer, FlowInfo> branchMap = new HashMap<>();
   private static ArrayList<Integer> branchMarks = new ArrayList<>();
-  private static boolean valid = false;
 
   
   public BytecodeGraph(String name, BytecodeViewer viewer) {
@@ -253,6 +255,47 @@ public class BytecodeGraph {
     updateGraph();
   }
   
+  /**
+   * displays a panel containing Call Graph information for the selected method.
+   * 
+   * @param selected - the method selection
+   */
+  private void displayMethodSolutionsPanel(String method, int offset) {
+    Utils.msgLogger(Utils.LogType.INFO, "display solutions for offset " + offset + " of " + method);
+    
+    // check if there are any solutions to this method
+    ArrayList<MethodInfo.SolutionInfo> allsols = CallGraph.getMethodSolutions(method);
+    if (allsols == null) {
+      Utils.msgLogger(Utils.LogType.INFO, "no solutions found");
+      return;
+    }
+
+    // now weed out only the PATH type that have the specified byte offset
+    ArrayList<MethodInfo.SolutionInfo> solutions = new ArrayList<>();
+    Integer byteoff = BytecodeViewer.byteOffsetToLineNumber(offset);
+    if (byteoff != null) {
+      for (MethodInfo.SolutionInfo entry : allsols) {
+        if (entry.offset == byteoff && entry.type.equals("PATH")) {
+          solutions.add(entry);
+        }
+      }
+    }
+    if (solutions.isEmpty()) {
+      Utils.msgLogger(Utils.LogType.INFO, "no solutions found");
+      return;
+    }
+    
+    // setup solution info text
+    String message = "";
+    for (MethodInfo.SolutionInfo entry : solutions) {
+      message += entry.sol + Utils.NEWLINE;
+    }
+
+    // put up an info dialog,with the solution
+    JOptionPane.showMessageDialog(null, message,
+        "Solution for branch at byte offset " + offset, JOptionPane.PLAIN_MESSAGE);
+  }
+  
   private class MouseListener extends MouseAdapter {
 
     @Override
@@ -263,16 +306,25 @@ public class BytecodeGraph {
       mxCell cell = (mxCell) handler.getGraphComponent().getCellAt(x, y);
       if (cell != null && cell.isVertex()) {
         FlowInfo selected = flowGraph.getSelectedNode();
-        if (selected.type == FlowType.Call) {
-          Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.bcode.callMeth);
-          String meth = classmeth.methName + classmeth.signature;
-          String cls = classmeth.className;
+        switch (selected.type) {
+          case Call:
+            // switch to the bytecode for the selected method
+            Utils.ClassMethodName classmeth = new Utils.ClassMethodName(selected.bcode.callMeth);
+            String meth = classmeth.methName + classmeth.signature;
+            String cls = classmeth.className;
 
-          // skip if the method is the one that's currently loaded
-          if (!bcViewer.isMethodDisplayed(cls, meth)) {
-            LauncherMain.runBytecodeViewer(cls, meth);
-            LauncherMain.setBytecodeSelections(cls, meth);
-          }
+            // skip if the method is the one that's currently loaded
+            if (!bcViewer.isMethodDisplayed(cls, meth)) {
+              LauncherMain.runBytecodeViewer(cls, meth, false);
+              LauncherMain.setBytecodeSelections(cls, meth);
+            }
+            break;
+          case SymBranch:
+            // display symbolic solution info for the branch
+            displayMethodSolutionsPanel(bcViewer.getMethodName(), selected.offset);
+            break;
+          default:
+            break;
         }
       }
     }
