@@ -840,13 +840,21 @@ public final class LauncherMain {
           // check on progress and take further action if necessary
           Utils.printStatusInfo("START - Kill Timer (2 sec)");
           killTimer.start();
+          return;
+        } else {
+          // give it a few secs to see if the thread closes
+          try {
+            Thread.sleep(2000);
+          } catch (InterruptedException ex) {
+            // ignore
+          }
         }
-      } else {
-        // else we can close the frame and exit
-        Utils.printStatusInfo("Closing Main Frame and exiting danlauncher");
-        mainFrame.close();
-        System.exit(0);
       }
+
+      // else we can close the frame and exit
+      Utils.printStatusInfo("Closing Main Frame and exiting danlauncher");
+      mainFrame.close();
+      System.exit(0);
     }
   }
 
@@ -924,21 +932,25 @@ public final class LauncherMain {
       String input = mainFrame.getTextField("TXT_INPUT").getText();
       switch (inputMode) {
         case STDIN:
+          Utils.printStatusInfo("ACTION - SEND to STDIN: " + input);
           threadLauncher.sendStdin(input);
           recorder.addDelay();
           recorder.addCommand(RecordID.SEND_STDIN, input);
           break;
         case HTTP_RAW:
+          Utils.printStatusInfo("ACTION - SEND to port " + port + ": " + input);
           sendHttpMessage("HTTP", port, input);
           recorder.addHttpDelay(port);
           recorder.addCommand(RecordID.SEND_HTTP_POST, input);
           break;
         case HTTP_GET:
+          Utils.printStatusInfo("ACTION - SEND to port " + port + ": GET request");
           sendHttpMessage("GET", port, input);
           recorder.addHttpDelay(port);
           recorder.addCommand(RecordID.SEND_HTTP_GET);
           break;
         case HTTP_POST:
+          Utils.printStatusInfo("ACTION - POST to port " + port + ": " + input);
           sendHttpMessage("POST", port, input);
           recorder.addHttpDelay(port);
           recorder.addCommand(RecordID.SEND_HTTP_POST, input);
@@ -1007,7 +1019,13 @@ public final class LauncherMain {
       // stop the running process
       Utils.printStatusInfo("ACTION - STOP APPLICATION");
       ThreadLauncher.ThreadInfo threadInfo = threadLauncher.stopAll();
-      if (threadInfo != null && threadInfo.pid > 0 && runMode == RunMode.RUNNING) {
+      if (threadInfo == null) {
+        Utils.msgLogger(Utils.LogType.WARNING, "ThreadLauncher returned null to stopAll");
+      } else if (threadInfo.pid <= 0) {
+        Utils.msgLogger(Utils.LogType.WARNING, "ThreadLauncher cannot find pid of thread");
+      } else if (runMode != RunMode.RUNNING) {
+        Utils.msgLogger(Utils.LogType.WARNING, "STOP ignored since run mode is: " + runMode.toString());
+      } else {
         Utils.printStatusInfo("STOP - CommandLauncher: Terminating job " + threadInfo.jobid + ": pid " + threadInfo.pid);
         String[] command = { "kill", "-15", threadInfo.pid.toString() }; // 15 = SIGTERM
         CommandLauncher commandLauncher = new CommandLauncher();

@@ -67,6 +67,7 @@ public class RunnerThread extends Thread {
      * kills the current process
      */
     public void killProcess() {
+      Utils.msgLogger(Utils.LogType.INFO, "RunnerThread: killing current process");
       this.killProcess = true;
       interrupt();
     }
@@ -115,8 +116,10 @@ public class RunnerThread extends Thread {
     private synchronized long getPidOfProcess(Process proc) {
       long procpid = -1;
 
-      if (proc == null || proc.getClass() == null)
+      if (proc == null || proc.getClass() == null) {
+        Utils.msgLogger(Utils.LogType.WARNING, "gitPidOfProcess: Process is not valid");
         return -1;
+      }
         
       try {
         String proctype = proc.getClass().getName();
@@ -183,7 +186,8 @@ public class RunnerThread extends Thread {
       String status;
       BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
       while (proc.isAlive()) {
-        while ((status = br.readLine()) != null) {
+        Utils.msgLogger(Utils.LogType.INFO, "RunnerThread: starting loop");
+        while ((status = br.readLine()) != null && !killProcess) {
           System.out.println(status);
         }
         if (killProcess) {

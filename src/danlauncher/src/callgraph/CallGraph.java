@@ -16,6 +16,7 @@ import com.mxgraph.model.mxCell;
 import com.mxgraph.swing.handler.mxGraphHandler;
 import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.view.mxGraph;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -136,9 +137,11 @@ public class CallGraph {
   }
   
   private static MethodInfo findMethodEntry(int tid, String method, List<MethodInfo> methlist) {
+    method = method.replaceAll("/", ".");
     for (int ix = 0; ix < methlist.size(); ix++) {
       MethodInfo entry = methlist.get(ix);
-      if (entry.getFullName().equals(method)) {
+      String tblmeth = entry.getFullName().replaceAll("/", ".");
+      if (tblmeth.equals(method)) {
         if (tid == ALL_THREADS || entry.getThread().contains(tid)) {
           return entry;
         }
@@ -342,6 +345,8 @@ public class CallGraph {
     if (entry != null) {
       Utils.printStatusInfo("CallGraph added solution to: " + method + " offset " + offset + ": " + solution);
       entry.newSolution(offset, solution, type, path);
+    } else {
+      Utils.msgLogger(Utils.LogType.WARNING, "addNewSolution: method not found: " + method);
     }
   }
   
@@ -457,8 +462,12 @@ public class CallGraph {
       message += "Solutions: <none>" + Utils.NEWLINE;
     } else {
       message += "Solutions:" + Utils.NEWLINE;
+      message += "    Type      OpIndex   Path      Solution" + Utils.NEWLINE;
       for (MethodInfo.SolutionInfo entry : solutions) {
-        message += "    (" + entry.type + ") " + entry.offset + ": " + entry.sol + Utils.NEWLINE;
+        String pad1 = "          ".substring(entry.type.length());
+        String pad2 = "          ".substring((entry.offset + "").length());
+        String pad3 = "          ".substring((entry.branchStatus + "").length());
+        message += "    " + entry.type + pad1 + entry.offset + pad2 + entry.branchStatus + pad3 + entry.sol + Utils.NEWLINE;
       }
       message += Utils.NEWLINE;
     }
@@ -564,6 +573,7 @@ public class CallGraph {
     // setup initial method info text
     String message = getSelectedMethodInfo(selected, ALL_THREADS);
     textPanel.setText(message);
+    textPanel.setFont(new Font("Courier New", Font.PLAIN, 12));
 
     methInfoPanel.display();
   }

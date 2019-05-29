@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.AbstractAction;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -76,7 +77,8 @@ public class DatabaseTable {
   private static boolean  bSortOrder;
   private static int      colSortSelection;
   private static int      rowSelection;
-  private static int      rowsDisplayed;
+  private static AtomicBoolean resetCount;
+  private static int      lastDisplayedCount;
   private static ArrayList<DatabaseInfo> dbList = new ArrayList<>();
 
   private static MongoClient                 mongoClient;
@@ -193,7 +195,8 @@ public class DatabaseTable {
     bSortOrder = false;
     rowSelection = -1;
     colSortSelection = 0;
-    rowsDisplayed = 0;
+    resetCount = new AtomicBoolean(false);
+    lastDisplayedCount = 0;
     
     dbTable.setModel(new DefaultTableModel(new Object [][]{ }, TABLE_COLUMNS) {
       Class[] types = new Class [] {
@@ -283,7 +286,7 @@ public class DatabaseTable {
   }
   
   public void resetDatabase() {
-    rowsDisplayed = 0;
+    resetCount.set(true);
   }
   
   public int getCurrentConnection() {
@@ -369,14 +372,12 @@ public class DatabaseTable {
     }
   }
 
-  private static boolean readDatabase() {
+  private static int readDatabase() {
     if (mongoFailure) {
-      return false;
+      return 0;
     }
     
-    boolean changed = false;
     int newEntries = 0;
-    int oldSize = dbList.size();
     try {
       // read data base for solutions to specified parameter that are solvable
       FindIterable<Document> iterdocs = collection.find() //(Bson) new BasicDBObject("solvable", true))
@@ -384,7 +385,7 @@ public class DatabaseTable {
 
       // save list of the unique id values from the current list
       ArrayList<String> dbCopy = new ArrayList<>();
-      for (int ix = 0; ix < oldSize; ix++) {
+      for (int ix = 0; ix < dbList.size(); ix++) {
         dbCopy.add(dbList.get(ix).id);
       }
       
@@ -404,7 +405,7 @@ public class DatabaseTable {
               methname = methname.substring(0, offset) + "." + methname.substring(offset + 1);
             }
             
-            // if this is a normal PATH constraint solution, add it to the method info
+            // add solution to the method info
             LauncherMain.newSolutionReceived(methname, entry.iOpOffset, entry.solution, entry.ctype, entry.bPath);
           }
         }
@@ -412,18 +413,17 @@ public class DatabaseTable {
     } catch (MongoTimeoutException ex) {
       Utils.printStatusError("Mongo Timeout - make sure mongodb is running.");
       mongoFailure = true;
-      return false;
+      return dbList.size();
     }
 
     // determine if database entries have changed
     int newSize = dbList.size();
-    if (newSize != oldSize || newEntries != 0) {
+    if (newSize != lastDisplayedCount || newEntries != 0) {
       Utils.printStatusInfo(newSize + " documents read from database: " + newEntries + " new, "
-          + (oldSize + newEntries - newSize) + " removed");
-      changed = true;
+          + (lastDisplayedCount + newEntries - newSize) + " removed");
     }
     
-    return changed;
+    return newSize;
   }
   
   private static String formatSolutionArrayToString(ArrayList<String> list) {
@@ -573,7 +573,7 @@ public class DatabaseTable {
    * @param columnSel - specifies the column on which to sort
    * @param descending - specifies either ascending (false) or descending (true) order.
    */
-  private synchronized void tableSortAndDisplay(int columnSel, boolean descending) {
+  private synchronized int tableSortAndDisplay(int columnSel, boolean descending) {
     // sort the table entries
     Collections.sort(dbList, new Comparator<DatabaseInfo>() {
       @Override
@@ -641,16 +641,15 @@ public class DatabaseTable {
     model.setColumnIdentifiers(columnNames);
         
     // now copy the entries to the displayed table
-    for (int ix = 0; ix < dbList.size(); ix++) {
+    int newsize = dbList.size();
+    for (int ix = 0; ix < newsize; ix++) {
       DatabaseInfo tableEntry = dbList.get(ix);
       model.addRow(makeRow(tableEntry));
     }
-
-    // update the number of rows displayed
-    rowsDisplayed = dbList.size();
     
     // auto-resize column width
     resizeColumnWidth(dbTable);
+    return newsize;
   }
     
   /**
@@ -725,11 +724,12 @@ public class DatabaseTable {
   @Override
     public void actionPerformed(ActionEvent e) {
       // request the database list and save as list entries
-      readDatabase();
+      int newsize = readDatabase();
 
-      // sort the table entries based on current selections
-      if (dbList.size() != rowsDisplayed) {
-        tableSortAndDisplay(colSortSelection, bSortOrder);
+      // sort the table entries based on current selections (only if size has changed)
+      boolean isReset = resetCount.getAndSet(false);
+      if (newsize != lastDisplayedCount || isReset) {
+        lastDisplayedCount = tableSortAndDisplay(colSortSelection, bSortOrder);
       }
 
       // count the solved equations

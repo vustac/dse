@@ -16,6 +16,7 @@ import com.mxgraph.model.mxCell;
 import com.mxgraph.swing.handler.mxGraphHandler;
 import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.view.mxGraph;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -187,7 +188,7 @@ public class ImportGraph {
   public void addPathEntry(String methcall, String parent) {
     ImportMethod node;
     
-    if (graphMethList != null) {
+    if (graphMethList != null && !graphMethList.isEmpty()) {
       // check if new method found
       node = findMethodEntry(methcall);
       if (node == null) {
@@ -424,10 +425,12 @@ public class ImportGraph {
    * @return 
    */
   private static ImportMethod findMethodEntry(String method) {
+    method = method.replaceAll("/", ".");
     if (method != null && !method.isEmpty()) {
       for (int ix = 0; ix < graphMethList.size(); ix++) {
         ImportMethod entry = graphMethList.get(ix);
-        if (entry.fullName.equals(method)) {
+        String tblmeth = entry.fullName.replaceAll("/", ".");
+        if (tblmeth.equals(method)) {
           return entry;
         }
       }
@@ -554,6 +557,7 @@ public class ImportGraph {
     // setup initial method info text
     String message = CallGraph.getSelectedMethodInfo(selected, -1);
     textPanel.setText(message);
+    textPanel.setFont(new Font("Courier New", Font.PLAIN, 12));
 
     methInfoPanel.display();
   }

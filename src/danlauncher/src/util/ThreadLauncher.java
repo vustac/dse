@@ -131,6 +131,8 @@ public class ThreadLauncher {
       Utils.msgLogger(LogType.INFO, "ThreadLauncher: stopping " + threadInfo.jobname);
       Utils.msgLogger(LogType.INFO, "Trying to kill RunnerThread: " + Arrays.deepToString(threadInfo.command));
       this.runner.killProcess();
+      Utils.msgLogger(LogType.INFO, "ThreadLauncher: issuing msg to process to break it from read");
+      sendStdin("Exit");
       this.commandQueue.clear();
       return threadInfo;
     }
