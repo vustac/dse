@@ -198,7 +198,7 @@ public class CallGraph {
       for (int ix = 0; ix < graphMethList.size(); ix++) {
         MethodInfo mthNode = graphMethList.get(ix);
         int colorR, colorG, colorB;
-        String color = "D2E9FF";  // default color is greay
+        String color = Utils.COLOR_DFLT_PANEL;  // default color is greay
         double ratio = 1.0;
         switch (gmode) {
           default :
@@ -206,15 +206,15 @@ public class CallGraph {
           case STATUS :
             // mark methods that have not exited
             if (mthNode.getInstructionCount(tid) < 0 || mthNode.getDuration(tid) < 0) {
-              color = "CCFFFF"; // cyan
+              color = Utils.COLOR_LT_CYAN;
             }
             ArrayList<String> list = mthNode.getExecption(tid);
             if (list != null && !list.isEmpty()) {
-              color = "FF6666"; // orange
+              color = Utils.COLOR_LT_PINK;
             }
             list = mthNode.getError(tid);
             if (list != null && !list.isEmpty()) {
-              color = "FFCCCC"; // pink
+              color = Utils.COLOR_MD_PINK;
             }
             break;
           case SOLUTION :
@@ -274,9 +274,9 @@ public class CallGraph {
             ArrayList<Integer> threadlist = mthNode.getThread();
             if (threadlist.contains(threadSel)) {
               if (threadlist.size() > 1) {
-                color = "FFCCCC"; // pink if shared with other threads
+                color = Utils.COLOR_LT_PINK; // shared with other threads
               } else {
-                color = "6666FF"; // medium blue
+                color = Utils.COLOR_LT_BLUE; // single thread only
               }
             }
             break;
@@ -284,7 +284,7 @@ public class CallGraph {
 
         // set minimum threshhold
         if (ratio < 0.2 ) {
-          color = "D2E9FF";
+          color = Utils.COLOR_DFLT_PANEL;
         }
 
         callGraph.colorVertex(mthNode, color);

@@ -14,10 +14,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.util.Date;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import main.LauncherMain;
@@ -30,6 +27,37 @@ public class Utils {
   
   public static final String NEWLINE = System.getProperty("line.separator");
 
+  // these are RGB color selections
+  public static final String COLOR_DFLT_PANEL  = "D2E9FF";
+  
+  public static final String COLOR_DK_PINK     = "FF6666";
+  public static final String COLOR_MD_PINK     = "FF8888";
+  public static final String COLOR_LT_PINK     = "FFCCCC";
+
+  public static final String COLOR_DK_BLUE     = "2277EE";
+  public static final String COLOR_MD_BLUE     = "2288FF";
+  public static final String COLOR_LT_BLUE     = "3399FF";
+
+  public static final String COLOR_DK_GREEN    = "33CC33";
+  public static final String COLOR_MD_GREEN    = "55DD55";
+  public static final String COLOR_LT_GREEN    = "AAFFAA";
+  
+  public static final String COLOR_DK_CYAN     = "00CCCC";
+  public static final String COLOR_MD_CYAN     = "22F6F6";
+  public static final String COLOR_LT_CYAN     = "88FFFF";
+
+  public static final String COLOR_DK_VIOLET   = "9966DD";
+  public static final String COLOR_MD_VIOLET   = "AA88EE";
+  public static final String COLOR_LT_VIOLET   = "BB99FF";
+  public static final String COLOR_BOLD_VIOLET = "CC00EE";
+  
+  public static final String COLOR_DK_YELLOW   = "EEEE00";
+  public static final String COLOR_LT_YELLOW   = "FFFF88";
+
+  public static final String COLOR_DK_GOLD     = "EEAA00";
+  public static final String COLOR_LT_GOLD     = "FFDD33";
+
+  
   public enum LogType { ERROR, WARNING, INFO }
   
   private static Logger LOGGER = null;

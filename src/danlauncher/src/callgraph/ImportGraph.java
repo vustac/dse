@@ -447,15 +447,15 @@ public class ImportGraph {
     if (mthNode != null) {
       // set the color selection of the method
       boolean oldpath = mthNode.original | mthNode.oldmeth;
-      String color = "D2E9FF"; // this is the default (GREY) color
+      String color = Utils.COLOR_DFLT_PANEL; // this is the default (GREY) color
       if (mthNode.newmeth) {
         if (oldpath) {
-          color = "FF6666"; // a new entry from a prev run is set to ORANGE
+          color = Utils.COLOR_LT_PINK; // a new entry from a prev run
         } else {
-          color = "FFCCCC"; // a new entry that was never encountered before is set to PINK
+          color = Utils.COLOR_MD_PINK; // a new entry that was never encountered before
         }
       } else if (mthNode.oldmeth) {
-        color = "6666FF";   // a prev run entry is set to BLUE
+        color = Utils.COLOR_LT_BLUE;   // a prev run entry
       }
       callGraph.colorVertex(mthNode, color);
     }

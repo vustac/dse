@@ -181,11 +181,11 @@ public class BytecodeGraph {
         }
         String colorStr = "";
         switch (color) {
-          case PINK:    colorStr = "FFCCCC";  break;
-          case CYAN:    colorStr = "00FFFF";  break;
-          case BLUE:    colorStr = "0077FF";  break;
-          case GOLD:    colorStr = "DDAA00";  break;
-          case VIOLET:  colorStr = "CC00EE";  break;
+          case PINK:    colorStr = Utils.COLOR_LT_PINK;   break;
+          case CYAN:    colorStr = Utils.COLOR_LT_CYAN;   break;
+          case BLUE:    colorStr = Utils.COLOR_LT_BLUE;   break;
+          case GOLD:    colorStr = Utils.COLOR_LT_GOLD;   break;
+          case VIOLET:  colorStr = Utils.COLOR_LT_VIOLET; break;
           default:
             break;
         }
