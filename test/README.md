@@ -1,16 +1,29 @@
-# SCRIPT USAGE
+# TEST
 
 This document describes the scripts for running the tests and describes how to generate a test.
 Each test can be generated and run using 'make_tests.sh' and 'run_tests.sh' scripts, specifying
 as the 'Name' the name of the source file for the test (these are defined in testlist.txt
 for each test).
 
+## SCRIPT USAGE
+
+### make_tests.sh
+
+**Description:**
+
+> This script will build the specified test file (from source code), and then generate an
+> instrumented version of it for running.
+
+**Command:**
+
 `make_tests.sh [options] [Name]`
 
-where [options] are:
+> where [options] are:
+> 
+> **-t | --test**  - don't actually build anything, dut display the commands used to build
+> **-r | --run**   - after building the test, run it (and verify results)
 
--t or --test  - don't actually build anything, dut display the commands used to build
--r or --run   - after building the test, run it (and verify results)
+**Notes:**
 
 This script will perform the following actions:
 
@@ -21,17 +34,17 @@ This script will perform the following actions:
 If the '-r' option is specified and a 'testcfg.json' file is defined, it will additionally:
 
 - generate a 'danfig' file containing the specified symbolic parameters
-- generate a 'check_results.sh' script file to verify the solution
+- generate a 'check\_results.sh' script file to verify the solution
 - run the instrumented jar file
 - read the dansolver solution from the mongo database
 - validate the solution based on the entries in 'testcfg.json'
     
-This will produce the following files (all contained in the results/TEST directory):
+This will produce the following files (all contained in the *results/TEST* directory):
 
 - testcfg.json     - the JSON config file (copied from the source location)
 - danfig           - the danalyzer configuration file to use when running the instrumented code
 - check_results.sh - contains the script for running the test results validation
-- test_script.sh   - same as check_results.sh but excludes the base_check.sh functions
+- test\_script.sh   - same as check\_results.sh but excludes the base\_check.sh functions
 - TEST.jar         - the original un-instrumented test application (with full debug enabled)
 - TEST-strip.jar   - the un-instrumented test application code stripped of debug info
 - TEST-dan-ed.jar  - the instrumented test application
@@ -40,19 +53,29 @@ This will produce the following files (all contained in the results/TEST directo
     
 If no test name is specified it will build and run all tests found in the edu subdirectory.
 
+### run_tests.sh
+
+**Description:**
+
+> This script will run and perform the verification on an instrumented test file.
+
+**Command:**
+
 `run_tests.sh [options] [Name]`
 
-where [options] are:
--t or --test   - don't run the test, dut display the commands that would be used to build it.
--v or --verify - after running the test, verify the results (if danfig & check_results.sh found)
+> where [options] are:
+> 
+> **-t | --test**   - don't run the test, dut display the commands that would be used to build it.
+> **-v | --verify** - after running the test, verify the results (if danfig & check_results.sh found)
 
-This script will build the instrumented jar file (only if it was not found) and will then run it.
+**Notes:**
+
 If the -v option is specified and both a danfig and check_results.sh file were found, it will
 then use the check_results.sh script to validate the dansolver solution found.
     
 If no test name is specified it will run all tests found in the results subdirectory.
 
-# CREATING A TESTCFG.JSON MANUALLY
+## CREATING A TESTCFG.JSON MANUALLY
 
 A test is created by defining a new entry in the edu/vanderbilt/isis directory structure in this
 tests directory. The first level of directories here define the category of test to run, which
@@ -125,7 +148,7 @@ These commands consist of a "command" and an array of *paramlist* items each con
       "**value**" : the expected value in the solution
       "**ctype**" : the type of constraint { *PATH, ARRAY, LOOPBOUND* }
     
-# CREATING A TESTCFG.JSON WITH DANLAUNCHER
+## CREATING A TESTCFG.JSON WITH DANLAUNCHER
 
 The danlauncher application can be used to automatically generate the 'testcfg.json' file quite
 easily. Run the following steps after creating the un-instrumented test using make_tests.sh

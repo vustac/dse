@@ -1,4 +1,6 @@
-# DSE Software
+# SRC
+
+## DSE Software Source Code
 
 This directory contains the source code for the following sub-projects of the DSE:
 
