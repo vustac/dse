@@ -41,6 +41,8 @@ script:
   - ant
   - cd ../dantestgen
   - ant
+  - cd ../bcextractor
+  - ant
   - cd ../
   - mkdir z3
   - cd z3

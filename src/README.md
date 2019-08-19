@@ -39,6 +39,11 @@ at runtime to speed-up certain operations.
 A Java program that runs as a daemon server process for receiving the symbolic constraints output
 through a TCP connection by *danalyzer* and generating solutions for them using the z3 solver.
 The results are then saved to a *MongoDB* database.
+   
+### bcextractor
+A Java program that runs as a daemon server process for receiving requests to extract bytecode
+source information from a specified jar file and placing the files in a specified directory.
+The server listens to port 6000 (not configurable).
 
 # DSE Tools
 
