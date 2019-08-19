@@ -155,7 +155,7 @@ public class ImportGraph {
     // reset the "new" markings in the methods in the graph to "old"
     if (callGraph != null && !graphMethList.isEmpty()) {
       for (ImportMethod entry : graphMethList) {
-        entry.oldmeth = entry.newmeth;
+        entry.oldmeth = entry.newmeth ? true : entry.oldmeth;
         entry.newmeth = false;
       }
     }
@@ -557,7 +557,7 @@ public class ImportGraph {
     // setup initial method info text
     String message = CallGraph.getSelectedMethodInfo(selected, -1);
     textPanel.setText(message);
-    textPanel.setFont(new Font("Courier New", Font.PLAIN, 12));
+    textPanel.setFont(new Font("Courier", Font.PLAIN, 12));
 
     methInfoPanel.display();
   }

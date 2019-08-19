@@ -3,40 +3,64 @@
 The following script (in the scripts directory) provides an easy process for
 instrumenting and running an application provided by the user:
 
-### startup.sh
+## startup.sh
+
+**Description:**
+
+> This script is used to setup the environment for the DSE so that applications can be
+> instrumented and run without a lot of effort.
+
+**Command:**
 
 `startup.sh [options]`
 
-where [options] are:
+> where [options] are:
+> 
+> **-i** | **--install** - perform an install of all necessary tools and libraries not currently installed.
+> 
+> **-b** | **--build**   - build all DSE components and startup mongodb and dansolver so that it is ready
+> for creating and running instrumented applications.
+> 
+> **-f** | **--force**   - force installation of all tools, even if already installed.
+> 
+> **-v** | **--version** - display the installed versions (no install or build will be performed).
+> 
+> **-h** | **--help**    - print this help message.
 
-**-v** or **--version** - display the installed versions (no install or build will be performed).
+**Notes:**
 
-**-i** or **--install** - perform an install of all necessary tools and libraries needed by the system.
-
-**-b** or **--build**   - stop dansolver (if running), build all DSE components, startup mongodb (if not running)
-and start dansolver to allow it to start receiving symbolic constraints to be solved from the instrumented code.
-
-**-f** or **--force** - force pulling in and building z3 even if already installed.
-
-**-h** or **--help**    - print this help message.
+It installs Open JDK 8 on Linux systems and whatever version brew defaults to
+(currently JDK 10) on Darwin (mac).
 
 If no options are specified, it will behave as if the **-b** option was selected.
 
-This script is used to setup the environment for the DSE so that applications can be instrumented and run without a lot of effort.
+## make.sh
 
-### make.sh
+**Description:**
+
+> This script is used to instrument an application jar file, and to run the instrumented file.
+> An *instrumented* file consists of the original jar file that has had all debug information
+> stripped out of it and then additional instructions inserted for each opcode in order to
+> maintain a *symbolic* stack that allows tracking constraints encountered during execution
+> on user-specified parameters in the application. These constraints are sent through a network
+> connection to the *solver* application that will attempt to find values for the parameters
+> that can lead to unexplored paths, maximizing a loop bound, or exceeding an array bounds.
+
+**Command:**
 
 `make.sh [options] <app.jar> [arglist]`
 
-where [options] are:
+> where [options] are:
+> 
+> **-t** | **--test**  - don't actually build anything, dut display the commands used to build
+> 
+> **-r** | **--run**   - after building the test, run it
+> 
+> **<app.jar>** = the name (and path) of the application jar file (path can be relative)
+> 
+> **[arglist]** = *(optional)* argument list to pass to application (if no testcfg.json file defined)
 
-**-t** or **--test**  - don't actually build anything, dut display the commands used to build
-
-**-r** or **--run**   - after building the test, run it
-
-**<app.jar>** = the name (and path) of the application jar file (path can be relative)
-
-**[arglist]** = *(optional)* argument list to pass to application (if no testcfg.json file defined)
+**Notes:**
 
 This script will perform the following actions:
 
@@ -81,5 +105,4 @@ to run:
   "**symboliclist**" : an array of symbolic parameters to define, each containing:
   "**commandlist**" : an array of commands to implement an automated test (see below)
 
-The content of these last 2 entries is defined in the *CREATING A TESTCFG.JSON MANUALLY* section of the
-README.md file in the *test* directory.
+The content of these last 2 entries is defined in the *CREATING A TESTCFG.JSON MANUALLY* section of https://github.com/vustac/dse/tree/master/test.

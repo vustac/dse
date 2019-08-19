@@ -1833,6 +1833,8 @@ public class Executor {
     Value local = currentStackFrame.getLocalVariable(index);
     boolean isLocalSymb = (local == null) ? false : local.isType(Value.SYM);
 
+    // this will set 'entry' to the entry in symbolicMap for the specified symbolic param,
+    // or NULL if param is not symbolic or it has already been initialized.
     UserSymbolic entry = null;
     String mtdName = currentStackFrame.getMethodName();
     ArrayList<UserSymbolic> methList = getSymbolicList(mtdName);
@@ -1854,6 +1856,9 @@ public class Executor {
         if (symValue != null) {
           value = symValue;
         }
+      } else {
+        // otherwise, local param is symbolic and has already been initialized. Use it.
+        value = local;
       }
     } else {
       // not symbolic, if it is reference type, add entry to concrete list
@@ -1891,6 +1896,8 @@ public class Executor {
     Value local = currentStackFrame.getLocalVariable(index);
     boolean isLocalSymb = (local == null) ? false : local.isType(Value.SYM);
 
+    // this will set 'entry' to the entry in symbolicMap for the specified symbolic param,
+    // or NULL if param is not symbolic or it has already been initialized.
     UserSymbolic entry = null;
     String mtdName = currentStackFrame.getMethodName();
     ArrayList<UserSymbolic> methList = getSymbolicList(mtdName);
@@ -1912,6 +1919,9 @@ public class Executor {
         if (symValue != null) {
           value = symValue;
         }
+      } else {
+        // otherwise, local param is symbolic and has already been initialized. Use it.
+        value = local;
       }
     }
 
@@ -1935,6 +1945,8 @@ public class Executor {
     Value local = currentStackFrame.getLocalVariable(index);
     boolean isLocalSymb = (local == null) ? false : local.isType(Value.SYM);
 
+    // this will set 'entry' to the entry in symbolicMap for the specified symbolic param,
+    // or NULL if param is not symbolic or it has already been initialized.
     UserSymbolic entry = null;
     String mtdName = currentStackFrame.getMethodName();
     ArrayList<UserSymbolic> methList = getSymbolicList(mtdName);
@@ -1956,6 +1968,9 @@ public class Executor {
         if (symValue != null) {
           value = symValue;
         }
+      } else {
+        // otherwise, local param is symbolic and has already been initialized. Use it.
+        value = local;
       }
     }
 
@@ -1979,6 +1994,8 @@ public class Executor {
     Value local = currentStackFrame.getLocalVariable(index);
     boolean isLocalSymb = (local == null) ? false : local.isType(Value.SYM);
 
+    // this will set 'entry' to the entry in symbolicMap for the specified symbolic param,
+    // or NULL if param is not symbolic or it has already been initialized.
     UserSymbolic entry = null;
     String mtdName = currentStackFrame.getMethodName();
     ArrayList<UserSymbolic> methList = getSymbolicList(mtdName);
@@ -2000,6 +2017,9 @@ public class Executor {
         if (symValue != null) {
           value = symValue;
         }
+      } else {
+        // otherwise, local param is symbolic and has already been initialized. Use it.
+        value = local;
       }
     }
 
@@ -2023,6 +2043,8 @@ public class Executor {
     Value local = currentStackFrame.getLocalVariable(index);
     boolean isLocalSymb = (local == null) ? false : local.isType(Value.SYM);
 
+    // this will set 'entry' to the entry in symbolicMap for the specified symbolic param,
+    // or NULL if param is not symbolic or it has already been initialized.
     UserSymbolic entry = null;
     String mtdName = currentStackFrame.getMethodName();
     ArrayList<UserSymbolic> methList = getSymbolicList(mtdName);
@@ -2044,6 +2066,9 @@ public class Executor {
         if (symValue != null) {
           value = symValue;
         }
+      } else {
+        // otherwise, local param is symbolic and has already been initialized. Use it.
+        value = local;
       }
     }
 

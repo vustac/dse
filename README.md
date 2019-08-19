@@ -30,3 +30,5 @@ The prerequisites for make.sh are:
 - *testcfg.json*, a JSON-formatted file defining certain elements of the application. More information
 is provided by the **README** file in its directory, but at a minimum this must define the Main Class
 of the application.
+
+This material is based on research sponsored by DARPA under agreement number FA8750-15-2-0087.

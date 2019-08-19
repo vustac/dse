@@ -651,7 +651,30 @@ public class DatabaseTable {
     resizeColumnWidth(dbTable);
     return newsize;
   }
-    
+
+  /**
+   * for the specified row selection in the displayed table, return the dbList entry.
+   * 
+   * Because the displayed data in dbTable may get re-ordered, the row index of it may not match
+   * that of the dbList. However, we have more info available in dbList that is not displayed in
+   * dbTable. So get the connection (Run) value and the count for the run, since these 2 are in
+   * both tables and should uniquely identify the entry.
+   * 
+   * @param row
+   * @return 
+   */
+  private DatabaseInfo getRowSelection(int row) {
+    String connect = (String)dbTable.getValueAt(row, getColumnIndex("Run"));
+    String index   = (String)dbTable.getValueAt(row, getColumnIndex("Count"));
+    for (DatabaseInfo entry : dbList) {
+      if (entry.connection.equals(connect) && entry.msgCount.equals(index)) {
+        return entry;
+      }
+    }
+    Utils.printStatusError("Could not find row " + row + " (run " + connect + ", count " + index + ") in dbList");
+    return null;
+  }
+  
   /**
    * action event when the mouse is clicked in the table.
    */
@@ -659,7 +682,10 @@ public class DatabaseTable {
     int row = dbTable.rowAtPoint(evt.getPoint());
     int col = dbTable.columnAtPoint(evt.getPoint());
     String colname = getColumnName(col);
-    DatabaseInfo info = dbList.get(row);
+    DatabaseInfo info = getRowSelection(row);
+    if (info == null) {
+      return;
+    }
 
     switch(colname) {
       case "Method":

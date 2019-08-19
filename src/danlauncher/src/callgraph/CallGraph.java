@@ -573,7 +573,7 @@ public class CallGraph {
     // setup initial method info text
     String message = getSelectedMethodInfo(selected, ALL_THREADS);
     textPanel.setText(message);
-    textPanel.setFont(new Font("Courier New", Font.PLAIN, 12));
+    textPanel.setFont(new Font("Courier", Font.PLAIN, 12));
 
     methInfoPanel.display();
   }
