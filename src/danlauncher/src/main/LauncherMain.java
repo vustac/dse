@@ -21,6 +21,7 @@ import callgraph.ImportGraph;
 import util.CommandLauncher;
 import util.ThreadLauncher;
 import util.Utils;
+import main.Recorder.RecordID;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -35,7 +36,6 @@ import java.awt.event.ItemListener;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,10 +49,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -74,8 +71,6 @@ import javax.swing.Timer;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import main.Recorder.RecordID;
-import org.apache.commons.io.FileUtils;
 
 /**
  *
@@ -88,9 +83,8 @@ public final class LauncherMain {
   
   // locations to store output files created in the project dir
   private static final String PROJ_CONFIG = ".danlauncher";
-  private static final String OUTPUT_FOLDER = "danlauncher/";
-  private static final String CLASSFILE_STORAGE = OUTPUT_FOLDER + "classes";
-  private static final String JAVAPFILE_STORAGE = OUTPUT_FOLDER + "javap";
+  private static final String OUTPUT_FOLDER = "danlauncher/"; // where debug log file placed in project
+  private static final String BYTECODE_LOCATION = "bcextractor/javap/";
 
   // location of this program
   private static final String HOMEPATH = System.getProperty("user.dir");
@@ -150,6 +144,7 @@ public final class LauncherMain {
   private static NetworkServer   netServer;
   private static NetworkListener networkListener;
   private static SolverInterface solverConnection;
+  private static BCExtractorInterface bcExtractor;
   private static Visitor         makeConnection;
   private static Logger          commandLogger;
   private static DebugParams     debugParams;
@@ -343,7 +338,7 @@ public final class LauncherMain {
     }
 
     // create an interface to send commands to the solver
-    solverConnection= new SolverInterface(solverPort);
+    solverConnection = new SolverInterface(solverPort);
     if (!solverConnection.isValid()) {
       Utils.printStatusError("solver port failure on " + solverPort +
           ". Make sure dansolver is running and verify port.");
@@ -351,6 +346,14 @@ public final class LauncherMain {
       Utils.printStatusMessage("Connected to Solver on port " + solverPort);
     }
     
+    //create an interface to send Byte Code extraction requests to
+    bcExtractor = new BCExtractorInterface();
+    if (!bcExtractor.isValid()) {
+      Utils.printStatusError("ByteCode Extractor port failure. Make sure bcextractor is running.");
+    } else {
+      Utils.printStatusMessage("Connected to ByteCode Extractor");
+    }
+            
     // init recorder
     recorder = new Recorder();
     
@@ -543,45 +546,51 @@ public final class LauncherMain {
   public static int runBytecodeViewer(String classSelect, String methodSelect, boolean flowtab) {
     Utils.printStatusInfo("Running Bytecode Viewer for class: " + classSelect + " method: " + methodSelect);
     
+    // if ytecode extractor not connected, try again
+    if (!bcExtractor.isValid()) {
+      bcExtractor.restart();
+      if (!bcExtractor.isValid()) {
+        Utils.printStatusError("ByteCode Extractor port failure. Make sure bcextractor is running.");
+        return -1;
+      } else {
+        Utils.printStatusMessage("Connected to ByteCode Extractor");
+      }
+    }
+    
     // check if bytecode for this method already displayed
     if (bytecodeViewer.isMethodDisplayed(classSelect, methodSelect)) {
       // just clear any highlighting
       bytecodeViewer.highlightClear();
       Utils.printStatusMessage("Bytecode already loaded");
     } else {
-      String content;
-      String fname = projectPathName + JAVAPFILE_STORAGE + "/" + classSelect + ".txt";
+      String fname = projectPathName + BYTECODE_LOCATION + classSelect + ".txt";
       File file = new File(fname);
       if (file.isFile()) {
-        // use the javap file already generated
         Utils.printStatusInfo("Using existing javap file: " + fname);
-        content = Utils.readTextFile(fname);
       } else {
-        // else, we need to generate bytecode source from jar using javap...
-        // can't allow running javap while instrumented code is running - the stdout of the
-        // run command will merge with the javap output and corrupt the bytecode source file.
-        if (runMode == RunMode.RUNNING) {
-          JOptionPane.showConfirmDialog(null,
-                  "Cannot run javap to generate bytecode data" + Utils.NEWLINE
-                      + "while running instrumented code.",
-                  "Instrumented code running",
-                  JOptionPane.DEFAULT_OPTION);
+        // file not found, we need to request extraction of the bytecode source and wait until complete...
+        bcExtractor.sendMessage("CLASS: " + classSelect);
+        bcExtractor.sendMessage("GET_BYTECODE");
+        // wait for file to be produced (up to 10 sec)
+        for (int loop = 0; loop < 100 && !file.isFile(); loop++) {
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException ex) {
+            break;
+          }
+        }
+        if (!file.isFile()) {
+          Utils.printStatusError("File not found: " + fname);
           return -1;
         }
-      
-        // need to run javap to generate the bytecode source
-        content = generateJavapFile(classSelect);
-        if (content == null) {
-          return -1;
-        }
-        Utils.saveTextFile(fname, content);
       }
 
+      // load file content into the Bytecode viewer
+      String content = Utils.readTextFile(fname);
+      runBytecodeParser(classSelect, methodSelect, content);
+        
       // clear out the local variable list
       localVarTbl.clear(classSelect + "." + methodSelect);
-
-      // if successful, load it in the Bytecode viewer
-      runBytecodeParser(classSelect, methodSelect, content);
     }
       
     // swich tab to show bytecode (even if we want to show byteflow)
@@ -2697,10 +2706,6 @@ public final class LauncherMain {
     Utils.printStatusInfo("ACTION - LOAD JAR FILE: " + file.getAbsolutePath());
     projectName = file.getName();
     projectPathName = file.getParentFile().getAbsolutePath() + "/";
-    File outPath = new File(projectPathName + OUTPUT_FOLDER);
-    if (!outPath.isDirectory()) {
-      outPath.mkdirs();
-    }
       
     // save location of project selection
     systemProps.setPropertiesItem(SystemProperties.SYS_PROJECT_PATH.toString(), projectPathName);
@@ -2758,16 +2763,16 @@ public final class LauncherMain {
     }
 
     // remove any existing class and javap files in the location of the jar file
-    if (clearClassFilesOnStartup) {
-      Utils.printStatusInfo("Removing existing class and javap output files");
-      try {
-        FileUtils.deleteDirectory(new File(projectPathName + CLASSFILE_STORAGE));
-        FileUtils.deleteDirectory(new File(projectPathName + JAVAPFILE_STORAGE));
-      } catch (IOException ex) {
-        Utils.printStatusError(ex.getMessage());
+    if (bcExtractor.isValid()) {
+      if (clearClassFilesOnStartup) {
+        Utils.printStatusInfo("Removing existing class and javap output files");
+        bcExtractor.sendMessage("CLEAR");
       }
-    }
       
+      // inform bytecode extractor of the jar file we will be working on
+      bcExtractor.sendMessage("JAR: " + projectPathName + projectName);
+    }
+
     // determine if jar file needs instrumenting
     if (projectName.endsWith("-dan-ed.jar")) {
       // file is already instrumented - use it as-is
@@ -2871,6 +2876,10 @@ public final class LauncherMain {
     Utils.printStatusInfo("ACTION - RUN JAR FILE: " + projectPathName + projectName);
 
     // setup access to the network listener thread
+    File outPath = new File(projectPathName + OUTPUT_FOLDER);
+    if (!outPath.isDirectory()) {
+      outPath.mkdirs();
+    }
     startDebugPort(projectPathName + OUTPUT_FOLDER + "debug.log");
     
     // clear out the debugger so we don't add onto existing call graph
@@ -2949,11 +2958,8 @@ public final class LauncherMain {
     threadLauncher.init(new ThreadTermination());
     threadLauncher.launch(fullcmd, projectPathName, "run_" + projectName, null);
     
-    // disable the Run and Get Bytecode buttons until the code has terminated
+    // disable the Run button and enable the Stop button until the code has terminated
     mainFrame.getButton("BTN_RUNTEST").setEnabled(false);
-    mainFrame.getButton("BTN_BYTECODE").setEnabled(false);
-    
-    // allow user to terminate the test
     mainFrame.getButton("BTN_STOPTEST").setEnabled(true);
 
     Utils.printStatusInfo("ACTION - RUN JAR FILE - COMPLETED");
@@ -3062,109 +3068,6 @@ public final class LauncherMain {
         connection.disconnect();
       }
     }
-  }
-  
-  private static String generateJavapFile(String classSelect) {
-    printStatusClear();
-
-    // add the suffix
-    classSelect = classSelect  + ".class";
-    Utils.printStatusInfo("ACTION - GENERATE JAVAP: " + classSelect);
-    
-    // first we have to extract the class file from the jar file
-    if (projectPathName == null || projectName == null) {
-      Utils.printStatusError("No project jar file hass been loaded.");
-      return null;
-    }
-    File jarfile = new File(projectPathName + projectName);
-    if (!jarfile.isFile()) {
-      Utils.printStatusError("The project jar file was not found: " + projectName);
-      return null;
-    }
-    try {
-      // extract the selected class file
-      int rc = extractClassFile(jarfile, classSelect);
-      if (rc != 0) {
-        return null;
-      }
-    } catch (IOException ex) {
-      Utils.printStatusError(ex.getMessage());
-      return null;
-    }
-
-    Utils.printStatusInfo("START - CommandLauncher: Generating javap file for: " + classSelect);
-    
-    // decompile the selected class file
-    String[] command = { "javap", "-p", "-c", "-s", "-l", CLASSFILE_STORAGE + "/" + classSelect };
-    // this creates a command launcher that runs on the current thread
-    CommandLauncher commandLauncher = new CommandLauncher();
-    int retcode = commandLauncher.start(command, projectPathName);
-    if (retcode != 0) {
-      Utils.printStatusError("ACTION - GENERATE JAVAP FAILED for: " + classSelect);
-      return null;
-    }
-
-    // success - save the output as a file
-    Utils.printStatusInfo("ACTION - GENERATE JAVAP - COMPLETED");
-    String content = commandLauncher.getResponse();
-    return content;
-  }
-
-  private static int extractClassFile(File jarfile, String className) throws IOException {
-    // get the path relative to the application directory
-    int offset;
-    String relpathname = "";
-    offset = className.lastIndexOf('/');
-    if (offset > 0)  {
-      relpathname = className.substring(0, offset + 1);
-      className = className.substring(offset + 1);
-    }
-    
-    Utils.printStatusInfo("ACTION - EXTRACT CLASS FILE: '" + className + "' from " + relpathname);
-    
-    // get the location of the jar file (where we will extract the class files to)
-    String jarpathname = jarfile.getAbsolutePath();
-    offset = jarpathname.lastIndexOf('/');
-    if (offset > 0) {
-      jarpathname = jarpathname.substring(0, offset + 1);
-    }
-    
-    JarFile jar = new JarFile(jarfile.getAbsoluteFile());
-    Enumeration enumEntries = jar.entries();
-
-    // look for specified class file in the jar
-    while (enumEntries.hasMoreElements()) {
-      JarEntry file = (JarEntry) enumEntries.nextElement();
-      String fullname = file.getName();
-
-      if (fullname.equals(relpathname + className)) {
-        String fullpath = jarpathname + CLASSFILE_STORAGE + "/" + relpathname;
-        File fout = new File(fullpath + className);
-        // skip if file already exists
-        if (fout.isFile()) {
-          Utils.printStatusMessage("File '" + className + "' already created");
-        } else {
-          // make sure to create the entire dir path needed
-          File relpath = new File(fullpath);
-          if (!relpath.isDirectory()) {
-            relpath.mkdirs();
-          }
-
-          // extract the file to its new location
-          InputStream istream = jar.getInputStream(file);
-          FileOutputStream fos = new FileOutputStream(fout);
-          while (istream.available() > 0) {
-            // write contents of 'istream' to 'fos'
-            fos.write(istream.read());
-          }
-        }
-        Utils.printStatusInfo("ACTION - EXTRACT CLASS FILE - COMPLETED");
-        return 0;
-      }
-    }
-    
-    Utils.printStatusError("The selected class '" + className + "' is not contained in the current project jar file");
-    return -1;
   }
   
   private static String initDanfigInfo() {
@@ -3360,10 +3263,9 @@ public final class LauncherMain {
         runMode = RunMode.IDLE;
       }
 
-      // disable stop key abd re-enable the Run and Get Bytecode buttons
+      // disable Stop button abd re-enable the Run button
       mainFrame.getButton("BTN_STOPTEST").setEnabled(false);
       mainFrame.getButton("BTN_RUNTEST").setEnabled(true);
-      mainFrame.getButton("BTN_BYTECODE").setEnabled(true);
 
       // this records that the application has terminated
       recorder.addCommand(RecordID.WAIT_FOR_TERM);

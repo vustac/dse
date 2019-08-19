@@ -209,6 +209,7 @@ function do_verify
 
   echo
   echo "Danalyzer Tools built:"
+  verify_jar "bcextractor"
   verify_jar "dansolver"
   verify_jar "danlauncher"
   verify_jar "dantestgen"
@@ -447,6 +448,13 @@ function do_build
   fi
   ant
   echo "------------------------------------------------------------"
+  echo "Building bcextractor..."
+  cd ${DSE_SRC_DIR}/bcextractor
+  if [ -d dist ]; then
+    rm -rf dist
+  fi
+  ant
+  echo "------------------------------------------------------------"
   echo "Building dandebug..."
   cd ${DSE_SRC_DIR}/dandebug
   if [ -d dist ]; then
@@ -489,6 +497,21 @@ function do_build
     echo "ERROR: dansolver not running !"
   else
     echo "dansolver running (in background) as process ${PID}"
+  fi
+  
+  echo "------------------------------------------------------------"
+  echo "Starting bcextractor"
+  cd ${DSE_SRC_DIR}/bcextractor
+  ant run &
+  sleep 2
+  get_pid bcextractor
+  if [[ "${PID}" == "" ]]; then
+    find_local_server_pid 6000
+  fi
+  if [[ "${PID}" == "" ]]; then
+    echo "ERROR: bcextractor not running !"
+  else
+    echo "bcextractor running (in background) as process ${PID}"
   fi
 }
 
