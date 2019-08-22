@@ -546,7 +546,7 @@ public final class LauncherMain {
   public static int runBytecodeViewer(String classSelect, String methodSelect, boolean flowtab) {
     Utils.printStatusInfo("Running Bytecode Viewer for class: " + classSelect + " method: " + methodSelect);
     
-    // if ytecode extractor not connected, try again
+    // if bytecode extractor not connected, try again
     if (!bcExtractor.isValid()) {
       bcExtractor.restart();
       if (!bcExtractor.isValid()) {
@@ -554,6 +554,8 @@ public final class LauncherMain {
         return -1;
       } else {
         Utils.printStatusMessage("Connected to ByteCode Extractor");
+        // since bcextractor was not running earlier, it never received the specified jar file
+        bcExtractor.sendMessage("JAR: " + projectPathName + projectName);
       }
     }
     
@@ -565,11 +567,14 @@ public final class LauncherMain {
     } else {
       String fname = projectPathName + BYTECODE_LOCATION + classSelect + ".txt";
       File file = new File(fname);
-      if (file.isFile()) {
-        Utils.printStatusInfo("Using existing javap file: " + fname);
-      } else {
+      // TODO: for now, always make a request to bcextractor because it will try to generate
+      // a method-specific file, which may be in the same class as the last method.
+//      if (file.isFile()) {
+//        Utils.printStatusInfo("Using existing javap file: " + fname);
+//      } else {
         // file not found, we need to request extraction of the bytecode source and wait until complete...
         bcExtractor.sendMessage("CLASS: " + classSelect);
+        bcExtractor.sendMessage("METHOD: " + methodSelect);
         bcExtractor.sendMessage("GET_BYTECODE");
         // wait for file to be produced (up to 10 sec)
         for (int loop = 0; loop < 100 && !file.isFile(); loop++) {
@@ -583,14 +588,14 @@ public final class LauncherMain {
           Utils.printStatusError("File not found: " + fname);
           return -1;
         }
-      }
+//      }
+        
+      // clear out the local variable list
+      localVarTbl.clear(classSelect + "." + methodSelect);
 
       // load file content into the Bytecode viewer
       String content = Utils.readTextFile(fname);
       runBytecodeParser(classSelect, methodSelect, content);
-        
-      // clear out the local variable list
-      localVarTbl.clear(classSelect + "." + methodSelect);
     }
       
     // swich tab to show bytecode (even if we want to show byteflow)

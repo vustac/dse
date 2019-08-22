@@ -101,22 +101,22 @@ public class Utils {
   }
   
   public static void printStatusInfo(String message) {
-    System.out.println(message);
+    //System.out.println(message);
     msgLogger(LogType.INFO, message);
   }
   
   public static void printStatusMessage(String message) {
-    System.out.println(message);
+    //System.out.println(message);
     msgLogger(LogType.INFO, message);
   }
   
   public static void printStatusWarning(String message) {
-    System.err.println(message);
+    //System.err.println(message);
     msgLogger(LogType.WARNING, message);
   }
   
   public static void printStatusError(String message) {
-    System.err.println(message);
+    //System.err.println(message);
     msgLogger(LogType.ERROR, message);
   }
   

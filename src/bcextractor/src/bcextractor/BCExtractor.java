@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -28,8 +29,10 @@ public class BCExtractor {
   private static final String   LOG_FOLDER = OUTPUT_FOLDER;              // log file storage
   private static final String   CLASS_FOLDER  = OUTPUT_FOLDER + "classes/"; // class file storage
   private static final String   JAVAP_FOLDER  = OUTPUT_FOLDER + "javap/";   // javap file storage
+  private static final String   BCINFO_FOLDER = OUTPUT_FOLDER + "bcinfo/";  // bytecode info file storage
   
   private static NetworkServer  netServer;
+  private static BCParser       bcParser;
   private static Visitor        makeConnection;
   private static File           jarFile;
   private static String         clientPort;
@@ -37,6 +40,7 @@ public class BCExtractor {
   private static String         projectPathName;
   private static String         className;
   private static String         methName;
+  private static ArrayList<String> classList = new ArrayList<>(); // list of all classes in jar
 
   // allow ServerThread to indicate on panel when a connection has been made for TCP
   public interface Visitor {
@@ -66,10 +70,15 @@ public class BCExtractor {
     parser.start();
   }
   
+  public static boolean isInstrumented(String className) {
+    return classList.contains(className);
+  }
+  
   private static class ParserThread extends Thread {
     
     ParserThread() {
       jarFile = null;
+      bcParser = new BCParser();
     }
     
     /**
@@ -96,6 +105,7 @@ public class BCExtractor {
       try {
         FileUtils.deleteDirectory(new File(projectPathName + CLASS_FOLDER));
         FileUtils.deleteDirectory(new File(projectPathName + JAVAP_FOLDER));
+        FileUtils.deleteDirectory(new File(projectPathName + BCINFO_FOLDER));
       } catch (IOException ex) {
         Utils.printStatusError(ex.getMessage());
       }
@@ -109,8 +119,25 @@ public class BCExtractor {
       // run javap to generate the bytecode source and save output in file
       String content = generateJavapFile(className  + ".class");
       if (content != null) {
+        // save the javap file
         String fname = projectPathName + JAVAP_FOLDER + className + ".txt";
         Utils.saveTextFile(fname, content);
+
+        // create folder for bytecode info file
+        File outPath = new File(projectPathName + BCINFO_FOLDER + className);
+        if (!outPath.isDirectory()) {
+          outPath.mkdirs();
+        }
+        
+        // now extract bytecode info
+        fname = methName.replaceAll("/", ".");
+        fname = fname.replace("(", "_");
+        int end = fname.indexOf(")");
+        if (end > 0) {
+          fname = fname.substring(0, end);
+        }
+        fname = projectPathName + BCINFO_FOLDER + className + "/" + fname + ".json";
+        bcParser.parseJavap(className, methName, content, fname);
       }
       return 1;
     }
@@ -150,6 +177,10 @@ public class BCExtractor {
           if (!outPath.isDirectory()) {
             outPath.mkdirs();
           }
+          outPath = new File(projectPathName + BCINFO_FOLDER);
+          if (!outPath.isDirectory()) {
+            outPath.mkdirs();
+          }
     
           // setup the message logger file
           String logpathname = projectPathName + LOG_FOLDER;
@@ -163,6 +194,28 @@ public class BCExtractor {
           Utils.msgLoggerInit(logfile, "message logger started for BCExtractor");
           Utils.msgLogger(Utils.LogType.INFO, "processing jar file: " + projectName);
           Utils.msgLogger(Utils.LogType.INFO, "projectPathName: " + projectPathName);
+          
+          // keep a list of all classes found
+          int count = 0;
+          classList.clear();
+          try {
+            JarFile jar = new JarFile(jarFile.getAbsoluteFile());
+            Enumeration enumEntries = jar.entries();
+            while (enumEntries.hasMoreElements()) {
+              JarEntry file = (JarEntry) enumEntries.nextElement();
+              String fullname = file.getName();
+              int ix = fullname.indexOf(".class");
+              if (ix > 0) {
+                fullname = fullname.substring(0, ix);
+                classList.add(fullname);
+                Utils.msgLogger(Utils.LogType.INFO, "  Class: " + fullname);
+                count++;
+              }
+            }
+            Utils.msgLogger(Utils.LogType.INFO, count + " classes found");
+          } catch (IOException ex) {
+            Utils.msgLogger(Utils.LogType.ERROR, ex.getMessage());
+          }
           break;
         default:
           Utils.msgLogger(Utils.LogType.ERROR, "parseInput: Invalid key received: " + key);
