@@ -1,0 +1,6 @@
+bin/**
+build/**
+dist/**
+nbproject/private/**
+.bcextractor/**
+*.log
